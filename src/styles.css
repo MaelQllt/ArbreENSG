@@ -656,26 +656,41 @@ button {
 
   .legend {
     width: 100%;
-    max-height: min(44dvh, 280px);
-    padding: 0.65rem 0.75rem 0.75rem;
-    overflow: auto;
+    max-height: none;
+    padding: 0.55rem 0.7rem 0.65rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    touch-action: pan-x;
+    -webkit-overflow-scrolling: touch;
   }
 
   .legend__header {
     gap: 0.75rem;
-    margin-bottom: 0.55rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .legend__title {
+    font-size: 0.9rem;
+  }
+
+  .legend__toggle {
+    font-size: 0.75rem;
   }
 
   .legend__list {
-    grid-auto-flow: row;
-    grid-template-rows: none;
-    grid-template-columns: 1fr;
-    gap: 0.35rem;
+    grid-auto-flow: column;
+    grid-template-rows: auto;
+    grid-template-columns: none;
+    grid-auto-columns: max-content;
+    width: max-content;
+    gap: 0.35rem 1rem;
   }
 
   .legend__item {
     gap: 0.35rem;
-    font-size: 0.72rem;
+    font-size: 0.7rem;
   }
 
   .legend__item .brand-divider {

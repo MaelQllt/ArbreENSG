@@ -42,7 +42,10 @@ export default function Legend({ promos, visible, onToggle }) {
     const panel = panelRef.current;
     if (!mounted || !panel) return undefined;
 
-    const updateHeight = () => setPanelHeight(panel.getBoundingClientRect().height);
+    // offsetHeight reports the layout size, without the scale used by the
+    // opening/closing animation. getBoundingClientRect() can read the shrunken
+    // size during a quick reopen and leave the disclosure stuck too short.
+    const updateHeight = () => setPanelHeight(panel.offsetHeight);
     updateHeight();
     const observer = new ResizeObserver(updateHeight);
     observer.observe(panel);
