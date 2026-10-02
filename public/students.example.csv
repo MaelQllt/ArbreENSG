@@ -1,0 +1,6 @@
+prenom,nom,promo,code,filiere,parrains,bio
+Camille,Martin,2020,ING,,,Étudiante curieuse de cartographie
+Louise,Robert,2021,ING,,Camille Martin,
+Sami,Benali,2022,ING,,Camille Martin; Louise Robert,Passionné de données géographiques
+Maya,Durand,2023,ING,Carthagéo,Louise Robert; Sami Benali,
+Noé,Petit,2024,ING,Data,Maya Durand,
