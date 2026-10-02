@@ -658,12 +658,8 @@ button {
     width: 100%;
     max-height: none;
     padding: 0.55rem 0.7rem 0.65rem;
-    overflow-x: auto;
-    overflow-y: hidden;
-    overscroll-behavior-x: contain;
-    scrollbar-width: thin;
-    touch-action: pan-x;
-    -webkit-overflow-scrolling: touch;
+    min-width: 0;
+    overflow: hidden;
   }
 
   .legend__header {
@@ -681,11 +677,19 @@ button {
 
   .legend__list {
     grid-auto-flow: column;
-    grid-template-rows: auto;
+    grid-template-rows: repeat(2, auto);
     grid-template-columns: none;
     grid-auto-columns: max-content;
-    width: max-content;
+    width: 100%;
+    min-width: 0;
+    max-height: 3.2rem;
     gap: 0.35rem 1rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    touch-action: pan-x;
+    -webkit-overflow-scrolling: touch;
   }
 
   .legend__item {
@@ -1018,8 +1022,9 @@ button {
     top: auto;
     left: 0;
     width: auto;
-    height: min(60vh, 560px);
-    max-height: calc(100dvh - 140px);
+    height: min(48vh, 420px);
+    max-height: calc(100dvh - 180px);
+    padding: 0.8rem 1rem 1rem;
     border-top: 8px solid var(--promo-color);
     box-shadow: 0 -8px 0 var(--violet);
     transform: translateY(calc(100% + 16px));
@@ -1031,5 +1036,56 @@ button {
 
   .app--card-open .dock {
     display: none;
+  }
+
+  .card__name {
+    margin-top: 0.65rem;
+    font-size: 1.55rem;
+  }
+
+  .card__stats {
+    margin-top: 0.8rem;
+  }
+
+  .card__stats div {
+    padding: 0.45rem 0.55rem;
+  }
+
+  .card__stats dt {
+    font-size: 0.7rem;
+  }
+
+  .card__stats dd {
+    font-size: 1.7rem;
+  }
+
+  .card__families {
+    display: flex;
+    gap: 0.7rem;
+    margin: 0.65rem -0.15rem 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+    touch-action: pan-x;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .card__families > .card__section {
+    flex: 0 0 calc(100% - 1rem);
+    min-width: 0;
+    margin-top: 0;
+    scroll-snap-align: start;
+  }
+
+  .card__section-title {
+    margin-bottom: 0.35rem;
+    font-size: 0.95rem;
+  }
+
+  .card__list {
+    max-height: 105px;
+    overflow-y: auto;
   }
 }

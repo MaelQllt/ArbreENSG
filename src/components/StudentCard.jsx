@@ -96,8 +96,10 @@ export default function StudentCard({ student, parrains, fillots, lineage, onSel
         </div>
       </dl>
 
-      <RelationList title="Parrains et marraines" people={data.parrains} onSelect={onSelect} />
-      <RelationList title="Fillots et fillottes" people={data.fillots} onSelect={onSelect} />
+      <div className="card__families" aria-label="Familles de l’étudiant">
+        <RelationList title="Parrains et marraines" people={data.parrains} onSelect={onSelect} />
+        <RelationList title="Fillots et fillottes" people={data.fillots} onSelect={onSelect} />
+      </div>
     </aside>
   );
 }
