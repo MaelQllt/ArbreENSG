@@ -133,16 +133,29 @@ button {
   color: var(--sand);
 }
 
-/* ========== Bas gauche : Vue globale, puis légende ========== */
-.dock {
+/* ========== Commandes du graphe : alignement partagé en bas ========== */
+.controls {
   position: absolute;
-  left: 24px;
+  z-index: 12;
+  right: 24px;
   bottom: 24px;
+  left: 24px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.dock {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 12px;
-  max-width: calc(100vw - 48px);
+  max-width: calc(100% - 100px);
+  min-width: 0;
+  pointer-events: auto;
 }
 
 .legend-disclosure {
@@ -277,10 +290,9 @@ button {
 
 /* ========== Accès et gestion superadmin ========== */
 .admin-access {
-  position: fixed;
-  z-index: 12;
-  right: 24px;
-  bottom: 24px;
+  position: relative;
+  flex: none;
+  pointer-events: auto;
 }
 
 .admin-access__button {
@@ -295,6 +307,7 @@ button {
   place-items: center;
   padding: 24px;
   background: rgba(19, 22, 64, 0.82);
+  pointer-events: auto;
 }
 
 .admin-panel {
@@ -616,17 +629,69 @@ button {
 }
 
 @media (max-width: 600px) {
-  .admin-access {
-    right: 16px;
-    bottom: 16px;
+  .controls {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: max(12px, env(safe-area-inset-left));
+    gap: 8px;
+  }
+
+  .dock {
+    max-width: calc(100% - 88px);
+    gap: 8px;
+  }
+
+  .dock > .btn,
+  .legend-disclosure__standalone,
+  .admin-access__button {
+    min-height: 44px;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+
+  .legend-disclosure {
+    width: 100%;
+  }
+
+  .legend {
+    width: 100%;
+    max-height: min(44dvh, 280px);
+    padding: 0.65rem 0.75rem 0.75rem;
+    overflow: auto;
+  }
+
+  .legend__header {
+    gap: 0.75rem;
+    margin-bottom: 0.55rem;
+  }
+
+  .legend__list {
+    grid-auto-flow: row;
+    grid-template-rows: none;
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+  }
+
+  .legend__item {
+    gap: 0.35rem;
+    font-size: 0.72rem;
+  }
+
+  .legend__item .brand-divider {
+    width: 13px;
+  }
+
+  .admin-access__button {
+    min-width: 70px;
   }
 
   .admin-scrim {
-    padding: 12px;
+    padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
   }
 
   .admin-panel {
-    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
     padding: 1rem;
   }
 
@@ -918,11 +983,28 @@ button {
 
 /* ========== Mobile : la fiche devient un volet bas qui monte ========== */
 @media (max-width: 720px) {
+  .app {
+    height: 100dvh;
+  }
+
+  .masthead {
+    top: max(12px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+    left: max(12px, env(safe-area-inset-left));
+  }
+
+  .masthead__hint {
+    max-width: 38ch;
+    white-space: normal;
+    line-height: 1.35;
+  }
+
   .card {
     top: auto;
     left: 0;
     width: auto;
-    height: 50%;
+    height: min(60vh, 560px);
+    max-height: calc(100dvh - 140px);
     border-top: 8px solid var(--promo-color);
     box-shadow: 0 -8px 0 var(--violet);
     transform: translateY(calc(100% + 16px));
@@ -933,11 +1015,6 @@ button {
   }
 
   .app--card-open .dock {
-    display: none;
-  }
-
-  .legend__detail,
-  .legend__item .brand-divider {
     display: none;
   }
 }

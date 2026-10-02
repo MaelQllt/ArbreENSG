@@ -65,32 +65,44 @@ export default function App() {
         </p>
       </header>
 
-      <div className="dock">
-        {warnings.length > 0 && (
-          <div className="notice">
-            <button type="button" className="notice__toggle" onClick={() => setShowWarnings((v) => !v)}>
-              {warnings.length} point(s) à vérifier dans les données {showWarnings ? '(masquer)' : '(voir)'}
-            </button>
-            {showWarnings && (
-              <ul className="notice__list">
-                {warnings.map((w, i) => (
-                  <li key={i}>{w}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-        <button
-          type="button"
-          className="btn btn--ghost"
-          onClick={() => {
+      <div className="controls">
+        <div className="dock">
+          {warnings.length > 0 && (
+            <div className="notice">
+              <button type="button" className="notice__toggle" onClick={() => setShowWarnings((v) => !v)}>
+                {warnings.length} point(s) à vérifier dans les données {showWarnings ? '(masquer)' : '(voir)'}
+              </button>
+              {showWarnings && (
+                <ul className="notice__list">
+                  {warnings.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={() => {
+              setSelectedId(null);
+              setResetTick((t) => t + 1);
+            }}
+          >
+            Vue globale
+          </button>
+          <Legend promos={promos} visible={showLegend} onToggle={() => setShowLegend((v) => !v)} />
+        </div>
+
+        <AdminPanel
+          data={loaded.data}
+          initialSelectedId={selectedId}
+          onSaved={(data, warnings) => {
+            setLoaded((current) => ({ ...current, data, warnings, source: 'shared' }));
             setSelectedId(null);
-            setResetTick((t) => t + 1);
+            setResetTick((tick) => tick + 1);
           }}
-        >
-          Vue globale
-        </button>
-        <Legend promos={promos} visible={showLegend} onToggle={() => setShowLegend((v) => !v)} />
+        />
       </div>
 
       <StudentCard
@@ -102,15 +114,6 @@ export default function App() {
         onClose={() => setSelectedId(null)}
       />
 
-      <AdminPanel
-        data={loaded.data}
-        initialSelectedId={selectedId}
-        onSaved={(data, warnings) => {
-          setLoaded((current) => ({ ...current, data, warnings, source: 'shared' }));
-          setSelectedId(null);
-          setResetTick((tick) => tick + 1);
-        }}
-      />
     </div>
   );
 }
