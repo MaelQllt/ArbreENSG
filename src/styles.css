@@ -241,12 +241,29 @@ button {
 
 .student-search__promo .brand-divider {
   width: 14px;
+  color: inherit;
+  transition: color 0.15s;
 }
 
 .student-search__empty {
   padding: 0.65rem;
   font-size: 0.88rem;
   opacity: 0.75;
+}
+
+@media (min-width: 721px) {
+  .student-search {
+    position: fixed;
+    top: 24px;
+    right: 28px;
+    width: min(360px, calc(100vw - 56px));
+    margin: 0;
+  }
+
+  .app--card-open .student-search {
+    right: calc(var(--panel-width) + 24px);
+    width: min(360px, calc(100vw - var(--panel-width) - 56px));
+  }
 }
 
 /* ========== Commandes du graphe : alignement partagé en bas ========== */

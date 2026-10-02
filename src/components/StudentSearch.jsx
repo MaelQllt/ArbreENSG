@@ -16,7 +16,7 @@ function SearchOption({ student }) {
     <>
       <span className="student-search__name">{student.name}</span>
       <span className="student-search__promo" style={{ color }}>
-        {codeYear && <>{codeYear}<BrandDivider /></>}
+        {codeYear && <>{codeYear}{(student.filiere ?? student.parcours) && <BrandDivider />}</>}
         {student.filiere ?? student.parcours ?? ''}
       </span>
     </>
@@ -110,6 +110,7 @@ export default function StudentSearch({ students, onSelect }) {
                 role="option"
                 aria-selected={index === activeIndex}
                 className={`student-search__option${index === activeIndex ? ' is-active' : ''}`}
+                onMouseEnter={() => setActiveIndex(index)}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => choose(student)}
               >
