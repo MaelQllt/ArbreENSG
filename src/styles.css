@@ -133,6 +133,122 @@ button {
   color: var(--sand);
 }
 
+.student-search {
+  position: relative;
+  z-index: 14;
+  width: min(360px, calc(100vw - 56px));
+  margin-top: 0.75rem;
+  pointer-events: auto;
+}
+
+.student-search__field {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 44px;
+  padding: 0 0.7rem;
+  border: 2px solid var(--sand);
+  background: var(--blue);
+  box-shadow: 4px 4px 0 var(--violet);
+}
+
+.student-search__icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--sand);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.student-search__field input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.55rem 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--paper);
+  font: inherit;
+}
+
+.student-search__field input::placeholder {
+  color: var(--sand);
+  opacity: 0.8;
+}
+
+.student-search__field input::-webkit-search-cancel-button {
+  filter: brightness(0) invert(1);
+}
+
+.student-search__results {
+  position: absolute;
+  z-index: 1;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  max-height: min(320px, 48vh);
+  margin: 0;
+  padding: 0.25rem;
+  overflow-y: auto;
+  border: 2px solid var(--sand);
+  background: var(--paper);
+  box-shadow: 4px 4px 0 var(--violet);
+  color: var(--violet);
+  list-style: none;
+}
+
+.student-search__option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  padding: 0.55rem 0.6rem;
+  border: 0;
+  background: transparent;
+  color: var(--violet);
+  text-align: left;
+}
+
+.student-search__option:hover,
+.student-search__option.is-active {
+  background: var(--sand);
+  color: var(--blue);
+}
+
+.student-search__name {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.student-search__promo {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.student-search__option:hover .student-search__promo,
+.student-search__option.is-active .student-search__promo {
+  color: var(--blue) !important;
+}
+
+.student-search__promo .brand-divider {
+  width: 14px;
+}
+
+.student-search__empty {
+  padding: 0.65rem;
+  font-size: 0.88rem;
+  opacity: 0.75;
+}
+
 /* ========== Commandes du graphe : alignement partagé en bas ========== */
 .controls {
   position: absolute;
@@ -1026,6 +1142,15 @@ button {
     max-width: 38ch;
     white-space: normal;
     line-height: 1.35;
+  }
+
+  .student-search {
+    width: min(360px, calc(100vw - 84px));
+    margin-top: 0.6rem;
+  }
+
+  .student-search__field {
+    min-height: 40px;
   }
 
   .card {

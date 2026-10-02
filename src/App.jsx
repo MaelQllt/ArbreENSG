@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import GraphView from './components/GraphView';
 import Legend from './components/Legend';
 import StudentCard from './components/StudentCard';
+import StudentSearch from './components/StudentSearch';
 import AdminPanel from './components/AdminPanel';
 import { loadData } from './lib/loadData';
 import { getLineage, prepareGraph } from './lib/lineage';
@@ -71,6 +72,7 @@ export default function App() {
             ? "Données d'exemple : ajoutez public/students.csv pour afficher vos étudiants."
             : 'Cliquez sur un étudiant pour révéler sa lignée.'}
         </p>
+        <StudentSearch students={loaded.data.nodes} onSelect={setSelectedId} />
       </header>
 
       <div className="controls">
