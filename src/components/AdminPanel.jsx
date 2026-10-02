@@ -178,8 +178,16 @@ function StudentSelect({ id, label, students, value, onChange, disabled = false,
   );
 }
 
-export default function AdminPanel({ data, initialSelectedId, onSaved }) {
+export default function AdminPanel({
+  data,
+  initialSelectedId,
+  quickAddRequest,
+  onQuickAddHandled,
+  onAdminStatus,
+  onSaved,
+}) {
   const workbookInputRef = useRef(null);
+  const handledQuickAddRef = useRef(null);
   const previousPromoYearRef = useRef(getCurrentPromoYear(new Date()));
   const [session, setSession] = useState(null);
   const [restoring, setRestoring] = useState(true);
@@ -239,12 +247,34 @@ export default function AdminPanel({ data, initialSelectedId, onSaved }) {
   }, []);
 
   useEffect(() => {
+    onAdminStatus?.(!restoring && Boolean(session));
+  }, [onAdminStatus, restoring, session]);
+
+  useEffect(() => {
     if (initialSelectedId && data.nodes.some((node) => node.id === initialSelectedId)) {
       setAnchorId(initialSelectedId);
     } else {
       setAnchorId((currentId) => (data.nodes.some((node) => node.id === currentId) ? currentId : data.nodes[0]?.id ?? ''));
     }
   }, [initialSelectedId, data]);
+
+  useEffect(() => {
+    if (!quickAddRequest || handledQuickAddRef.current === quickAddRequest.id || restoring) return;
+    handledQuickAddRef.current = quickAddRequest.id;
+    const anchorExists = data.nodes.some((node) => node.id === quickAddRequest.anchorId);
+    const relatedExists = data.nodes.some((node) => node.id === quickAddRequest.relatedId);
+    if (session && anchorExists && relatedExists && quickAddRequest.anchorId !== quickAddRequest.relatedId) {
+      setError('');
+      setMessage('');
+      setAnchorId(quickAddRequest.anchorId);
+      setRelationAction('add');
+      setRelationType('parrain');
+      setPersonType('existing');
+      setExistingId(quickAddRequest.relatedId);
+      setDialog('admin');
+    }
+    onQuickAddHandled?.(quickAddRequest.id);
+  }, [quickAddRequest, restoring, session, data.nodes, onQuickAddHandled]);
 
   const students = useMemo(
     () => [...data.nodes].sort((a, b) => a.name.localeCompare(b.name, 'fr')),

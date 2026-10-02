@@ -61,7 +61,7 @@ function drawSelection(ctx, node, shape, color, r) {
   ctx.stroke();
 }
 
-export default function GraphView({ graphData, selectedId, lineage, onSelect, resetTick }) {
+export default function GraphView({ graphData, selectedId, lineage, onSelect, isAdmin, onQuickAdd, resetTick }) {
   const containerRef = useRef(null);
   const fgRef = useRef(null);
   const hasFitted = useRef(false);
@@ -293,7 +293,13 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, re
           linkDirectionalParticles={(l) => (inLineage(l) ? 2 : 0)}
           linkDirectionalParticleWidth={2.5}
           linkDirectionalParticleColor={() => COLORS.sand}
-          onNodeClick={(node) => onSelect(node.id)}
+          onNodeClick={(node, event) => {
+            if (isAdmin && event?.shiftKey && selectedId && node.id !== selectedId) {
+              onQuickAdd(selectedId, node.id);
+              return;
+            }
+            onSelect(node.id);
+          }}
           onNodeHover={(node) => {
             hoveredId.current = node ? node.id : null;
           }}

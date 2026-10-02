@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import GraphView from './components/GraphView';
 import Legend from './components/Legend';
 import StudentCard from './components/StudentCard';
@@ -9,9 +9,12 @@ import { getLineage, prepareGraph } from './lib/lineage';
 export default function App() {
   const [loaded, setLoaded] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [quickAddRequest, setQuickAddRequest] = useState(null);
   const [showLegend, setShowLegend] = useState(true);
   const [showWarnings, setShowWarnings] = useState(false);
   const [resetTick, setResetTick] = useState(0);
+  const quickAddSequence = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,6 +53,11 @@ export default function App() {
         selectedId={selectedId}
         lineage={lineage}
         onSelect={setSelectedId}
+        isAdmin={isAdmin}
+        onQuickAdd={(anchorId, relatedId) => {
+          quickAddSequence.current += 1;
+          setQuickAddRequest({ id: quickAddSequence.current, anchorId, relatedId });
+        }}
         resetTick={resetTick}
       />
 
@@ -97,6 +105,11 @@ export default function App() {
         <AdminPanel
           data={loaded.data}
           initialSelectedId={selectedId}
+          quickAddRequest={quickAddRequest}
+          onQuickAddHandled={(requestId) => {
+            setQuickAddRequest((request) => request?.id === requestId ? null : request);
+          }}
+          onAdminStatus={setIsAdmin}
           onSaved={(data, warnings) => {
             setLoaded((current) => ({ ...current, data, warnings, source: 'shared' }));
             setSelectedId(null);
