@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import BrandDivider from './components/BrandDivider';
 import ShapeSwatch from './components/ShapeSwatch';
 import TopoBackground from './components/TopoBackground';
@@ -179,10 +179,11 @@ function getChallenge(pairs, mode, practiceSeed, round, byId) {
 const normalizeName = (value) =>
   value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr').trim();
 
-function GameGraph({ graph, nodes, startId, endId, shortestIds, possibleIds, ariaLabel = 'Graphe des personnes trouvées' }) {
+function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys, possibleIds, ariaLabel = 'Graphe des personnes trouvées' }) {
   const canvasRef = useRef(null);
   const nodeRefs = useRef(new Map());
   const [layout, setLayout] = useState({ width: 0, height: 0, lines: [] });
+  const markerId = useId().replace(/:/g, '');
 
   const visibleIds = useMemo(() => new Set(nodes.map((node) => node.id)), [nodes]);
   const groups = useMemo(() => {
@@ -191,10 +192,52 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, possibleIds, ari
       if (!byPromo.has(node.promo)) byPromo.set(node.promo, []);
       byPromo.get(node.promo).push(node);
     });
-    return [...byPromo.entries()]
-      .sort(([a], [b]) => a - b)
-      .map(([promo, members]) => [promo, members.sort((a, b) => a.name.localeCompare(b.name, 'fr'))]);
-  }, [nodes]);
+    const promos = [...byPromo.keys()].sort((a, b) => a - b);
+    const ordered = new Map(promos.map((promo) => [
+      promo,
+      byPromo.get(promo).sort((a, b) => a.name.localeCompare(b.name, 'fr')),
+    ]));
+
+    // Aligne chaque promo sur ses liens avec les promos voisines pour réduire
+    // les croisements qui apparaissent avec un tri alphabétique seul.
+    for (let pass = 0; pass < 3; pass += 1) {
+      const directions = [promos, [...promos].reverse()];
+      directions.forEach((sweep) => {
+        sweep.forEach((promo) => {
+          const current = ordered.get(promo);
+          const currentIndex = new Map(current.map((node, index) => [node.id, index]));
+          const score = (node) => {
+            const neighbors = [...(graph.adjacency.get(node.id) ?? [])]
+              .map((id) => {
+                const neighbor = graph.byId.get(id);
+                const neighborLayer = neighbor && ordered.get(neighbor.promo);
+                if (!neighborLayer || neighbor.promo === promo) return null;
+                const index = neighborLayer.findIndex((entry) => entry.id === id);
+                return index < 0 ? null : { index, weight: 1 / Math.abs(neighbor.promo - promo) };
+              })
+              .filter(Boolean);
+            if (!neighbors.length) return { center: currentIndex.get(node.id), degree: 0 };
+            const weight = neighbors.reduce((sum, neighbor) => sum + neighbor.weight, 0);
+            return {
+              center: neighbors.reduce((sum, neighbor) => sum + neighbor.index * neighbor.weight, 0) / weight,
+              degree: neighbors.length,
+            };
+          };
+          const scores = new Map(current.map((node) => [node.id, score(node)]));
+          ordered.set(promo, [...current].sort((a, b) => {
+            const aScore = scores.get(a.id);
+            const bScore = scores.get(b.id);
+            if (aScore.degree && bScore.degree && Math.abs(aScore.center - bScore.center) > 0.001) {
+              return aScore.center - bScore.center;
+            }
+            if (aScore.degree !== bScore.degree) return bScore.degree - aScore.degree;
+            return currentIndex.get(a.id) - currentIndex.get(b.id);
+          }));
+        });
+      });
+    }
+    return promos.map((promo) => [promo, ordered.get(promo)]);
+  }, [nodes, graph.adjacency, graph.byId]);
 
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
@@ -210,15 +253,32 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, possibleIds, ari
           if (!sourceElement || !targetElement) return null;
           const sourceRect = sourceElement.getBoundingClientRect();
           const targetRect = targetElement.getBoundingClientRect();
-          const x1 = sourceRect.left + sourceRect.width / 2 - canvasRect.left;
-          const y1 = sourceRect.top + sourceRect.height / 2 - canvasRect.top;
-          const x2 = targetRect.left + targetRect.width / 2 - canvasRect.left;
-          const y2 = targetRect.top + targetRect.height / 2 - canvasRect.top;
-          const curve = Math.min(90, Math.max(28, Math.abs(y2 - y1) * 0.38));
-          const sign = y2 >= y1 ? 1 : -1;
+          const sourceCenterX = sourceRect.left + sourceRect.width / 2 - canvasRect.left;
+          const sourceCenterY = sourceRect.top + sourceRect.height / 2 - canvasRect.top;
+          const targetCenterX = targetRect.left + targetRect.width / 2 - canvasRect.left;
+          const targetCenterY = targetRect.top + targetRect.height / 2 - canvasRect.top;
+          const vertical = Math.abs(targetCenterY - sourceCenterY) >= Math.abs(targetCenterX - sourceCenterX);
+          const direction = vertical
+            ? Math.sign(targetCenterY - sourceCenterY) || 1
+            : Math.sign(targetCenterX - sourceCenterX) || 1;
+          const x1 = sourceCenterX + (vertical ? 0 : direction * sourceRect.width / 2);
+          const y1 = sourceCenterY + (vertical ? direction * sourceRect.height / 2 : 0);
+          const arrowGap = 9;
+          const x2 = targetCenterX - (vertical ? 0 : direction * (targetRect.width / 2 + arrowGap));
+          const y2 = targetCenterY - (vertical ? direction * (targetRect.height / 2 + arrowGap) : 0);
+          const dx = x2 - x1;
+          const dy = y2 - y1;
+          const bend = Math.max(34, Math.min(110, Math.hypot(dx, dy) * 0.32));
+          const c1x = x1 + (vertical ? dx * 0.18 : direction * bend);
+          const c1y = y1 + (vertical ? direction * bend : dy * 0.18);
+          const c2x = x2 - (vertical ? dx * 0.18 : direction * bend);
+          const c2y = y2 - (vertical ? direction * bend : dy * 0.18);
+          const edgeKey = [edge.source, edge.target].sort().join('|');
           return {
             key: edge.source + '>' + edge.target,
-            d: 'M ' + x1 + ' ' + y1 + ' C ' + x1 + ' ' + (y1 + curve * sign) + ', ' + x2 + ' ' + (y2 - curve * sign) + ', ' + x2 + ' ' + y2,
+            d: 'M ' + x1 + ' ' + y1 + ' C ' + c1x + ' ' + c1y + ', ' + c2x + ' ' + c2y + ', ' + x2 + ' ' + y2,
+            shortest: shortestEdgeKeys.has(edgeKey),
+            possible: possibleIds.has(edge.source) && possibleIds.has(edge.target),
           };
         })
         .filter(Boolean);
@@ -230,10 +290,10 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, possibleIds, ari
     observer.observe(canvas);
     nodeRefs.current.forEach((element) => observer.observe(element));
     return () => observer.disconnect();
-  }, [graph.edges, visibleIds, groups]);
+  }, [graph.edges, visibleIds, groups, shortestEdgeKeys, possibleIds]);
 
   return (
-    <div className="game-graph__viewport" role="region" aria-label="Graphe des personnes trouvées">
+    <div className="game-graph__viewport" role="region" aria-label={ariaLabel}>
       <div ref={canvasRef} className="game-graph__canvas">
         <svg
           className="game-graph__links"
@@ -242,7 +302,24 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, possibleIds, ari
           viewBox={'0 0 ' + layout.width + ' ' + layout.height}
           aria-hidden="true"
         >
-          {layout.lines.map((line) => <path key={line.key} d={line.d} />)}
+          <defs>
+            <marker id={markerId} viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" />
+            </marker>
+            <marker id={markerId + '-shortest'} viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" />
+            </marker>
+          </defs>
+          {layout.lines.map((line) => (
+            <path
+              key={line.key}
+              d={line.d}
+              markerEnd={'url(#' + markerId + (line.shortest ? '-shortest' : '') + ')'}
+              className={'game-graph__edge'
+                + (line.shortest ? ' game-graph__edge--shortest' : '')
+                + (!line.possible ? ' game-graph__edge--off-path' : '')}
+            />
+          ))}
         </svg>
         <div className="game-graph__levels">
           {groups.map(([promo, members]) => {
@@ -350,10 +427,14 @@ export default function GamePage({ students, links }) {
     () => challenge ? findPath(graph.adjacency, startId, endId) : [],
     [graph.adjacency, challenge, startId, endId]
   );
+  const shortestPathEdgeKeys = useMemo(
+    () => new Set(shortestPath.slice(1).map((target, index) => [shortestPath[index], target].sort().join('|'))),
+    [shortestPath]
+  );
   const shortestGraph = useMemo(() => ({
     ...graph,
-    edges: shortestPath.slice(1).map((target, index) => ({ source: shortestPath[index], target })),
-  }), [graph, shortestPath]);
+    edges: graph.edges.filter((edge) => shortestPathEdgeKeys.has([edge.source, edge.target].sort().join('|'))),
+  }), [graph, shortestPathEdgeKeys]);
   const shortestNodes = useMemo(
     () => shortestPath.map((id) => graph.byId.get(id)).filter(Boolean),
     [shortestPath, graph.byId]
@@ -366,6 +447,17 @@ export default function GamePage({ students, links }) {
       .filter(([id, distance]) => distance + (fromEnd.get(id) ?? Infinity) === challenge.distance)
       .map(([id]) => id));
   }, [graph.adjacency, challenge, startId, endId]);
+  const shortestEdgeKeys = useMemo(() => {
+    if (!challenge) return new Set();
+    const fromStart = buildDistances(graph.adjacency, startId);
+    const fromEnd = buildDistances(graph.adjacency, endId);
+    return new Set(graph.edges
+      .filter((edge) => (
+        fromStart.get(edge.source) + 1 + fromEnd.get(edge.target) === challenge.distance
+        || fromStart.get(edge.target) + 1 + fromEnd.get(edge.source) === challenge.distance
+      ))
+      .map((edge) => [edge.source, edge.target].sort().join('|')));
+  }, [graph.edges, graph.adjacency, challenge, startId, endId]);
   const possibleIds = useMemo(() => {
     const ids = new Set([startId, endId].filter(Boolean));
     foundIds.forEach((id) => {
@@ -484,6 +576,29 @@ export default function GamePage({ students, links }) {
 
         {challenge && start && end ? (
           <div className="game-layout">
+            <section className="game-graph" aria-labelledby="game-graph-title">
+              <header className="game-graph__header">
+                <div>
+                  <p className="game-section-kicker">Les liens directs entre étudiant·es</p>
+                  <h2 id="game-graph-title">Connexions trouvées</h2>
+                </div>
+                <div className="game-graph__legend">
+                  <span className="game-graph__legend-item game-graph__direction"><span aria-hidden="true">→</span> Parrain·marraine vers fillot·te</span>
+                  <span className="game-graph__legend-item"><i className="game-graph__legend-shortest" /> Chemin le plus court</span>
+                  <span className="game-graph__legend-item"><i className="game-graph__legend-off-path" /> Hors chemin possible</span>
+                </div>
+              </header>
+              <GameGraph
+                graph={graph}
+                nodes={shownNodes}
+                startId={startId}
+                endId={endId}
+                shortestIds={shortestIds}
+                shortestEdgeKeys={shortestEdgeKeys}
+                possibleIds={possibleIds}
+              />
+            </section>
+
             <section className="game-challenge" aria-labelledby="game-challenge-title">
               <div className="game-challenge__heading">
                 <div>
@@ -581,26 +696,6 @@ export default function GamePage({ students, links }) {
 
             </section>
 
-            <section className="game-graph" aria-labelledby="game-graph-title">
-              <header className="game-graph__header">
-                <div>
-                  <p className="game-section-kicker">Ton arbre se construit au fil des réponses</p>
-                  <h2 id="game-graph-title">Connexions trouvées</h2>
-                </div>
-                <span className="game-graph__legend">
-                  <span className="game-graph__legend-item"><i /> Chemin le plus court</span>
-                  <span className="game-graph__legend-item"><i className="game-graph__legend-off-path" /> Hors chemin possible</span>
-                </span>
-              </header>
-              <GameGraph
-                graph={graph}
-                nodes={shownNodes}
-                startId={startId}
-                endId={endId}
-                shortestIds={shortestIds}
-                possibleIds={possibleIds}
-              />
-            </section>
           </div>
         ) : (
           <section className="game-empty" role="status">
@@ -653,6 +748,7 @@ export default function GamePage({ students, links }) {
                     startId={startId}
                     endId={endId}
                     shortestIds={shortestIds}
+                    shortestEdgeKeys={shortestPathEdgeKeys}
                     possibleIds={new Set(shortestPath)}
                     ariaLabel="Graphe du chemin le plus court"
                   />
