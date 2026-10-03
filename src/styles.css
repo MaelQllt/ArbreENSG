@@ -632,6 +632,12 @@ button {
   border-color: var(--blue) !important;
 }
 
+.admin-student-select__search:focus,
+.admin-student-select__search:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 .admin-student-select__options {
   max-height: min(280px, 40vh);
   overflow-y: auto;
