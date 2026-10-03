@@ -13,15 +13,14 @@ const SELECTED_SCALE = 1.5; // le noeud sélectionné grossit
 
 // Zoom
 const MIN_ZOOM = 0.5;     // on ne peut pas dézoomer en dessous
-const MOBILE_MIN_ZOOM = 0.1; // permet de cadrer toutes les rangées sur un écran étroit
 const MAX_ZOOM = 6;
 const MAX_FIT_ZOOM = 3.5;
 
 // Mise en place ordonnée, puis rappel doux : les étudiants restent libres sur les deux axes.
 const ROW_PULL_LAYOUT = 0.42;
 const ROW_PULL_FREE = 0.07;
-const X_PULL_LAYOUT = 0.1;
-const X_PULL_FREE = 0.012;
+const X_PULL_LAYOUT = 0.04;
+const X_PULL_FREE = 0.005;
 const VELOCITY_DECAY = 0.38; // amortit les réactions en chaîne tout en gardant un léger rebond
 const FAMILY_LINK_X_DISTANCE = 38;
 const FAMILY_LINK_STRENGTH = 0.35;
@@ -99,7 +98,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
   // les noeuds les plus connectés passent en premier pour obtenir leur étiquette
   const labelOrder = useMemo(() => [...graphData.nodes].sort((a, b) => b.degree - a.degree), [graphData]);
 
-  // Les promos gardent leur rangée et les îlots familiaux, leur espace horizontal.
+  // Forces : chaque promo attire ses étudiants vers sa bande, sans les y bloquer.
   useEffect(() => {
     const fg = fgRef.current;
     if (!fg) return;
@@ -107,7 +106,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
       ? { row: ROW_PULL_FREE, x: X_PULL_FREE }
       : { row: ROW_PULL_LAYOUT, x: X_PULL_LAYOUT };
     rowForce.current = forceY((node) => node.promoY).strength(pullStrength.row);
-    colForce.current = forceX((node) => node.layoutX ?? 0).strength(pullStrength.x);
+    colForce.current = forceX(0).strength(pullStrength.x);
     fg.d3Force('y', rowForce.current);
     fg.d3Force('x', colForce.current);
     fg.d3Force('charge').strength(-55);
@@ -136,14 +135,13 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
       const box = fg?.getGraphBbox(filter);
       if (!box) return;
       const { width: W, height: H } = size;
-      const minZoom = W < 720 ? MOBILE_MIN_ZOOM : MIN_ZOOM;
       const pad = { l: 70, r: 70, t: 90, b: 70 };
       if (withPanel) {
         if (W < 720) pad.b += H * 0.5;
         else pad.r += PANEL_WIDTH;
       }
       const k = Math.max(
-        minZoom,
+        MIN_ZOOM,
         Math.min(
           (W - pad.l - pad.r) / Math.max(box.x[1] - box.x[0], 1),
           (H - pad.t - pad.b) / Math.max(box.y[1] - box.y[0], 1),
@@ -320,7 +318,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
             hoveredId.current = node ? node.id : null;
           }}
           onBackgroundClick={() => onSelect(null)}
-          minZoom={size.width < 720 ? MOBILE_MIN_ZOOM : MIN_ZOOM}
+          minZoom={MIN_ZOOM}
           maxZoom={MAX_ZOOM}
           d3VelocityDecay={VELOCITY_DECAY}
           // nécessaire : les accesseurs dépendent de l'état React, le canvas doit se redessiner
