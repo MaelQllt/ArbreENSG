@@ -282,15 +282,6 @@ export default function GamePage({ students, links }) {
     () => [...visibleIds].map((id) => graph.byId.get(id)).filter(Boolean),
     [visibleIds, graph.byId]
   );
-  const connectableIds = useMemo(() => {
-    const connectable = new Set();
-    visibleIds.forEach((id) => {
-      (graph.adjacency.get(id) ?? []).forEach((neighborId) => {
-        if (!visibleIds.has(neighborId)) connectable.add(neighborId);
-      });
-    });
-    return connectable;
-  }, [graph.adjacency, visibleIds]);
   const shortestPath = useMemo(
     () => challenge ? findPath(graph.adjacency, startId, endId) : [],
     [graph.adjacency, challenge, startId, endId]
@@ -314,12 +305,12 @@ export default function GamePage({ students, links }) {
     if (!normalized) return [];
     return students
       .filter((student) =>
-        connectableIds.has(student.id)
+        !visibleIds.has(student.id)
         && normalizeName(student.name).includes(normalized)
       )
       .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
       .slice(0, 8);
-  }, [students, query, connectableIds]);
+  }, [students, query, visibleIds]);
 
   const clearRound = () => {
     setFoundIds([]);
@@ -342,17 +333,16 @@ export default function GamePage({ students, links }) {
 
   const addStudent = (student) => {
     if (!student || won || visibleIds.has(student.id)) return;
-    if (!connectableIds.has(student.id)) {
-      setFeedback('Choisis un étudiant directement relié à une personne déjà affichée.');
-      return;
-    }
 
+    const connectsToShown = (graph.adjacency.get(student.id) ?? []).some((id) => visibleIds.has(id));
     const onShortest = shortestIds.has(student.id);
     setFoundIds((current) => [...current, student.id]);
     setFeedback(
       onShortest
         ? student.name + ' est sur un des chemins les plus courts.'
-        : student.name + ' prolonge la chaîne affichée.'
+        : connectsToShown
+          ? student.name + ' prolonge la chaîne affichée.'
+          : student.name + ' est ajouté·e, mais ne rejoint pas encore les personnes affichées.'
     );
     setQuery('');
     setActiveSuggestion(0);
@@ -362,11 +352,11 @@ export default function GamePage({ students, links }) {
     event.preventDefault();
     const exact = students.find((student) =>
       normalizeName(student.name) === normalizeName(query)
-      && connectableIds.has(student.id)
+      && !visibleIds.has(student.id)
     );
     const choice = exact ?? suggestions[activeSuggestion];
     if (!choice) {
-      setFeedback('Aucun voisin correspondant. Essaie un autre nom.');
+      setFeedback('Aucun étudiant correspondant. Essaie un autre nom.');
       return;
     }
     addStudent(choice);
@@ -436,7 +426,7 @@ export default function GamePage({ students, links }) {
               </div>
 
               <form className="game-search" onSubmit={handleSubmit}>
-                <label htmlFor="game-student-search">Ajoute un étudiant relié à la chaîne</label>
+                <label htmlFor="game-student-search">Choisis un étudiant dans toute la base</label>
                 <div className="game-search__controls">
                   <div className="game-search__input-wrap">
                     <input
@@ -449,7 +439,7 @@ export default function GamePage({ students, links }) {
                         setActiveSuggestion(0);
                       }}
                       onKeyDown={handleInputKeyDown}
-                      placeholder="Rechercher un étudiant lié"
+                      placeholder="Rechercher un étudiant"
                       disabled={won}
                     />
                     {suggestions.length > 0 && !won && (
@@ -481,7 +471,7 @@ export default function GamePage({ students, links }) {
               <div className={'game-feedback' + (won ? ' game-feedback--won' : '')} role="status" aria-live="polite">
                 {won
                   ? 'Bravo ! Tu as trouvé une chaîne de ' + Math.max(0, winningPath.length - 1) + ' liens.'
-                  : feedback || 'Ajoute des étudiants et suis les liens qui apparaissent dans le graphe.'}
+                  : feedback || 'Tu peux choisir parmi tous les étudiants ; les liens montrent lesquels rejoignent la chaîne.'}
               </div>
 
               <div className="game-round-actions">
