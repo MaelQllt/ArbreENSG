@@ -1637,12 +1637,20 @@ button {
     align-items: flex-end;
     gap: 6px;
   }
+}
 
-  .game-launch,
-  .admin-access__button {
-    min-height: 44px;
-    padding: 0.55rem 0.7rem;
-    font-size: 0.78rem;
-    white-space: nowrap;
-  }
+/* Jouer et Admin gardent exactement le même encombrement sur tous les écrans. */
+.controls__actions .game-launch,
+.controls__actions .admin-access__button {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 0.5rem;
+  font-size: 0.8rem;
+  line-height: 1;
+  white-space: nowrap;
 }

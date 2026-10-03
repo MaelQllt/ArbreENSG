@@ -43,69 +43,6 @@ function findPath(adjacency, startId, endId, allowedIds) {
   return path.reverse();
 }
 
-// Vérifie qu’une personne appartient à au moins une chaîne simple entre les deux bornes.
-// Deux chemins internes disjoints partent de cette personne, l’un vers chaque borne.
-function liesOnSimplePath(adjacency, startId, candidateId, endId) {
-  if (candidateId === startId || candidateId === endId) return true;
-  const ids = [...adjacency.keys()];
-  const indexes = new Map(ids.map((id, index) => [id, index]));
-  const sink = ids.length * 2;
-  const network = Array.from({ length: sink + 1 }, () => []);
-  const addEdge = (from, to, capacity) => {
-    const forward = { to, reverse: network[to].length, capacity };
-    const backward = { to: from, reverse: network[from].length, capacity: 0 };
-    network[from].push(forward);
-    network[to].push(backward);
-  };
-
-  ids.forEach((id, index) => {
-    addEdge(index * 2, index * 2 + 1, id === candidateId ? 2 : 1);
-  });
-  ids.forEach((id, index) => {
-    for (const next of adjacency.get(id) ?? []) {
-      const nextIndex = indexes.get(next);
-      if (index >= nextIndex) continue;
-      addEdge(index * 2 + 1, nextIndex * 2, 1);
-      addEdge(nextIndex * 2 + 1, index * 2, 1);
-    }
-  });
-
-  const startIndex = indexes.get(startId);
-  const endIndex = indexes.get(endId);
-  const candidateIndex = indexes.get(candidateId);
-  if (startIndex === undefined || endIndex === undefined || candidateIndex === undefined) return false;
-  addEdge(startIndex * 2 + 1, sink, 1);
-  addEdge(endIndex * 2 + 1, sink, 1);
-
-  const source = candidateIndex * 2 + 1;
-  let flow = 0;
-  while (flow < 2) {
-    const parent = Array(network.length).fill(null);
-    parent[source] = { from: -1, edgeIndex: -1 };
-    const queue = [source];
-    for (let cursor = 0; cursor < queue.length && parent[sink] === null; cursor += 1) {
-      const current = queue[cursor];
-      network[current].forEach((edge, edgeIndex) => {
-        if (edge.capacity > 0 && parent[edge.to] === null) {
-          parent[edge.to] = { from: current, edgeIndex };
-          queue.push(edge.to);
-        }
-      });
-    }
-    if (parent[sink] === null) break;
-
-    for (let current = sink; current !== source;) {
-      const { from, edgeIndex } = parent[current];
-      const edge = network[from][edgeIndex];
-      edge.capacity -= 1;
-      network[current][edge.reverse].capacity += 1;
-      current = from;
-    }
-    flow += 1;
-  }
-  return flow === 2;
-}
-
 function buildGameGraph(students, links) {
   const byId = new Map(students.map((student) => [student.id, student]));
   const adjacency = new Map(students.map((student) => [student.id, new Set()]));
@@ -291,7 +228,7 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds }) {
   );
 }
 
-export default function GamePage({ students, links, source }) {
+export default function GamePage({ students, links }) {
   const [mode, setMode] = useState('daily');
   const [round, setRound] = useState(0);
   const [practiceSeed] = useState(() => Math.floor(Math.random() * 0xffffffff));
@@ -300,6 +237,26 @@ export default function GamePage({ students, links, source }) {
   const [feedback, setFeedback] = useState('');
   const [activeSuggestion, setActiveSuggestion] = useState(0);
   const [showSolution, setShowSolution] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const helpButtonRef = useRef(null);
+  const helpCloseRef = useRef(null);
+
+  useEffect(() => {
+    if (!showHelp) return undefined;
+    const handleHelpKeyDown = (event) => {
+      if (event.key === 'Escape') setShowHelp(false);
+      if (event.key === 'Tab') {
+        event.preventDefault();
+        helpCloseRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleHelpKeyDown);
+    helpCloseRef.current?.focus();
+    return () => {
+      window.removeEventListener('keydown', handleHelpKeyDown);
+      helpButtonRef.current?.focus();
+    };
+  }, [showHelp]);
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -325,6 +282,15 @@ export default function GamePage({ students, links, source }) {
     () => [...visibleIds].map((id) => graph.byId.get(id)).filter(Boolean),
     [visibleIds, graph.byId]
   );
+  const connectableIds = useMemo(() => {
+    const connectable = new Set();
+    visibleIds.forEach((id) => {
+      (graph.adjacency.get(id) ?? []).forEach((neighborId) => {
+        if (!visibleIds.has(neighborId)) connectable.add(neighborId);
+      });
+    });
+    return connectable;
+  }, [graph.adjacency, visibleIds]);
   const shortestPath = useMemo(
     () => challenge ? findPath(graph.adjacency, startId, endId) : [],
     [graph.adjacency, challenge, startId, endId]
@@ -348,12 +314,12 @@ export default function GamePage({ students, links, source }) {
     if (!normalized) return [];
     return students
       .filter((student) =>
-        !visibleIds.has(student.id)
+        connectableIds.has(student.id)
         && normalizeName(student.name).includes(normalized)
       )
       .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
       .slice(0, 8);
-  }, [students, query, visibleIds]);
+  }, [students, query, connectableIds]);
 
   const clearRound = () => {
     setFoundIds([]);
@@ -376,22 +342,18 @@ export default function GamePage({ students, links, source }) {
 
   const addStudent = (student) => {
     if (!student || won || visibleIds.has(student.id)) return;
-    if (!liesOnSimplePath(graph.adjacency, startId, student.id, endId)) {
-      setFeedback(student.name + ' ne fait pas partie d’un chemin entre ces deux personnes.');
+    if (!connectableIds.has(student.id)) {
+      setFeedback('Choisis un étudiant directement relié à une personne déjà affichée.');
       return;
     }
 
-    const connectsToShown = (graph.adjacency.get(student.id) ?? []).some((id) => visibleIds.has(id));
     const onShortest = shortestIds.has(student.id);
     setFoundIds((current) => [...current, student.id]);
     setFeedback(
       onShortest
         ? student.name + ' est sur un des chemins les plus courts.'
-        : student.name + ' peut faire partie d’un chemin plus long.'
+        : student.name + ' prolonge la chaîne affichée.'
     );
-    if (!connectsToShown && !onShortest) {
-      setFeedback(student.name + ' est ajouté·e, mais ne rejoint pas encore les personnes affichées.');
-    }
     setQuery('');
     setActiveSuggestion(0);
   };
@@ -400,11 +362,11 @@ export default function GamePage({ students, links, source }) {
     event.preventDefault();
     const exact = students.find((student) =>
       normalizeName(student.name) === normalizeName(query)
-      && !visibleIds.has(student.id)
+      && connectableIds.has(student.id)
     );
     const choice = exact ?? suggestions[activeSuggestion];
     if (!choice) {
-      setFeedback('Aucun étudiant correspondant. Essaie un autre nom.');
+      setFeedback('Aucun voisin correspondant. Essaie un autre nom.');
       return;
     }
     addStudent(choice);
@@ -424,7 +386,6 @@ export default function GamePage({ students, links, source }) {
   };
 
   const pairLabel = mode === 'daily' ? 'Défi du jour' : mode === 'weekly' ? 'Défi de la semaine' : 'Entraînement';
-  const studentsSourceLabel = source === 'shared' ? 'Base partagée Supabase' : 'Base chargée par l’arbre';
 
   return (
     <main className="game-page">
@@ -441,7 +402,7 @@ export default function GamePage({ students, links, source }) {
         </header>
 
         <section className="game-hero">
-          <p className="game-hero__eyebrow">Jeu de parrainage · {pairLabel}</p>
+          <p className="game-hero__eyebrow">Jeu de parrainage <BrandDivider /> {pairLabel}</p>
           <h1>ENSGdle</h1>
           <p>Retrouve une chaîne de parrains, marraines, fillots et fillottes entre ces deux étudiants.</p>
         </section>
@@ -475,7 +436,7 @@ export default function GamePage({ students, links, source }) {
               </div>
 
               <form className="game-search" onSubmit={handleSubmit}>
-                <label htmlFor="game-student-search">Ajoute un étudiant qui les relie</label>
+                <label htmlFor="game-student-search">Ajoute un étudiant relié à la chaîne</label>
                 <div className="game-search__controls">
                   <div className="game-search__input-wrap">
                     <input
@@ -488,7 +449,7 @@ export default function GamePage({ students, links, source }) {
                         setActiveSuggestion(0);
                       }}
                       onKeyDown={handleInputKeyDown}
-                      placeholder="Rechercher un étudiant"
+                      placeholder="Rechercher un étudiant lié"
                       disabled={won}
                     />
                     {suggestions.length > 0 && !won && (
@@ -535,16 +496,15 @@ export default function GamePage({ students, links, source }) {
                   >
                     {showSolution ? 'Masquer la solution' : 'Voir le chemin optimal'}
                   </button>
-                  <a
-                    className="game-help-link"
-                    href="#game-rules"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      document.getElementById('game-rules')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }}
+                  <button
+                    ref={helpButtonRef}
+                    type="button"
+                    className="game-help-link game-help-link--button"
+                    onClick={() => setShowHelp(true)}
+                    aria-haspopup="dialog"
                   >
                     Comment jouer&nbsp;?
-                  </a>
+                  </button>
                 </div>
               </div>
 
@@ -573,7 +533,6 @@ export default function GamePage({ students, links, source }) {
                 endId={endId}
                 shortestIds={shortestIds}
               />
-              <p className="game-source">{studentsSourceLabel} · {students.length} étudiants disponibles</p>
             </section>
           </div>
         ) : (
@@ -583,15 +542,39 @@ export default function GamePage({ students, links, source }) {
           </section>
         )}
 
-        <section className="game-rules" id="game-rules">
-          <h2>Comment jouer</h2>
-          <ol>
-            <li>Choisis des noms dans la recherche pour compléter la chaîne.</li>
-            <li>Les traits montrent les liens directs entre les étudiants affichés.</li>
-            <li>Les symboles indiquent leur promotion. Le jaune marque les étudiants sur un chemin le plus court.</li>
-            <li>Tu gagnes dès qu’un chemin continu relie le départ à l’arrivée.</li>
-          </ol>
-        </section>
+        {showHelp && (
+          <div
+            className="game-help-backdrop"
+            onClick={(event) => {
+              if (event.target === event.currentTarget) setShowHelp(false);
+            }}
+          >
+            <section
+              className="game-help-panel"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="game-help-title"
+            >
+              <button
+                ref={helpCloseRef}
+                type="button"
+                className="game-help-panel__close"
+                onClick={() => setShowHelp(false)}
+                aria-label="Fermer l’aide"
+              >
+                ×
+              </button>
+              <p className="game-section-kicker">Règles</p>
+              <h2 id="game-help-title">Comment jouer&nbsp;?</h2>
+              <ol>
+                <li>Choisis des noms dans la recherche pour compléter la chaîne.</li>
+                <li>Les traits montrent les liens directs entre les étudiants affichés.</li>
+                <li>Les symboles indiquent leur promotion. Le jaune marque les étudiants sur un chemin le plus court.</li>
+                <li>Tu gagnes dès qu’un chemin continu relie le départ à l’arrivée.</li>
+              </ol>
+            </section>
+          </div>
+        )}
       </div>
     </main>
   );

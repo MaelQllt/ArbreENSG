@@ -110,7 +110,7 @@ export default function App() {
     );
   }
 
-  if (showGame) return <GamePage students={loaded.data.nodes} links={loaded.data.links} source={loaded.source} />;
+  if (showGame) return <GamePage students={loaded.data.nodes} links={loaded.data.links} />;
 
   const { index, promos, graphData } = graph;
   const student = selectedId ? index.byId.get(selectedId) : null;
@@ -138,9 +138,7 @@ export default function App() {
           <span className="masthead__bold">Géodata Paris</span>
         </h1>
         <p className="masthead__hint">
-          {loaded.source === 'mock'
-            ? "Données d'exemple : ajoutez public/students.csv pour afficher vos étudiants."
-            : 'Les promotions sont séparées par année ; cliquez sur un étudiant pour voir sa lignée.'}
+          Les promotions sont séparées par année ; cliquez sur un étudiant pour voir sa lignée.
         </p>
         <StudentSearch students={loaded.data.nodes} onSelect={setSelectedId} />
       </header>
@@ -176,7 +174,7 @@ export default function App() {
         </div>
 
         <div className="controls__actions">
-          <a className="btn btn--ghost game-launch" href="#jeu" target="_blank" rel="noopener noreferrer">Jouer</a>
+          <a className="btn btn--ghost game-launch" href="#jeu">Jouer</a>
           <AdminPanel
             data={loaded.data}
             initialSelectedId={selectedId}
