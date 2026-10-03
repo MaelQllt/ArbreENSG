@@ -27,6 +27,11 @@ body,
 #root {
   height: 100%;
   margin: 0;
+  overflow: hidden;
+}
+
+#root {
+  overflow: clip;
 }
 
 body {
@@ -358,6 +363,10 @@ button {
 
 .legend-disclosure__standalone {
   height: var(--legend-button-height);
+}
+
+.legend-disclosure__mobile-label {
+  display: none;
 }
 
 .legend__header {
@@ -1326,21 +1335,104 @@ button {
   }
 
   .masthead__hint {
-    max-width: 38ch;
-    white-space: normal;
-    line-height: 1.35;
+    display: none;
   }
 
   .student-search {
-    width: min(360px, calc(100vw - 84px));
-    margin-top: 0.6rem;
+    position: fixed;
+    z-index: 14;
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: max(12px, env(safe-area-inset-left));
+    width: auto;
+    margin: 0;
   }
 
   .student-search__field {
-    min-height: 40px;
+    min-height: 52px;
+    padding: 0 0.85rem;
+    background: var(--blue);
+    box-shadow: 4px 4px 0 var(--violet);
+  }
+
+  .student-search__results {
+    top: auto;
+    bottom: calc(100% + 8px);
+    max-height: min(42dvh, 340px);
+  }
+
+  .controls {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 52px + 12px);
+    left: max(12px, env(safe-area-inset-left));
+    align-items: center;
+  }
+
+  .dock {
+    width: 100%;
+    max-width: none;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .dock > .btn:not(.legend-disclosure__standalone) {
+    order: 2;
+  }
+
+  .dock > .legend-disclosure,
+  .dock > .legend-disclosure__standalone {
+    order: 1;
+  }
+
+  .dock > .btn,
+  .legend-disclosure__standalone,
+  .legend-disclosure__target {
+    min-height: 44px;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+
+  .legend-disclosure__desktop-label {
+    display: none;
+  }
+
+  .legend-disclosure__mobile-label {
+    display: inline;
+  }
+
+  .legend-disclosure {
+    position: relative;
+    flex: 0 0 92px;
+    width: 92px;
+    height: 44px !important;
+    overflow: visible;
+    transition: none;
+  }
+
+  .legend-disclosure__standalone,
+  .legend-disclosure__target {
+    height: 44px;
+  }
+
+  .legend {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 0;
+    width: min(92vw, 420px);
+    max-width: none;
+    max-height: min(42dvh, 340px);
+    overflow: auto;
+  }
+
+  .app--card-open .student-search {
+    bottom: calc(min(42vh, 360px) + max(12px, env(safe-area-inset-bottom)) + 8px);
   }
 
   .card {
+    z-index: 10;
     top: auto;
     left: 0;
     width: auto;

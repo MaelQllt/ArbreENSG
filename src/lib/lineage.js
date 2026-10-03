@@ -34,7 +34,7 @@ export function prepareGraph(raw) {
     graphData: {
       nodes: raw.nodes.map((n) => {
         const promoIndex = promos.indexOf(n.promo);
-        const promoY = (promoIndex - (promos.length - 1) / 2) * 95;
+        const promoY = (promoIndex - (promos.length - 1) / 2) * 138;
         return {
           ...n,
           promoIndex,

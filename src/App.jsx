@@ -13,7 +13,9 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [deleteStudentRequest, setDeleteStudentRequest] = useState(null);
   const [quickAddRequest, setQuickAddRequest] = useState(null);
-  const [showLegend, setShowLegend] = useState(true);
+  const [showLegend, setShowLegend] = useState(() =>
+    typeof window === 'undefined' || !window.matchMedia('(max-width: 600px)').matches
+  );
   const [showWarnings, setShowWarnings] = useState(false);
   const [resetTick, setResetTick] = useState(0);
   const quickAddSequence = useRef(0);
@@ -88,7 +90,7 @@ export default function App() {
         <p className="masthead__hint">
           {loaded.source === 'mock'
             ? "Données d'exemple : ajoutez public/students.csv pour afficher vos étudiants."
-            : 'Cliquez sur un étudiant pour révéler sa lignée.'}
+            : 'Les promotions sont séparées par année ; cliquez sur un étudiant pour voir sa lignée.'}
         </p>
         <StudentSearch students={loaded.data.nodes} onSelect={setSelectedId} />
       </header>

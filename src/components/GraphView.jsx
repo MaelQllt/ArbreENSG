@@ -12,13 +12,13 @@ const PANEL_WIDTH = 380;  // doit rester synchrone avec --panel-width en CSS
 const SELECTED_SCALE = 1.5; // le noeud sélectionné grossit
 
 // Zoom
-const MIN_ZOOM = 0.5;     // on ne peut pas dézoomer en dessous
+const MIN_ZOOM = 0.35;
 const MAX_ZOOM = 6;
 const MAX_FIT_ZOOM = 3.5;
 
 // Mise en place ordonnée, puis rappel doux : les étudiants restent libres sur les deux axes.
 const ROW_PULL_LAYOUT = 0.3;
-const ROW_PULL_FREE = 0.05;
+const ROW_PULL_FREE = 0.24;
 const X_PULL_LAYOUT = 0.04;
 const X_PULL_FREE = 0.005;
 const VELOCITY_DECAY = 0.28; // défaut d3 : 0.4 (plus bas = plus de rebond)
@@ -68,6 +68,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
   const previousGraphData = useRef(null);
   const rowForce = useRef(null);
   const colForce = useRef(null);
+  const dragBounceFrames = useRef(new Map());
   const hoveredId = useRef(null);
   const labelWidths = useRef(new Map());
   const size = useElementSize(containerRef);
@@ -76,6 +77,12 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
   // react-force-graph ajoute x/y/vx/vy aux nœuds. Réutiliser ces coordonnées
   // lors d'un changement de lien évite de relancer tout le réseau à zéro.
   useLayoutEffect(() => {
+    dragBounceFrames.current.forEach(({ frame, targetX, targetY }, node) => {
+      cancelAnimationFrame(frame);
+      node.x = node.fx = targetX;
+      node.y = node.fy = targetY;
+    });
+    dragBounceFrames.current.clear();
     const previous = previousGraphData.current;
     if (previous && previous !== graphData) {
       const previousNodes = new Map(previous.nodes.map((node) => [node.id, node]));
@@ -86,6 +93,8 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
         node.y = oldNode.y;
         node.vx = oldNode.vx ?? 0;
         node.vy = oldNode.vy ?? 0;
+        if (Number.isFinite(oldNode.fx)) node.fx = oldNode.fx;
+        if (Number.isFinite(oldNode.fy)) node.fy = oldNode.fy;
       });
     }
     previousGraphData.current = graphData;
@@ -106,9 +115,9 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
     colForce.current = forceX(0).strength(pullStrength.x);
     fg.d3Force('y', rowForce.current);
     fg.d3Force('x', colForce.current);
-    fg.d3Force('charge').strength(-55);
-    fg.d3Force('link').distance(38).strength(0.5);
-    fg.d3Force('collide', forceCollide(NODE_R + 3));
+    fg.d3Force('charge').strength(-95);
+    fg.d3Force('link').distance(56).strength(0.08);
+    fg.d3Force('collide', forceCollide(NODE_R + 7));
     // Attendre que react-force-graph ait appliqué son nouveau graphData.
     const frame = requestAnimationFrame(() => fgRef.current?.d3ReheatSimulation());
     return () => cancelAnimationFrame(frame);
@@ -121,7 +130,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
       const box = fg?.getGraphBbox(filter);
       if (!box) return;
       const { width: W, height: H } = size;
-      const pad = { l: 70, r: 70, t: 90, b: 70 };
+      const pad = { l: W < 720 ? 94 : 130, r: 70, t: 90, b: 70 };
       if (withPanel) {
         if (W < 720) pad.b += H * 0.5;
         else pad.r += PANEL_WIDTH;
@@ -187,7 +196,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
 
   const paintPointerArea = useCallback((node, color, ctx) => {
     ctx.fillStyle = color;
-    ctx.fillRect(node.x - NODE_R - 3, node.y - NODE_R - 3, (NODE_R + 3) * 2, (NODE_R + 3) * 2);
+    ctx.fillRect(node.x - NODE_R - 5, node.y - NODE_R - 5, (NODE_R + 5) * 2, (NODE_R + 5) * 2);
   }, []);
 
   // Étiquettes dessinées après les noeuds, avec anti-chevauchement :
@@ -284,14 +293,14 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
           nodePointerAreaPaint={paintPointerArea}
           nodeLabel={() => ''}
           onRenderFramePost={drawLabels}
-          linkColor={(l) =>
-            lineage
-              ? inLineage(l) ? COLORS.yellow : 'rgba(255,255,255,0.05)'
-              : 'rgba(255,255,255,0.22)'
-          }
-          linkWidth={(l) => (inLineage(l) ? 2 : 0.6)}
-          linkDirectionalParticles={(l) => (inLineage(l) ? 2 : 0)}
-          linkDirectionalParticleWidth={2.5}
+          linkColor={(l) => {
+            if (lineage) return inLineage(l) ? COLORS.yellow : 'rgba(255,255,255,0.035)';
+            return 'rgba(255,255,255,0.06)';
+          }}
+          linkWidth={(l) => (inLineage(l) ? 2 : 0.45)}
+          linkDirectionalParticles={(l) => (inLineage(l) ? 1 : 0)}
+          linkDirectionalParticleWidth={5}
+          linkDirectionalParticleSpeed={0.01}
           linkDirectionalParticleColor={() => COLORS.sand}
           onNodeClick={(node, event) => {
             if (isAdmin && event?.shiftKey && selectedId && node.id !== selectedId) {
@@ -300,9 +309,48 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
             }
             onSelect(node.id);
           }}
-          onNodeHover={(node) => {
-            hoveredId.current = node ? node.id : null;
+          onNodeDragStart={(node) => {
+            const bounce = dragBounceFrames.current.get(node);
+            if (bounce) cancelAnimationFrame(bounce.frame);
+            dragBounceFrames.current.delete(node);
           }}
+          onNodeDragEnd={(node, translate) => {
+            // Un petit dépassement amorti donne du ressort au lâcher, puis le
+            // nœud reste fixé à sa nouvelle place jusqu'au rechargement.
+            const dx = translate?.x ?? 0;
+            const dy = translate?.y ?? 0;
+            const distance = Math.hypot(dx, dy);
+            const targetX = node.x;
+            const targetY = node.y;
+            node.vx = 0;
+            node.vy = 0;
+            node.fx = node.x;
+            node.fy = node.y;
+
+            if (!distance) return;
+            const amplitude = Math.min(7, Math.max(3, distance * 0.025));
+            const startedAt = performance.now();
+            const animate = (now) => {
+              const progress = Math.min(1, (now - startedAt) / 480);
+              const offset = progress < 1
+                ? amplitude * Math.sin(progress * Math.PI * 2) * Math.exp(-3.4 * progress)
+                : 0;
+              const x = targetX + (dx / distance) * offset;
+              const y = targetY + (dy / distance) * offset;
+              node.x = node.fx = x;
+              node.y = node.fy = y;
+
+              if (progress < 1) {
+                const frame = requestAnimationFrame(animate);
+                dragBounceFrames.current.set(node, { frame, targetX, targetY });
+              } else {
+                dragBounceFrames.current.delete(node);
+              }
+            };
+            const frame = requestAnimationFrame(animate);
+            dragBounceFrames.current.set(node, { frame, targetX, targetY });
+          }}
+          onNodeHover={(node) => { hoveredId.current = node ? node.id : null; }}
           onBackgroundClick={() => onSelect(null)}
           minZoom={MIN_ZOOM}
           maxZoom={MAX_ZOOM}

@@ -55,7 +55,8 @@ export default function Legend({ promos, visible, onToggle }) {
   if (!mounted) {
     return (
       <button type="button" className="btn btn--ghost legend-disclosure__standalone" onClick={onToggle}>
-        Afficher la légende
+        <span className="legend-disclosure__desktop-label">Afficher la légende</span>
+        <span className="legend-disclosure__mobile-label">Légende</span>
       </button>
     );
   }
@@ -91,7 +92,8 @@ export default function Legend({ promos, visible, onToggle }) {
       </section>
       {(!visible || opening) && (
         <button type="button" className="legend-disclosure__target btn btn--ghost" onClick={onToggle}>
-          Afficher la légende
+          <span className="legend-disclosure__desktop-label">Afficher la légende</span>
+          <span className="legend-disclosure__mobile-label">Légende</span>
         </button>
       )}
     </div>
