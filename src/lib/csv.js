@@ -185,13 +185,14 @@ export function serializeStudentsCsv(data) {
 
   const quote = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
   const rows = [
-    ['etudiant', 'promo', 'code', 'filiere', 'parrains'],
+    ['etudiant', 'promo', 'code', 'filiere', 'parrains', 'bio'],
     ...data.nodes.map((node) => [
       node.name,
       node.promo,
       node.code ?? '',
       node.filiere ?? '',
       (parentsByChild.get(node.id) ?? []).join('; '),
+      node.bio ?? '',
     ]),
   ];
   return rows.map((row) => row.map(quote).join(',')).join('\n');

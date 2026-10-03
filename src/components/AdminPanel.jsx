@@ -44,6 +44,14 @@ const FILIERE_OPTIONS = [
   ...FILIERE_NAMES.map((filiere) => ({ value: filiere, label: filiere })),
 ];
 
+const addCurrentChoice = (options, value) => {
+  if (value === undefined || value === null || value === '') return options;
+  const stringValue = String(value);
+  return options.some((option) => option.value === stringValue)
+    ? options
+    : [...options, { value: stringValue, label: stringValue }];
+};
+
 const getCurrentPromoYear = (date) => date.getFullYear() - (date.getMonth() < 8 ? 1 : 0);
 
 const promoLabel = (student) =>
@@ -195,6 +203,109 @@ function StudentSelect({ id, label, students, value, onChange, disabled = false,
   );
 }
 
+function StudentMultiSelect({ id, label, students, selectedIds, onChange, emptyLabel }) {
+  const rootRef = useRef(null);
+  const triggerRef = useRef(null);
+  const searchRef = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const selectedSet = new Set(selectedIds);
+  const selectedStudents = students.filter((student) => selectedSet.has(student.id));
+  const normalizedQuery = normalizeOptionText(query);
+  const filteredStudents = students.filter((student) => normalizeOptionText(student.name).includes(normalizedQuery));
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onPointerDown = (event) => {
+      if (!rootRef.current?.contains(event.target)) {
+        setOpen(false);
+        setQuery('');
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    searchRef.current?.focus();
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open]);
+
+  const close = (restoreFocus = false) => {
+    setOpen(false);
+    setQuery('');
+    if (restoreFocus) triggerRef.current?.focus();
+  };
+
+  const toggleStudent = (studentId) => {
+    onChange(selectedSet.has(studentId)
+      ? selectedIds.filter((idValue) => idValue !== studentId)
+      : [...selectedIds, studentId]);
+  };
+
+  return (
+    <div className="admin-student-select admin-student-multi-select" ref={rootRef}>
+      <button
+        ref={triggerRef}
+        id={id}
+        type="button"
+        className="admin-student-select__trigger"
+        aria-label={label}
+        aria-expanded={open}
+        aria-controls={`${id}-options`}
+        onClick={() => {
+          if (open) close();
+          else setOpen(true);
+        }}
+      >
+        <span>{selectedStudents.length ? `${selectedStudents.length} étudiant${selectedStudents.length > 1 ? 's' : ''} sélectionné${selectedStudents.length > 1 ? 's' : ''}` : emptyLabel}</span>
+      </button>
+      {selectedStudents.length > 0 && (
+        <div className="admin-student-multi-select__chips" aria-label="Étudiants sélectionnés">
+          {selectedStudents.map((student) => (
+            <span className="admin-student-multi-select__chip" key={student.id}>
+              {student.name}
+              <button
+                type="button"
+                aria-label={`Retirer ${student.name}`}
+                onClick={() => toggleStudent(student.id)}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+          <button type="button" className="admin-student-multi-select__clear" onClick={() => onChange([])}>
+            Tout effacer
+          </button>
+        </div>
+      )}
+      {open && (
+        <div className="admin-student-select__popover">
+          <input
+            ref={searchRef}
+            className="admin-student-select__search"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Rechercher un étudiant"
+            aria-label={`Rechercher — ${label}`}
+            aria-controls={`${id}-options`}
+          />
+          <div id={`${id}-options`} className="admin-student-select__options" role="group" aria-label={label}>
+            {filteredStudents.length ? filteredStudents.map((student) => (
+              <label className="admin-student-multi-select__option" key={student.id}>
+                <input
+                  className="admin-student-multi-select__checkbox"
+                  type="checkbox"
+                  checked={selectedSet.has(student.id)}
+                  onChange={() => toggleStudent(student.id)}
+                />
+                <StudentOptionLabel student={student} />
+              </label>
+            )) : <p className="admin-student-select__empty">Aucun résultat</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ChoiceSelect({ id, label, options, value, onChange, searchPlaceholder }) {
   const rootRef = useRef(null);
   const triggerRef = useRef(null);
@@ -332,6 +443,8 @@ function ChoiceSelect({ id, label, options, value, onChange, searchPlaceholder }
 export default function AdminPanel({
   data,
   initialSelectedId,
+  deleteRequest,
+  onDeleteHandled,
   quickAddRequest,
   onQuickAddHandled,
   onAdminStatus,
@@ -339,6 +452,8 @@ export default function AdminPanel({
 }) {
   const workbookInputRef = useRef(null);
   const handledQuickAddRef = useRef(null);
+  const handledDeleteRef = useRef(null);
+  const deleteInProgressRef = useRef(false);
   const previousPromoYearRef = useRef(getCurrentPromoYear(new Date()));
   const [session, setSession] = useState(null);
   const [restoring, setRestoring] = useState(true);
@@ -353,6 +468,12 @@ export default function AdminPanel({
   const [relationType, setRelationType] = useState('parrain');
   const [personType, setPersonType] = useState('existing');
   const [existingId, setExistingId] = useState('');
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [editName, setEditName] = useState('');
+  const [editPromo, setEditPromo] = useState('');
+  const [editCode, setEditCode] = useState('');
+  const [editFiliere, setEditFiliere] = useState('');
+  const [editBio, setEditBio] = useState('');
   const [newFirstName, setNewFirstName] = useState('');
   const [newLastName, setNewLastName] = useState('');
   const [currentPromoYear, setCurrentPromoYear] = useState(() => getCurrentPromoYear(new Date()));
@@ -366,6 +487,10 @@ export default function AdminPanel({
       return { value: year, label: year };
     }),
   ], [currentPromoYear]);
+  const editingStudent = data.nodes.find((node) => node.id === anchorId);
+  const editPromoOptions = addCurrentChoice(promoOptions, editingStudent?.promo);
+  const editCodeOptions = addCurrentChoice(CODE_OPTIONS, editingStudent?.code);
+  const editFiliereOptions = addCurrentChoice(FILIERE_OPTIONS, editingStudent?.filiere);
 
   useEffect(() => {
     let timeout;
@@ -417,6 +542,17 @@ export default function AdminPanel({
   }, [initialSelectedId, data]);
 
   useEffect(() => {
+    if (relationAction !== 'edit') return;
+    const student = data.nodes.find((node) => node.id === anchorId);
+    if (!student) return;
+    setEditName(student.name ?? '');
+    setEditPromo(String(student.promo ?? ''));
+    setEditCode(student.code ?? '');
+    setEditFiliere(student.filiere ?? '');
+    setEditBio(student.bio ?? '');
+  }, [relationAction, anchorId, data.nodes]);
+
+  useEffect(() => {
     if (!quickAddRequest || handledQuickAddRef.current === quickAddRequest.id || restoring) return;
     handledQuickAddRef.current = quickAddRequest.id;
     const anchorExists = data.nodes.some((node) => node.id === quickAddRequest.anchorId);
@@ -429,6 +565,7 @@ export default function AdminPanel({
       setRelationType('parrain');
       setPersonType('existing');
       setExistingId(quickAddRequest.relatedId);
+      setSelectedIds([quickAddRequest.relatedId]);
       setDialog('admin');
     }
     onQuickAddHandled?.(quickAddRequest.id);
@@ -442,6 +579,7 @@ export default function AdminPanel({
     () => students.filter((student) => student.id !== anchorId),
     [students, anchorId]
   );
+  const selectedExistingPeople = availableExisting.filter((student) => selectedIds.includes(student.id));
   const removablePeople = useMemo(() => {
     const connectedIds = new Set();
     data.links.forEach((link) => {
@@ -460,15 +598,31 @@ export default function AdminPanel({
     }
   }, [selectablePeople, existingId]);
 
+  useEffect(() => {
+    const availableIds = new Set(availableExisting.map((student) => student.id));
+    setSelectedIds((currentIds) => currentIds.filter((studentId) => availableIds.has(studentId)));
+  }, [availableExisting]);
+
   const hintAnchor = students.find((student) => student.id === anchorId)?.name ?? 'l’étudiant·e concerné·e';
+  const anchorLinksCount = data.links.filter((link) =>
+    endpointId(link.source) === anchorId || endpointId(link.target) === anchorId
+  ).length;
   const hintRelated = personType === 'new'
     ? [newFirstName.trim(), newLastName.trim()].filter(Boolean).join(' ') || 'La nouvelle personne'
     : students.find((student) => student.id === existingId)?.name ?? 'La personne choisie';
   const relationshipHint = relationType === 'parrain'
     ? `${hintRelated} deviendra le parrain ou la marraine de ${hintAnchor}.`
     : `${hintRelated} deviendra le fillot ou la fillotte de ${hintAnchor}.`;
-
-  if (!isSupabaseConfigured()) return null;
+  const selectedPeopleNames = selectedExistingPeople.map((student) => student.name);
+  const selectedPeopleLabel = selectedPeopleNames.length < 2
+    ? selectedPeopleNames[0]
+    : `${selectedPeopleNames.slice(0, -1).join(', ')} et ${selectedPeopleNames[selectedPeopleNames.length - 1]}`;
+  const selectedPeopleVerb = selectedPeopleNames.length > 1 ? 'deviendront' : 'deviendra';
+  const selectedRelationshipHint = selectedExistingPeople.length === 0
+    ? 'Sélectionne au moins une personne.'
+    : relationType === 'parrain'
+      ? `${selectedPeopleLabel} ${selectedPeopleVerb} ${selectedPeopleNames.length > 1 ? 'les parrains ou marraines' : 'le parrain ou la marraine'} de ${hintAnchor}.`
+      : `${selectedPeopleLabel} ${selectedPeopleVerb} ${selectedPeopleNames.length > 1 ? 'les fillots ou fillottes' : 'le fillot ou la fillotte'} de ${hintAnchor}.`;
 
   const closeDialog = () => {
     setDialog(null);
@@ -504,6 +658,70 @@ export default function AdminPanel({
       setBusy(false);
     }
   };
+
+  const handleDeleteStudent = async (studentId, fromShortcut = false) => {
+    if (busy || deleteInProgressRef.current) return;
+    const student = data.nodes.find((node) => node.id === studentId);
+    if (!student) {
+      setError('Cet étudiant n’est plus dans le graphe.');
+      if (fromShortcut) setDialog('admin');
+      return;
+    }
+    const linkedCount = data.links.filter((link) =>
+      endpointId(link.source) === student.id || endpointId(link.target) === student.id
+    ).length;
+
+    deleteInProgressRef.current = true;
+    const confirmed = window.confirm(
+      `Supprimer ${student.name} et ses ${linkedCount} lien${linkedCount === 1 ? '' : 's'} familiaux ? Cette action est définitive.`
+    );
+    if (!confirmed) {
+      deleteInProgressRef.current = false;
+      return;
+    }
+
+    const nextData = {
+      nodes: data.nodes.filter((node) => node.id !== student.id),
+      links: data.links.filter((link) =>
+        endpointId(link.source) !== student.id && endpointId(link.target) !== student.id
+      ),
+    };
+    const csv = serializeStudentsCsv(nextData);
+    const parsed = parseStudentsCsv(csv);
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      const updatedSession = await saveSharedCsv(csv, session);
+      setSession(updatedSession);
+      onSaved(nextData, parsed.warnings);
+      setMessage(`${student.name} et ses ${linkedCount} lien${linkedCount === 1 ? '' : 's'} familiaux ont été supprimés.`);
+    } catch (saveError) {
+      setError(`La suppression a échoué : ${saveError.message}`);
+      if (fromShortcut) {
+        setAnchorId(student.id);
+        setRelationAction('delete');
+        setDialog('admin');
+      }
+    } finally {
+      setBusy(false);
+      deleteInProgressRef.current = false;
+    }
+  };
+
+  useEffect(() => {
+    if (!deleteRequest || handledDeleteRef.current === deleteRequest.id || restoring) return;
+    handledDeleteRef.current = deleteRequest.id;
+    onDeleteHandled?.(deleteRequest.id);
+    if (!session) {
+      setError('Connecte-toi comme superadmin pour supprimer un étudiant.');
+      setDialog('login');
+      return;
+    }
+    void handleDeleteStudent(deleteRequest.studentId, true);
+  }, [deleteRequest, restoring, session, handleDeleteStudent, onDeleteHandled]);
+
+  if (!isSupabaseConfigured()) return null;
 
   const handleCreateBase = async () => {
     setBusy(true);
@@ -559,15 +777,61 @@ export default function AdminPanel({
     event.preventDefault();
     setError('');
     setMessage('');
+
+    if (relationAction === 'delete') {
+      await handleDeleteStudent(anchorId);
+      return;
+    }
+
+    if (relationAction === 'edit') {
+      const student = data.nodes.find((node) => node.id === anchorId);
+      if (!student) return setError('Choisis un étudiant à modifier.');
+      const name = editName.trim().replace(/\s+/g, ' ');
+      const year = Number(editPromo);
+      if (!name) return setError('Saisis le nom de l’étudiant.');
+      if (!Number.isInteger(year) || year < 1900 || year > currentPromoYear) {
+        return setError(`Choisis une année de promo comprise entre 1900 et ${currentPromoYear}.`);
+      }
+      const normalized = normalizeName(name);
+      if (data.nodes.some((node) => node.id !== student.id && normalizeName(node.name) === normalized)) {
+        return setError('Une autre personne porte déjà ce nom.');
+      }
+
+      const updatedStudent = {
+        ...student,
+        name,
+        promo: year,
+        code: editCode.trim() || undefined,
+        filiere: editFiliere.trim() || undefined,
+        bio: editBio.trim() || undefined,
+      };
+      const nextData = {
+        nodes: data.nodes.map((node) => node.id === student.id ? updatedStudent : node),
+        links: data.links,
+      };
+      const csv = serializeStudentsCsv(nextData);
+      const parsed = parseStudentsCsv(csv);
+      setBusy(true);
+      try {
+        const updatedSession = await saveSharedCsv(csv, session);
+        setSession(updatedSession);
+        onSaved(nextData, parsed.warnings);
+        setMessage(`Les informations de ${updatedStudent.name} ont été mises à jour.`);
+      } catch (saveError) {
+        setError(`La modification a échoué : ${saveError.message}`);
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
     const createStandalone = relationAction === 'create';
     const createNewPerson = createStandalone || (relationAction === 'add' && personType === 'new');
     const anchor = createStandalone ? null : data.nodes.find((node) => node.id === anchorId);
     if (!createStandalone && !anchor) return setError('Choisis un étudiant de référence.');
 
-    let person = createNewPerson
-      ? null
-      : data.nodes.find((node) => node.id === existingId);
     const nextNodes = [...data.nodes];
+    let people = [];
     if (createNewPerson) {
       const firstName = newFirstName.trim().replace(/\s+/g, ' ');
       const lastName = newLastName.trim().replace(/\s+/g, ' ').toLocaleUpperCase('fr');
@@ -580,33 +844,55 @@ export default function AdminPanel({
         return setError('Une personne avec ce nom existe déjà. Sélectionne-la dans la liste.');
       }
       const unique = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      person = {
+      const person = {
         id: `admin-${unique}`,
         name,
         promo: year,
         code: newCode.trim() || undefined,
         filiere: newFiliere.trim() || undefined,
       };
+      people = [person];
       nextNodes.push(person);
+    } else if (relationAction === 'add') {
+      people = data.nodes.filter((node) => selectedIds.includes(node.id));
+    } else {
+      const person = data.nodes.find((node) => node.id === existingId);
+      if (person) people = [person];
     }
-    if (!person) return setError(createStandalone ? 'Renseigne les informations de la personne.' : 'Choisis la personne à relier.');
+    if (!people.length) {
+      return setError(createStandalone
+        ? 'Renseigne les informations de la personne.'
+        : relationAction === 'add' ? 'Sélectionne au moins une personne à relier.' : 'Choisis la personne à relier.');
+    }
 
     let nextLinks = [...data.links];
     if (!createStandalone) {
-      if (person.id === anchor.id) return setError('Un étudiant ne peut pas être son propre parrain ou fillot.');
-      if (relationAction === 'remove' && !removablePeople.some((candidate) => candidate.id === person.id)) {
+      if (people.some((person) => person.id === anchor.id)) return setError('Un étudiant ne peut pas être son propre parrain ou fillot.');
+      if (relationAction === 'remove' && !removablePeople.some((candidate) => candidate.id === people[0].id)) {
         return setError('Choisis un lien existant à supprimer.');
       }
 
-      const source = relationType === 'parrain' ? person.id : anchor.id;
-      const target = relationType === 'parrain' ? anchor.id : person.id;
-      const exists = data.links.some((link) => endpointId(link.source) === source && endpointId(link.target) === target);
-      if (relationAction === 'add' && exists) return setError('Ce lien existe déjà.');
-      if (relationAction === 'remove' && !exists) return setError('Ce lien n’existe plus. Recharge les données puis réessaie.');
+      const linksToAdd = people.map((person) => ({
+        source: relationType === 'parrain' ? person.id : anchor.id,
+        target: relationType === 'parrain' ? anchor.id : person.id,
+      }));
+      const duplicatePeople = relationAction === 'add'
+        ? people.filter((person, index) => data.links.some((link) =>
+          endpointId(link.source) === linksToAdd[index].source && endpointId(link.target) === linksToAdd[index].target
+        ))
+        : [];
+      if (duplicatePeople.length) {
+        return setError(`Un lien existe déjà pour : ${duplicatePeople.map((person) => person.name).join(', ')}.`);
+      }
 
-      nextLinks = relationAction === 'remove'
-        ? data.links.filter((link) => endpointId(link.source) !== source || endpointId(link.target) !== target)
-        : [...data.links, { source, target }];
+      if (relationAction === 'remove') {
+        const { source, target } = linksToAdd[0];
+        const exists = data.links.some((link) => endpointId(link.source) === source && endpointId(link.target) === target);
+        if (!exists) return setError('Ce lien n’existe plus. Recharge les données puis réessaie.');
+        nextLinks = data.links.filter((link) => endpointId(link.source) !== source || endpointId(link.target) !== target);
+      } else {
+        nextLinks = [...data.links, ...linksToAdd];
+      }
     }
 
     const nextData = { nodes: nextNodes, links: nextLinks };
@@ -619,10 +905,11 @@ export default function AdminPanel({
       // Garder les identifiants React et graphe en place après la sauvegarde.
       onSaved(nextData, parsed.warnings);
       setMessage(createStandalone
-        ? `${person.name} a été ajouté·e au graphe sans lien familial.`
+        ? `${people[0].name} a été ajouté·e au graphe sans lien familial.`
         : relationAction === 'remove'
-          ? `Le lien avec ${person.name} a été supprimé.`
-          : `${person.name} a été ajouté·e à la famille de ${anchor.name}.`);
+          ? `Le lien avec ${people[0].name} a été supprimé.`
+          : `${people.length} personne${people.length > 1 ? 's ont été ajoutées' : ' a été ajoutée'} à la famille de ${anchor.name}.`);
+      if (relationAction === 'add' && personType === 'existing') setSelectedIds([]);
       if (createNewPerson) {
         setNewFirstName('');
         setNewLastName('');
@@ -721,10 +1008,16 @@ export default function AdminPanel({
                     <button type="button" role="tab" aria-selected={relationAction === 'create'} className={relationAction === 'create' ? 'is-active' : ''} onClick={() => setRelationAction('create')}>
                       Créer sans lien
                     </button>
+                    <button type="button" role="tab" aria-selected={relationAction === 'edit'} className={relationAction === 'edit' ? 'is-active' : ''} onClick={() => setRelationAction('edit')}>
+                      Modifier un étudiant
+                    </button>
+                    <button type="button" role="tab" aria-selected={relationAction === 'delete'} className={`admin-tabs__delete${relationAction === 'delete' ? ' is-active' : ''}`} onClick={() => setRelationAction('delete')}>
+                      Supprimer un étudiant
+                    </button>
                   </div>
                 </div>
 
-                {relationAction !== 'create' && (
+                {(relationAction === 'add' || relationAction === 'remove') && (
                   <div className="admin-field">
                     <span className="admin-field__label">{relationAction === 'remove' ? 'Quel lien ?' : 'Ajouter à sa famille'}</span>
                     <div className="admin-tabs" role="tablist" aria-label="Type de relation">
@@ -756,14 +1049,60 @@ export default function AdminPanel({
                   <span className="admin-field__label">Nouvelle personne sans lien familial</span>
                 )}
 
-                {relationAction === 'remove' || (relationAction === 'add' && personType === 'existing') ? (
+                {relationAction === 'edit' && (
+                  <div className="admin-form__new-person">
+                    <label>
+                      Nom complet
+                      <input value={editName} onChange={(event) => setEditName(event.target.value)} required />
+                    </label>
+                    <div className="admin-form__row">
+                      <div className="admin-field">
+                        <span className="admin-field__label">Année de promo</span>
+                        <ChoiceSelect
+                          id="edit-student-year"
+                          label="Année de promo"
+                          options={editPromoOptions}
+                          value={editPromo}
+                          onChange={setEditPromo}
+                          searchPlaceholder="Rechercher une année"
+                        />
+                      </div>
+                      <div className="admin-field">
+                        <span className="admin-field__label">Code</span>
+                        <ChoiceSelect
+                          id="edit-student-code"
+                          label="Code"
+                          options={editCodeOptions}
+                          value={editCode}
+                          onChange={setEditCode}
+                          searchPlaceholder="Rechercher un code"
+                        />
+                      </div>
+                    </div>
+                    <div className="admin-field">
+                      <span className="admin-field__label">Filière</span>
+                      <ChoiceSelect
+                        id="edit-student-filiere"
+                        label="Filière"
+                        options={editFiliereOptions}
+                        value={editFiliere}
+                        onChange={setEditFiliere}
+                        searchPlaceholder="Rechercher une filière"
+                      />
+                    </div>
+                    <label>
+                      Bio / description
+                      <textarea rows="3" value={editBio} onChange={(event) => setEditBio(event.target.value)} />
+                    </label>
+                  </div>
+                )}
+
+                {relationAction === 'remove' ? (
                   <div className="admin-selection">
-                    <span className="admin-selection__title">
-                      {relationAction === 'remove' ? 'Personne liée' : 'Personne'}
-                    </span>
+                    <span className="admin-selection__title">Personne liée</span>
                     <StudentSelect
                       id="related-student"
-                      label={relationAction === 'remove' ? 'Personne liée' : 'Personne'}
+                      label="Personne liée"
                       students={selectablePeople}
                       value={existingId}
                       onChange={setExistingId}
@@ -771,7 +1110,19 @@ export default function AdminPanel({
                       emptyLabel="Aucun lien de ce type pour cet étudiant"
                     />
                   </div>
-                ) : (
+                ) : relationAction === 'add' && personType === 'existing' ? (
+                  <div className="admin-selection">
+                    <span className="admin-selection__title">Personnes à ajouter</span>
+                    <StudentMultiSelect
+                      id="related-students"
+                      label="Personnes à ajouter"
+                      students={availableExisting}
+                      selectedIds={selectedIds}
+                      onChange={setSelectedIds}
+                      emptyLabel="Sélectionner une ou plusieurs personnes"
+                    />
+                  </div>
+                ) : relationAction === 'add' || relationAction === 'create' ? (
                   <div className="admin-form__new-person">
                     <div className="admin-form__row">
                       <label>
@@ -819,14 +1170,18 @@ export default function AdminPanel({
                       />
                     </div>
                   </div>
-                )}
+                ) : null}
 
                 <p className="admin-form__hint">
-                  {relationAction === 'create'
-                    ? 'La personne sera ajoutée au graphe sans lien familial.'
-                    : relationAction === 'remove'
-                      ? `Seuls les ${relationType === 'parrain' ? 'parrains et marraines' : 'fillots et fillottes'} déjà liés à cet étudiant sont proposés.`
-                      : relationshipHint}
+                  {relationAction === 'delete'
+                    ? `La fiche de ${hintAnchor} et ses ${anchorLinksCount} lien${anchorLinksCount === 1 ? '' : 's'} familiaux seront supprimés ensemble. Depuis le graphe, Maj+Suppr supprime directement l’étudiant sélectionné.`
+                    : relationAction === 'create'
+                      ? 'La personne sera ajoutée au graphe sans lien familial.'
+                      : relationAction === 'edit'
+                        ? 'Les liens familiaux de cet étudiant seront conservés.'
+                        : relationAction === 'remove'
+                          ? `Seuls les ${relationType === 'parrain' ? 'parrains et marraines' : 'fillots et fillottes'} déjà liés à cet étudiant sont proposés.`
+                          : relationAction === 'add' && personType === 'existing' ? selectedRelationshipHint : relationshipHint}
                 </p>
                 {error && <p className="admin-message admin-message--error" role="alert">{error}</p>}
                 {message && <p className="admin-message admin-message--success" role="status">{message}</p>}
@@ -850,8 +1205,8 @@ export default function AdminPanel({
                   <button type="button" className="admin-panel__logout" onClick={handleCreateBase} disabled={busy || !data.nodes.length}>
                     {busy ? 'Création de la base…' : 'Créer et télécharger la base (.xlsx)'}
                   </button>
-                  <button className="btn admin-submit" type="submit" disabled={busy || (relationAction !== 'create' && !data.nodes.length) || (relationAction === 'remove' ? !selectablePeople.some((student) => student.id === existingId) : relationAction === 'add' && personType === 'existing' && !availableExisting.length)}>
-                    {busy ? 'Enregistrement…' : relationAction === 'remove' ? 'Supprimer le lien' : relationAction === 'create' ? 'Créer la personne' : 'Enregistrer dans la base partagée'}
+                  <button className={`btn admin-submit${relationAction === 'delete' ? ' admin-submit--danger' : ''}`} type="submit" disabled={busy || (relationAction !== 'create' && !data.nodes.length) || (relationAction === 'remove' ? !selectablePeople.some((student) => student.id === existingId) : relationAction === 'add' && personType === 'existing' && !selectedIds.length)}>
+                    {busy ? 'Enregistrement…' : relationAction === 'delete' ? 'Supprimer l’étudiant' : relationAction === 'remove' ? 'Supprimer le lien' : relationAction === 'create' ? 'Créer la personne' : relationAction === 'edit' ? 'Enregistrer les modifications' : 'Enregistrer dans la base partagée'}
                   </button>
                 </footer>
               </form>

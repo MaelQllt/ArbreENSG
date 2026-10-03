@@ -182,6 +182,27 @@ button {
   filter: brightness(0) invert(1);
 }
 
+.app--admin .student-search__field {
+  background: var(--paper);
+}
+
+.app--admin .student-search__icon {
+  stroke: var(--blue);
+}
+
+.app--admin .student-search__field input {
+  color: var(--blue);
+}
+
+.app--admin .student-search__field input::placeholder {
+  color: var(--blue);
+  opacity: 0.65;
+}
+
+.app--admin .student-search__field input::-webkit-search-cancel-button {
+  filter: none;
+}
+
 .student-search__results {
   position: absolute;
   z-index: 1;
@@ -278,6 +299,10 @@ button {
   justify-content: space-between;
   gap: 12px;
   pointer-events: none;
+}
+
+.controls:has(.admin-scrim) {
+  z-index: 60;
 }
 
 .dock {
@@ -538,7 +563,8 @@ button {
 }
 
 .admin-form input,
-.admin-form select {
+.admin-form select,
+.admin-form textarea {
   width: 100%;
   min-height: 42px;
   padding: 0.55rem 0.65rem;
@@ -547,6 +573,11 @@ button {
   color: var(--blue);
   font: inherit;
   font-weight: 400;
+}
+
+.admin-form textarea {
+  min-height: 88px;
+  resize: vertical;
 }
 
 .admin-student-select {
@@ -662,6 +693,74 @@ button {
   font-weight: 400;
 }
 
+.admin-student-multi-select__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+}
+
+.admin-student-multi-select__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.35rem 0.2rem 0.55rem;
+  border: 1px solid var(--sand);
+  background: var(--violet);
+  color: var(--paper);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.admin-student-multi-select__chip button {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.admin-student-multi-select__clear {
+  padding: 0.25rem 0.4rem;
+  border: 0;
+  background: transparent;
+  color: var(--sand);
+  font-size: 0.8rem;
+  text-decoration: underline;
+}
+
+.admin-form label.admin-student-multi-select__option {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--blue);
+  font-size: 0.86rem;
+  font-weight: 400;
+}
+
+.admin-form label.admin-student-multi-select__option:hover {
+  background: var(--sand);
+}
+
+.admin-form .admin-student-multi-select__checkbox {
+  flex: none;
+  width: 18px !important;
+  height: 18px;
+  min-height: 18px !important;
+  margin: 0;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  accent-color: var(--blue);
+  appearance: auto;
+}
+
 .admin-field__label {
   display: block;
 }
@@ -692,9 +791,32 @@ button {
   color: var(--blue);
 }
 
+.admin-tabs__delete:not(.is-active) {
+  color: #ff9a9a;
+}
+
+.admin-tabs__delete.is-active {
+  background: #ff8c8c;
+  color: var(--blue);
+}
+
 .admin-tabs--compact button {
   min-height: 38px;
   font-size: 0.82rem;
+}
+
+.admin-tabs[aria-label="Action sur le graphe"] {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.admin-tabs[aria-label="Action sur le graphe"] button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-right: 0.35rem;
+  padding-left: 0.35rem;
+  text-align: center;
 }
 
 .admin-form__new-person {
@@ -738,9 +860,18 @@ button {
 .admin-form__footer {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: stretch;
   gap: 1rem;
   margin-top: 0.35rem;
+}
+
+.admin-form__footer > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  text-align: center;
+  line-height: 1.15;
 }
 
 .admin-form__file-input {
@@ -759,6 +890,17 @@ button {
 .admin-submit:hover {
   background: var(--sand);
   border-color: var(--sand);
+}
+
+.admin-submit--danger {
+  border-color: #ff8c8c;
+  background: #ff8c8c;
+  color: var(--blue);
+}
+
+.admin-submit--danger:hover {
+  border-color: #ffb3b3;
+  background: #ffb3b3;
 }
 
 .admin-submit:disabled,
@@ -871,13 +1013,35 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .admin-tabs[aria-label="Action sur le graphe"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-tabs[aria-label="Action sur le graphe"] button:nth-child(odd) {
+    border-left: 0;
+  }
+
+  .admin-tabs[aria-label="Action sur le graphe"] button:nth-child(even) {
+    border-left: 1px solid var(--sand);
+  }
+
+  .admin-tabs[aria-label="Action sur le graphe"] button:nth-child(n + 3) {
+    border-top: 1px solid var(--sand);
+  }
+
+  .admin-tabs[aria-label="Action sur le graphe"] button:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
   .admin-form__footer {
     align-items: stretch;
     flex-direction: column-reverse;
   }
 
   .admin-form__footer button {
-    min-height: 42px;
+    flex: 0 0 48px;
+    height: 48px;
+    min-height: 48px;
   }
 }
 

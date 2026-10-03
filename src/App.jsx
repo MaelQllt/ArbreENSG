@@ -11,11 +11,13 @@ export default function App() {
   const [loaded, setLoaded] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [deleteStudentRequest, setDeleteStudentRequest] = useState(null);
   const [quickAddRequest, setQuickAddRequest] = useState(null);
   const [showLegend, setShowLegend] = useState(true);
   const [showWarnings, setShowWarnings] = useState(false);
   const [resetTick, setResetTick] = useState(0);
   const quickAddSequence = useRef(0);
+  const deleteStudentSequence = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -26,6 +28,22 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    const handleShortcut = (event) => {
+      const isDeleteKey = ['Delete', 'Del', 'Backspace'].includes(event.key)
+        || ['Delete', 'Backspace'].includes(event.code);
+      if (!event.shiftKey || event.ctrlKey || event.altKey || event.metaKey || !isDeleteKey || !isAdmin || !selectedId) return;
+      if (event.target instanceof Element && event.target.closest('input, textarea, select, button, a, [contenteditable="true"], [role="dialog"]')) return;
+
+      event.preventDefault();
+      deleteStudentSequence.current += 1;
+      setDeleteStudentRequest({ id: deleteStudentSequence.current, studentId: selectedId });
+    };
+
+    window.addEventListener('keydown', handleShortcut);
+    return () => window.removeEventListener('keydown', handleShortcut);
+  }, [isAdmin, selectedId]);
 
   // Calculé une seule fois par jeu de données : react-force-graph mute les objets qu'on lui passe
   const graph = useMemo(() => (loaded ? prepareGraph(loaded.data) : null), [loaded]);
@@ -48,7 +66,7 @@ export default function App() {
   const warnings = loaded.warnings;
 
   return (
-    <div className={`app${student ? ' app--card-open' : ''}`}>
+    <div className={`app${student ? ' app--card-open' : ''}${isAdmin ? ' app--admin' : ''}`}>
       <GraphView
         graphData={graphData}
         selectedId={selectedId}
@@ -107,6 +125,10 @@ export default function App() {
         <AdminPanel
           data={loaded.data}
           initialSelectedId={selectedId}
+          deleteRequest={deleteStudentRequest}
+          onDeleteHandled={(requestId) => {
+            setDeleteStudentRequest((request) => request?.id === requestId ? null : request);
+          }}
           quickAddRequest={quickAddRequest}
           onQuickAddHandled={(requestId) => {
             setQuickAddRequest((request) => request?.id === requestId ? null : request);
