@@ -559,14 +559,16 @@ export default function AdminPanel({
     event.preventDefault();
     setError('');
     setMessage('');
-    const anchor = data.nodes.find((node) => node.id === anchorId);
-    if (!anchor) return setError('Choisis un étudiant de référence.');
+    const createStandalone = relationAction === 'create';
+    const createNewPerson = createStandalone || (relationAction === 'add' && personType === 'new');
+    const anchor = createStandalone ? null : data.nodes.find((node) => node.id === anchorId);
+    if (!createStandalone && !anchor) return setError('Choisis un étudiant de référence.');
 
-    let person = relationAction === 'add' && personType === 'new'
+    let person = createNewPerson
       ? null
       : data.nodes.find((node) => node.id === existingId);
     const nextNodes = [...data.nodes];
-    if (relationAction === 'add' && personType === 'new') {
+    if (createNewPerson) {
       const firstName = newFirstName.trim().replace(/\s+/g, ' ');
       const lastName = newLastName.trim().replace(/\s+/g, ' ').toLocaleUpperCase('fr');
       const name = [firstName, lastName].filter(Boolean).join(' ');
@@ -587,21 +589,26 @@ export default function AdminPanel({
       };
       nextNodes.push(person);
     }
-    if (!person) return setError('Choisis la personne à relier.');
-    if (person.id === anchor.id) return setError('Un étudiant ne peut pas être son propre parrain ou fillot.');
-    if (relationAction === 'remove' && !removablePeople.some((candidate) => candidate.id === person.id)) {
-      return setError('Choisis un lien existant à supprimer.');
+    if (!person) return setError(createStandalone ? 'Renseigne les informations de la personne.' : 'Choisis la personne à relier.');
+
+    let nextLinks = [...data.links];
+    if (!createStandalone) {
+      if (person.id === anchor.id) return setError('Un étudiant ne peut pas être son propre parrain ou fillot.');
+      if (relationAction === 'remove' && !removablePeople.some((candidate) => candidate.id === person.id)) {
+        return setError('Choisis un lien existant à supprimer.');
+      }
+
+      const source = relationType === 'parrain' ? person.id : anchor.id;
+      const target = relationType === 'parrain' ? anchor.id : person.id;
+      const exists = data.links.some((link) => endpointId(link.source) === source && endpointId(link.target) === target);
+      if (relationAction === 'add' && exists) return setError('Ce lien existe déjà.');
+      if (relationAction === 'remove' && !exists) return setError('Ce lien n’existe plus. Recharge les données puis réessaie.');
+
+      nextLinks = relationAction === 'remove'
+        ? data.links.filter((link) => endpointId(link.source) !== source || endpointId(link.target) !== target)
+        : [...data.links, { source, target }];
     }
 
-    const source = relationType === 'parrain' ? person.id : anchor.id;
-    const target = relationType === 'parrain' ? anchor.id : person.id;
-    const exists = data.links.some((link) => endpointId(link.source) === source && endpointId(link.target) === target);
-    if (relationAction === 'add' && exists) return setError('Ce lien existe déjà.');
-    if (relationAction === 'remove' && !exists) return setError('Ce lien n’existe plus. Recharge les données puis réessaie.');
-
-    const nextLinks = relationAction === 'remove'
-      ? data.links.filter((link) => endpointId(link.source) !== source || endpointId(link.target) !== target)
-      : [...data.links, { source, target }];
     const nextData = { nodes: nextNodes, links: nextLinks };
     const csv = serializeStudentsCsv(nextData);
     const parsed = parseStudentsCsv(csv);
@@ -611,15 +618,17 @@ export default function AdminPanel({
       setSession(updatedSession);
       // Garder les identifiants React et graphe en place après la sauvegarde.
       onSaved(nextData, parsed.warnings);
-      setMessage(relationAction === 'remove'
-        ? `Le lien avec ${person.name} a été supprimé.`
-        : `${person.name} a été ajouté·e à la famille de ${anchor.name}.`);
-      if (relationAction === 'add' && personType === 'new') {
+      setMessage(createStandalone
+        ? `${person.name} a été ajouté·e au graphe sans lien familial.`
+        : relationAction === 'remove'
+          ? `Le lien avec ${person.name} a été supprimé.`
+          : `${person.name} a été ajouté·e à la famille de ${anchor.name}.`);
+      if (createNewPerson) {
         setNewFirstName('');
         setNewLastName('');
         setNewCode('');
         setNewFiliere('');
-        setPersonType('existing');
+        if (!createStandalone) setPersonType('existing');
       }
     } catch (saveError) {
       setError(`La sauvegarde a échoué : ${saveError.message}`);
@@ -687,40 +696,47 @@ export default function AdminPanel({
               </header>
 
               <form className="admin-form" onSubmit={handleSave}>
-                <div className="admin-selection">
-                  <span className="admin-selection__title">Étudiant.e concerné.e</span>
-                  <StudentSelect
-                    id="anchor-student"
-                    label="Étudiant.e concerné.e"
-                    students={students}
-                    value={anchorId}
-                    onChange={setAnchorId}
-                  />
-                </div>
+                {relationAction !== 'create' && (
+                  <div className="admin-selection">
+                    <span className="admin-selection__title">Étudiant.e concerné.e</span>
+                    <StudentSelect
+                      id="anchor-student"
+                      label="Étudiant.e concerné.e"
+                      students={students}
+                      value={anchorId}
+                      onChange={setAnchorId}
+                    />
+                  </div>
+                )}
 
                 <div className="admin-field">
-                  <span className="admin-field__label">Action sur les liens</span>
-                  <div className="admin-tabs" role="tablist" aria-label="Ajouter ou supprimer un lien">
+                  <span className="admin-field__label">Action dans le graphe</span>
+                  <div className="admin-tabs admin-tabs--compact" role="tablist" aria-label="Action sur le graphe">
                     <button type="button" role="tab" aria-selected={relationAction === 'add'} className={relationAction === 'add' ? 'is-active' : ''} onClick={() => setRelationAction('add')}>
-                      Ajouter
+                      Ajouter un lien
                     </button>
                     <button type="button" role="tab" aria-selected={relationAction === 'remove'} className={relationAction === 'remove' ? 'is-active' : ''} onClick={() => setRelationAction('remove')}>
                       Supprimer un lien
                     </button>
+                    <button type="button" role="tab" aria-selected={relationAction === 'create'} className={relationAction === 'create' ? 'is-active' : ''} onClick={() => setRelationAction('create')}>
+                      Créer sans lien
+                    </button>
                   </div>
                 </div>
 
-                <div className="admin-field">
-                  <span className="admin-field__label">{relationAction === 'remove' ? 'Quel lien ?' : 'Ajouter à sa famille'}</span>
-                  <div className="admin-tabs" role="tablist" aria-label="Type de relation">
-                    <button type="button" role="tab" aria-selected={relationType === 'parrain'} className={relationType === 'parrain' ? 'is-active' : ''} onClick={() => setRelationType('parrain')}>
-                      Un parrain / une marraine
-                    </button>
-                    <button type="button" role="tab" aria-selected={relationType === 'fillot'} className={relationType === 'fillot' ? 'is-active' : ''} onClick={() => setRelationType('fillot')}>
-                      Un fillot / une fillotte
-                    </button>
+                {relationAction !== 'create' && (
+                  <div className="admin-field">
+                    <span className="admin-field__label">{relationAction === 'remove' ? 'Quel lien ?' : 'Ajouter à sa famille'}</span>
+                    <div className="admin-tabs" role="tablist" aria-label="Type de relation">
+                      <button type="button" role="tab" aria-selected={relationType === 'parrain'} className={relationType === 'parrain' ? 'is-active' : ''} onClick={() => setRelationType('parrain')}>
+                        Un parrain / une marraine
+                      </button>
+                      <button type="button" role="tab" aria-selected={relationType === 'fillot'} className={relationType === 'fillot' ? 'is-active' : ''} onClick={() => setRelationType('fillot')}>
+                        Un fillot / une fillotte
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {relationAction === 'add' && (
                   <div className="admin-field">
@@ -736,7 +752,11 @@ export default function AdminPanel({
                   </div>
                 )}
 
-                {relationAction === 'remove' || personType === 'existing' ? (
+                {relationAction === 'create' && (
+                  <span className="admin-field__label">Nouvelle personne sans lien familial</span>
+                )}
+
+                {relationAction === 'remove' || (relationAction === 'add' && personType === 'existing') ? (
                   <div className="admin-selection">
                     <span className="admin-selection__title">
                       {relationAction === 'remove' ? 'Personne liée' : 'Personne'}
@@ -802,9 +822,11 @@ export default function AdminPanel({
                 )}
 
                 <p className="admin-form__hint">
-                  {relationAction === 'remove'
-                    ? `Seuls les ${relationType === 'parrain' ? 'parrains et marraines' : 'fillots et fillottes'} déjà liés à cet étudiant sont proposés.`
-                    : relationshipHint}
+                  {relationAction === 'create'
+                    ? 'La personne sera ajoutée au graphe sans lien familial.'
+                    : relationAction === 'remove'
+                      ? `Seuls les ${relationType === 'parrain' ? 'parrains et marraines' : 'fillots et fillottes'} déjà liés à cet étudiant sont proposés.`
+                      : relationshipHint}
                 </p>
                 {error && <p className="admin-message admin-message--error" role="alert">{error}</p>}
                 {message && <p className="admin-message admin-message--success" role="status">{message}</p>}
@@ -828,8 +850,8 @@ export default function AdminPanel({
                   <button type="button" className="admin-panel__logout" onClick={handleCreateBase} disabled={busy || !data.nodes.length}>
                     {busy ? 'Création de la base…' : 'Créer et télécharger la base (.xlsx)'}
                   </button>
-                  <button className="btn admin-submit" type="submit" disabled={busy || !data.nodes.length || (relationAction === 'remove' ? !selectablePeople.some((student) => student.id === existingId) : personType === 'existing' && !availableExisting.length)}>
-                    {busy ? 'Enregistrement…' : relationAction === 'remove' ? 'Supprimer le lien' : 'Enregistrer dans la base partagée'}
+                  <button className="btn admin-submit" type="submit" disabled={busy || (relationAction !== 'create' && !data.nodes.length) || (relationAction === 'remove' ? !selectablePeople.some((student) => student.id === existingId) : relationAction === 'add' && personType === 'existing' && !availableExisting.length)}>
+                    {busy ? 'Enregistrement…' : relationAction === 'remove' ? 'Supprimer le lien' : relationAction === 'create' ? 'Créer la personne' : 'Enregistrer dans la base partagée'}
                   </button>
                 </footer>
               </form>
