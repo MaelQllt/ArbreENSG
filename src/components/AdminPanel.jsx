@@ -784,8 +784,8 @@ export default function AdminPanel({
                       </label>
                     </div>
                     <div className="admin-form__row">
-                      <label>
-                        Année d’arrivée
+                      <div className="admin-field">
+                        <span className="admin-field__label">Année d’arrivée</span>
                         <ChoiceSelect
                           id="new-person-year"
                           label="Année d’arrivée"
@@ -794,9 +794,9 @@ export default function AdminPanel({
                           onChange={setNewPromo}
                           searchPlaceholder="Rechercher une année"
                         />
-                      </label>
-                      <label>
-                        Code
+                      </div>
+                      <div className="admin-field">
+                        <span className="admin-field__label">Code</span>
                         <ChoiceSelect
                           id="new-person-code"
                           label="Code"
@@ -805,10 +805,10 @@ export default function AdminPanel({
                           onChange={setNewCode}
                           searchPlaceholder="Rechercher un code"
                         />
-                      </label>
+                      </div>
                     </div>
-                    <label>
-                      Filière
+                    <div className="admin-field">
+                      <span className="admin-field__label">Filière</span>
                       <ChoiceSelect
                         id="new-person-filiere"
                         label="Filière"
@@ -817,7 +817,7 @@ export default function AdminPanel({
                         onChange={setNewFiliere}
                         searchPlaceholder="Rechercher une filière"
                       />
-                    </label>
+                    </div>
                   </div>
                 )}
 
