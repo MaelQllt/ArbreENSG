@@ -334,7 +334,7 @@ export default function GamePage({ students, links }) {
   const addStudent = (student) => {
     if (!student || won || visibleIds.has(student.id)) return;
 
-    const connectsToShown = (graph.adjacency.get(student.id) ?? []).some((id) => visibleIds.has(id));
+    const connectsToShown = [...(graph.adjacency.get(student.id) ?? [])].some((id) => visibleIds.has(id));
     const onShortest = shortestIds.has(student.id);
     setFoundIds((current) => [...current, student.id]);
     setFeedback(
