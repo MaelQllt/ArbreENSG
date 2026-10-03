@@ -6,6 +6,7 @@ import { isLinkInLineage } from '../lib/lineage';
 import TopoBackground from './TopoBackground';
 
 const NODE_R = 5;
+const MOBILE_NODE_R = 6.5;
 const PANEL_WIDTH = 380;  // doit rester synchrone avec --panel-width en CSS
 
 // Le noeud sélectionné grossit et reçoit un contour de la forme de sa promo.
@@ -13,6 +14,7 @@ const SELECTED_SCALE = 1.5; // le noeud sélectionné grossit
 
 // Zoom
 const MIN_ZOOM = 0.35;
+const MOBILE_MIN_ZOOM = 0.18;
 const MAX_ZOOM = 6;
 const MAX_FIT_ZOOM = 3.5;
 
@@ -73,6 +75,8 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
   const labelWidths = useRef(new Map());
   const size = useElementSize(containerRef);
   const ready = size.width > 0 && size.height > 0;
+  const nodeRadius = size.width <= 720 ? MOBILE_NODE_R : NODE_R;
+  const minZoom = size.width <= 720 ? MOBILE_MIN_ZOOM : MIN_ZOOM;
 
   // react-force-graph ajoute x/y/vx/vy aux nœuds. Réutiliser ces coordonnées
   // lors d'un changement de lien évite de relancer tout le réseau à zéro.
@@ -117,11 +121,11 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
     fg.d3Force('x', colForce.current);
     fg.d3Force('charge').strength(-95);
     fg.d3Force('link').distance(56).strength(0.08);
-    fg.d3Force('collide', forceCollide(NODE_R + 7));
+    fg.d3Force('collide', forceCollide(nodeRadius + 7));
     // Attendre que react-force-graph ait appliqué son nouveau graphData.
     const frame = requestAnimationFrame(() => fgRef.current?.d3ReheatSimulation());
     return () => cancelAnimationFrame(frame);
-  }, [graphData, ready]);
+  }, [graphData, nodeRadius, ready]);
 
   // Cadre un ensemble de noeuds dans la zone libre (la fiche latérale est prise en compte)
   const fitTo = useCallback(
@@ -136,7 +140,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
         else pad.r += PANEL_WIDTH;
       }
       const k = Math.max(
-        MIN_ZOOM,
+        minZoom,
         Math.min(
           (W - pad.l - pad.r) / Math.max(box.x[1] - box.x[0], 1),
           (H - pad.t - pad.b) / Math.max(box.y[1] - box.y[0], 1),
@@ -148,7 +152,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
       fg.centerAt(cx, cy, 700);
       fg.zoom(k, 700);
     },
-    [size]
+    [minZoom, size]
   );
 
   // Au clic : on cadre la lignée entière
@@ -176,7 +180,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
       const active = !lineage || lineage.nodeIds.has(node.id);
       const selected = node.id === selectedId;
       const { color, shape, stroke } = promoStyle(node.promo);
-      const r = selected ? NODE_R * SELECTED_SCALE : NODE_R;
+      const r = selected ? nodeRadius * SELECTED_SCALE : nodeRadius;
 
       ctx.globalAlpha = active ? 1 : 0.12;
       ctx.lineJoin = 'miter';
@@ -191,13 +195,13 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
       ctx.stroke();
       ctx.globalAlpha = 1;
     },
-    [lineage, selectedId]
+    [lineage, nodeRadius, selectedId]
   );
 
   const paintPointerArea = useCallback((node, color, ctx) => {
     ctx.fillStyle = color;
-    ctx.fillRect(node.x - NODE_R - 5, node.y - NODE_R - 5, (NODE_R + 5) * 2, (NODE_R + 5) * 2);
-  }, []);
+    ctx.fillRect(node.x - nodeRadius - 5, node.y - nodeRadius - 5, (nodeRadius + 5) * 2, (nodeRadius + 5) * 2);
+  }, [nodeRadius]);
 
   // Étiquettes dessinées après les noeuds, avec anti-chevauchement :
   // un nom n'est affiché que s'il ne recouvre pas un nom déjà placé.
@@ -223,18 +227,18 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
         const bw = w / k + pad * 2;
         const bh = (LABEL_FONT + 5) / k;
         const centeredX = node.x - bw / 2;
-        const belowY = node.y + NODE_R * 1.4 + 2 / k;
+        const belowY = node.y + nodeRadius * 1.4 + 2 / k;
 
         let box = { x0: centeredX, y0: belowY };
         if (!force) {
           if (placed.length >= labelLimit) return;
-          const aboveY = node.y - NODE_R * 1.4 - bh - 2 / k;
+          const aboveY = node.y - nodeRadius * 1.4 - bh - 2 / k;
           const candidates = highZoom
             ? [
                 { x0: centeredX, y0: belowY },
                 { x0: centeredX, y0: aboveY },
-                { x0: node.x - NODE_R - 4 / k - bw, y0: node.y - bh / 2 },
-                { x0: node.x + NODE_R + 4 / k, y0: node.y - bh / 2 },
+                { x0: node.x - nodeRadius - 4 / k - bw, y0: node.y - bh / 2 },
+                { x0: node.x + nodeRadius + 4 / k, y0: node.y - bh / 2 },
                 ...Array.from({ length: 6 }, (_, i) => ({
                   x0: centeredX,
                   y0: belowY + (i + 1) * (bh + 2 / k),
@@ -270,7 +274,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
         if (lineage ? lineage.nodeIds.has(node.id) : showAll) place(node, false);
       }
     },
-    [lineage, selectedId, labelOrder, nodeById]
+    [lineage, selectedId, labelOrder, nodeById, nodeRadius]
   );
 
   const inLineage = (link) => lineage && isLinkInLineage(link, lineage);
@@ -288,7 +292,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
           enableNodeDrag
           enableZoomInteraction
           backgroundColor="rgba(0,0,0,0)"
-          nodeRelSize={NODE_R}
+          nodeRelSize={nodeRadius}
           nodeCanvasObject={paintNode}
           nodePointerAreaPaint={paintPointerArea}
           nodeLabel={() => ''}
@@ -352,7 +356,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
           }}
           onNodeHover={(node) => { hoveredId.current = node ? node.id : null; }}
           onBackgroundClick={() => onSelect(null)}
-          minZoom={MIN_ZOOM}
+          minZoom={minZoom}
           maxZoom={MAX_ZOOM}
           d3VelocityDecay={VELOCITY_DECAY}
           // nécessaire : les accesseurs dépendent de l'état React, le canvas doit se redessiner

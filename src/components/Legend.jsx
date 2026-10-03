@@ -10,7 +10,9 @@ export default function Legend({ promos, visible, onToggle }) {
   const [mounted, setMounted] = useState(visible);
   const [opening, setOpening] = useState(false);
   const [panelHeight, setPanelHeight] = useState(0);
+  const [hasMoreToRight, setHasMoreToRight] = useState(false);
   const panelRef = useRef(null);
+  const listRef = useRef(null);
   const closeTimer = useRef(null);
   const openFrame = useRef(null);
 
@@ -52,6 +54,29 @@ export default function Legend({ promos, visible, onToggle }) {
     return () => observer.disconnect();
   }, [mounted]);
 
+  useEffect(() => {
+    const list = listRef.current;
+    if (!mounted || !list) return undefined;
+
+    const updateScrollHint = () => {
+      const hasOverflow = list.scrollWidth > list.clientWidth + 2;
+      const hasRemainingContent = list.scrollLeft + list.clientWidth < list.scrollWidth - 4;
+      setHasMoreToRight(hasOverflow && hasRemainingContent);
+    };
+
+    updateScrollHint();
+    list.addEventListener('scroll', updateScrollHint, { passive: true });
+    window.addEventListener('resize', updateScrollHint);
+    const observer = new ResizeObserver(updateScrollHint);
+    observer.observe(list);
+    Array.from(list.children).forEach((item) => observer.observe(item));
+    return () => {
+      list.removeEventListener('scroll', updateScrollHint);
+      window.removeEventListener('resize', updateScrollHint);
+      observer.disconnect();
+    };
+  }, [mounted, promos.length]);
+
   if (!mounted) {
     return (
       <button type="button" className="btn btn--ghost legend-disclosure__standalone" onClick={onToggle}>
@@ -76,19 +101,22 @@ export default function Legend({ promos, visible, onToggle }) {
             Masquer
           </button>
         </header>
-        <ul className="legend__list" style={{ '--rows': rowsFor(recentFirst.length) }}>
-          {recentFirst.map((promo) => {
-            const { label, detail } = describePromo(promo);
-            return (
-              <li key={promo} className="legend__item">
-                <ShapeSwatch promo={promo} size={18} />
-                <span className="legend__label">{label}</span>
-                <BrandDivider />
-                <span className="legend__detail">{detail}</span>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="legend__scroll-area">
+          <ul ref={listRef} className="legend__list" style={{ '--rows': rowsFor(recentFirst.length) }}>
+            {recentFirst.map((promo) => {
+              const { label, detail } = describePromo(promo);
+              return (
+                <li key={promo} className="legend__item">
+                  <ShapeSwatch promo={promo} size={18} />
+                  <span className="legend__label">{label}</span>
+                  <BrandDivider />
+                  <span className="legend__detail">{detail}</span>
+                </li>
+              );
+            })}
+          </ul>
+          {hasMoreToRight && <span className="legend__scroll-hint" aria-hidden="true">Glisser →</span>}
+        </div>
       </section>
       {(!visible || opening) && (
         <button type="button" className="legend-disclosure__target btn btn--ghost" onClick={onToggle}>
