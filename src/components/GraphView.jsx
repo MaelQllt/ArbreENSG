@@ -17,8 +17,8 @@ const MAX_ZOOM = 6;
 const MAX_FIT_ZOOM = 3.5;
 
 // Mise en place ordonnée, puis rappel doux : les étudiants restent libres sur les deux axes.
-const ROW_PULL_LAYOUT = 0.65;
-const ROW_PULL_FREE = 0.12;
+const ROW_PULL_LAYOUT = 0.42;
+const ROW_PULL_FREE = 0.07;
 const X_PULL_LAYOUT = 0.04;
 const X_PULL_FREE = 0.005;
 const VELOCITY_DECAY = 0.38; // amortit les réactions en chaîne tout en gardant un léger rebond
