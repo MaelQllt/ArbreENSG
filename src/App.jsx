@@ -13,7 +13,9 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [deleteStudentRequest, setDeleteStudentRequest] = useState(null);
   const [quickAddRequest, setQuickAddRequest] = useState(null);
-  const [showLegend, setShowLegend] = useState(true);
+  const [showLegend, setShowLegend] = useState(() =>
+    typeof window === 'undefined' || !window.matchMedia('(max-width: 720px)').matches
+  );
   const [showWarnings, setShowWarnings] = useState(false);
   const [resetTick, setResetTick] = useState(0);
   const quickAddSequence = useRef(0);
