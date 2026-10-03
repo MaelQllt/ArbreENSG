@@ -96,7 +96,7 @@ export default function App() {
       </header>
 
       <div className="controls">
-        <div className="dock">
+        <div className={`dock${showLegend ? ' dock--legend-open' : ''}`}>
           {warnings.length > 0 && (
             <div className="notice">
               <button type="button" className="notice__toggle" onClick={() => setShowWarnings((v) => !v)}>
