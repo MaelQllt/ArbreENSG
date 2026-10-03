@@ -66,17 +66,16 @@ export default function App() {
 
     const nextRect = button.getBoundingClientRect();
     const previousRect = globalViewRect.current;
-    globalViewRect.current = { left: nextRect.left, top: nextRect.top };
+    globalViewRect.current = { top: nextRect.top };
     if (!previousRect || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-    const dx = previousRect.left - nextRect.left;
     const dy = previousRect.top - nextRect.top;
-    if (Math.hypot(dx, dy) < 1) return;
+    if (Math.abs(dy) < 1) return;
 
-    // Keep the button visually in its old place for this frame, then animate
-    // it to its new flex position when the legend opens or closes.
+    // Keep the button in its old vertical position for this frame, then slide
+    // it to the new row without introducing any horizontal movement.
     button.style.transition = 'none';
-    button.style.transform = `translate(${dx}px, ${dy}px)`;
+    button.style.transform = `translateY(${dy}px)`;
     button.getBoundingClientRect();
     globalViewAnimation.current = requestAnimationFrame(() => {
       button.style.transition = '';
@@ -91,7 +90,7 @@ export default function App() {
   );
   const toggleLegend = () => {
     const rect = globalViewButtonRef.current?.getBoundingClientRect();
-    if (rect) globalViewRect.current = { left: rect.left, top: rect.top };
+    if (rect) globalViewRect.current = { top: rect.top };
     setShowLegend((visible) => !visible);
   };
 

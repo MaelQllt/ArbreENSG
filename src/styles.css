@@ -1407,11 +1407,14 @@ button {
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-start;
+    padding-top: 52px;
   }
 
-  .dock--legend-open > .btn:not(.legend-disclosure__standalone) {
-    order: 1;
-    align-self: flex-end;
+  .dock > .global-view-control {
+    position: absolute;
+    z-index: 1;
+    top: 0;
+    right: 0;
   }
 
   .dock--legend-open > .legend-disclosure,
