@@ -21,7 +21,10 @@ const ROW_PULL_LAYOUT = 0.3;
 const ROW_PULL_FREE = 0.05;
 const X_PULL_LAYOUT = 0.04;
 const X_PULL_FREE = 0.005;
-const VELOCITY_DECAY = 0.28; // défaut d3 : 0.4 (plus bas = plus de rebond)
+const VELOCITY_DECAY = 0.38; // amortit les réactions en chaîne tout en gardant un léger rebond
+const FAMILY_LINK_X_DISTANCE = 38;
+const FAMILY_LINK_STRENGTH = 0.35;
+const FAMILY_LINK_PROMO_DAMPING = 1.5;
 
 // Étiquettes
 const LABEL_FONT = 11;     // taille à l'écran, en px
@@ -107,7 +110,18 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
     fg.d3Force('y', rowForce.current);
     fg.d3Force('x', colForce.current);
     fg.d3Force('charge').strength(-55);
-    fg.d3Force('link').distance(38).strength(0.5);
+    fg.d3Force('link')
+      // Garder la distance verticale prévue par les rangées ; les liens rapprochent
+      // surtout les étudiants horizontalement, même quand leurs promos sont éloignées.
+      .distance((link) => Math.hypot(
+        FAMILY_LINK_X_DISTANCE,
+        (link.source.promoY ?? 0) - (link.target.promoY ?? 0)
+      ))
+      // Un lien entre promos éloignées déplace moins de nœuds autour de lui.
+      .strength((link) => {
+        const promoGap = Math.abs((link.source.promoIndex ?? 0) - (link.target.promoIndex ?? 0));
+        return FAMILY_LINK_STRENGTH / (1 + FAMILY_LINK_PROMO_DAMPING * promoGap);
+      });
     fg.d3Force('collide', forceCollide(NODE_R + 3));
     // Attendre que react-force-graph ait appliqué son nouveau graphData.
     const frame = requestAnimationFrame(() => fgRef.current?.d3ReheatSimulation());
