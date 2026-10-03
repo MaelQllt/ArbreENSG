@@ -115,7 +115,7 @@ export default function Legend({ promos, visible, onToggle }) {
               );
             })}
           </ul>
-          {hasMoreToRight && <span className="legend__scroll-hint" aria-hidden="true">Glisser →</span>}
+          {hasMoreToRight && <span className="legend__scroll-hint" aria-hidden="true" />}
         </div>
       </section>
       {(!visible || opening) && (

@@ -1428,6 +1428,11 @@ button {
     height: 44px;
   }
 
+  .dock > .legend-disclosure__standalone {
+    align-self: flex-start;
+    width: max-content;
+  }
+
   .legend {
     position: relative;
     bottom: auto;
@@ -1469,14 +1474,19 @@ button {
     top: 0;
     right: 0;
     bottom: 0;
+    width: 1.15rem;
     display: flex;
     align-items: center;
-    padding: 0 0.25rem 0 1.5rem;
-    background: linear-gradient(90deg, rgb(43 49 127 / 0%), var(--blue) 42%);
-    color: var(--sand);
-    font-size: 0.62rem;
-    font-weight: 700;
+    justify-content: center;
+    background: linear-gradient(90deg, rgb(43 49 127 / 0%), rgb(43 49 127 / 0.88) 62%);
+    color: rgb(250 193 138 / 0.78);
+    font-size: 1.25rem;
+    line-height: 1;
     pointer-events: none;
+  }
+
+  .legend__scroll-hint::after {
+    content: '›';
   }
 
   .app--card-open .student-search {
