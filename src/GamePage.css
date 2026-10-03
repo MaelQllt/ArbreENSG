@@ -396,6 +396,10 @@
   box-shadow: 7px 7px 0 var(--violet);
 }
 
+.game-help-panel--solution {
+  width: min(900px, 100%);
+}
+
 .game-help-panel h2 {
   margin: 0;
   color: var(--blue);
@@ -435,21 +439,14 @@
   outline-offset: 3px;
 }
 
-.game-solution {
-  margin-top: 16px;
-  padding: 12px 14px;
-  border: 1px solid var(--sand);
-  background: #f4f2bc;
-  color: var(--blue);
+.game-solution__summary {
+  margin: 10px 0 16px;
+  color: #675783;
+  font-size: 0.9rem;
 }
 
-.game-solution ol {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 7px 22px;
-  margin: 8px 0 0;
-  padding-left: 1.25rem;
+.game-help-panel--solution .game-graph__viewport {
+  max-height: min(480px, 58vh);
 }
 
 .game-graph {
@@ -465,10 +462,17 @@
 .game-graph__legend {
   display: flex;
   align-items: center;
-  gap: 7px;
+  flex-wrap: wrap;
+  gap: 10px 16px;
   flex: none;
   color: var(--violet);
   font-size: 0.76rem;
+}
+
+.game-graph__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
 }
 
 .game-graph__legend i {
@@ -476,6 +480,12 @@
   height: 12px;
   border: 2px solid var(--yellow);
   background: var(--blue);
+}
+
+.game-graph__legend .game-graph__legend-off-path {
+  border: 1px solid #aaa79f;
+  background: #dedbd2;
+  filter: grayscale(0.7);
 }
 
 .game-graph__viewport {
@@ -566,6 +576,11 @@
   border-color: var(--blue);
   background: var(--blue);
   color: var(--paper);
+}
+
+.game-node--off-path {
+  filter: grayscale(0.7);
+  opacity: 0.62;
 }
 
 .game-node__copy {

@@ -43,6 +43,67 @@ function findPath(adjacency, startId, endId, allowedIds) {
   return path.reverse();
 }
 
+// Un étudiant appartient à un chemin simple entre les deux bornes si deux
+// routes intérieurement disjointes le relient à chacune des bornes.
+function isOnPossiblePath(adjacency, startId, candidateId, endId) {
+  if (candidateId === startId || candidateId === endId) return true;
+  const ids = [...adjacency.keys()];
+  const indexes = new Map(ids.map((id, index) => [id, index]));
+  const startIndex = indexes.get(startId);
+  const endIndex = indexes.get(endId);
+  const candidateIndex = indexes.get(candidateId);
+  if ([startIndex, endIndex, candidateIndex].some((index) => index === undefined)) return false;
+
+  const sink = ids.length * 2;
+  const network = Array.from({ length: sink + 1 }, () => []);
+  const addEdge = (from, to, capacity) => {
+    const forward = { to, reverse: network[to].length, capacity };
+    const backward = { to: from, reverse: network[from].length, capacity: 0 };
+    network[from].push(forward);
+    network[to].push(backward);
+  };
+
+  ids.forEach((id, index) => addEdge(index * 2, index * 2 + 1, id === candidateId ? 2 : 1));
+  ids.forEach((id, index) => {
+    for (const next of adjacency.get(id) ?? []) {
+      const nextIndex = indexes.get(next);
+      if (nextIndex === undefined || index >= nextIndex) continue;
+      addEdge(index * 2 + 1, nextIndex * 2, 2);
+      addEdge(nextIndex * 2 + 1, index * 2, 2);
+    }
+  });
+  addEdge(startIndex * 2 + 1, sink, 1);
+  addEdge(endIndex * 2 + 1, sink, 1);
+
+  const source = candidateIndex * 2 + 1;
+  let flow = 0;
+  while (flow < 2) {
+    const parent = Array(network.length).fill(null);
+    parent[source] = { from: -1, edgeIndex: -1 };
+    const queue = [source];
+    for (let cursor = 0; cursor < queue.length && parent[sink] === null; cursor += 1) {
+      const current = queue[cursor];
+      network[current].forEach((edge, edgeIndex) => {
+        if (edge.capacity > 0 && parent[edge.to] === null) {
+          parent[edge.to] = { from: current, edgeIndex };
+          queue.push(edge.to);
+        }
+      });
+    }
+    if (parent[sink] === null) break;
+
+    for (let current = sink; current !== source;) {
+      const { from, edgeIndex } = parent[current];
+      const edge = network[from][edgeIndex];
+      edge.capacity -= 1;
+      network[current][edge.reverse].capacity += 1;
+      current = from;
+    }
+    flow += 1;
+  }
+  return flow === 2;
+}
+
 function buildGameGraph(students, links) {
   const byId = new Map(students.map((student) => [student.id, student]));
   const adjacency = new Map(students.map((student) => [student.id, new Set()]));
@@ -118,7 +179,7 @@ function getChallenge(pairs, mode, practiceSeed, round, byId) {
 const normalizeName = (value) =>
   value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr').trim();
 
-function GameGraph({ graph, nodes, startId, endId, shortestIds }) {
+function GameGraph({ graph, nodes, startId, endId, shortestIds, possibleIds, ariaLabel = 'Graphe des personnes trouvées' }) {
   const canvasRef = useRef(null);
   const nodeRefs = useRef(new Map());
   const [layout, setLayout] = useState({ width: 0, height: 0, lines: [] });
@@ -198,6 +259,7 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds }) {
                     const isStart = student.id === startId;
                     const isEnd = student.id === endId;
                     const isShortest = shortestIds.has(student.id);
+                    const isOffPath = !possibleIds.has(student.id);
                     return (
                       <div
                         key={student.id}
@@ -208,7 +270,8 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds }) {
                         className={'game-node'
                           + (isStart ? ' game-node--start' : '')
                           + (isEnd ? ' game-node--end' : '')
-                          + (isShortest ? ' game-node--shortest' : '')}
+                          + (isShortest ? ' game-node--shortest' : '')
+                          + (isOffPath ? ' game-node--off-path' : '')}
                       >
                         <ShapeSwatch promo={student.promo} size={20} />
                         <span className="game-node__copy">
@@ -236,27 +299,28 @@ export default function GamePage({ students, links }) {
   const [query, setQuery] = useState('');
   const [feedback, setFeedback] = useState('');
   const [activeSuggestion, setActiveSuggestion] = useState(0);
-  const [showSolution, setShowSolution] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
+  const [activePanel, setActivePanel] = useState(null);
   const helpButtonRef = useRef(null);
-  const helpCloseRef = useRef(null);
+  const solutionButtonRef = useRef(null);
+  const panelCloseRef = useRef(null);
 
   useEffect(() => {
-    if (!showHelp) return undefined;
-    const handleHelpKeyDown = (event) => {
-      if (event.key === 'Escape') setShowHelp(false);
+    if (!activePanel) return undefined;
+    const handlePanelKeyDown = (event) => {
+      if (event.key === 'Escape') setActivePanel(null);
       if (event.key === 'Tab') {
         event.preventDefault();
-        helpCloseRef.current?.focus();
+        panelCloseRef.current?.focus();
       }
     };
-    window.addEventListener('keydown', handleHelpKeyDown);
-    helpCloseRef.current?.focus();
+    window.addEventListener('keydown', handlePanelKeyDown);
+    panelCloseRef.current?.focus();
     return () => {
-      window.removeEventListener('keydown', handleHelpKeyDown);
-      helpButtonRef.current?.focus();
+      window.removeEventListener('keydown', handlePanelKeyDown);
+      const trigger = activePanel === 'help' ? helpButtonRef : solutionButtonRef;
+      trigger.current?.focus();
     };
-  }, [showHelp]);
+  }, [activePanel]);
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -286,6 +350,14 @@ export default function GamePage({ students, links }) {
     () => challenge ? findPath(graph.adjacency, startId, endId) : [],
     [graph.adjacency, challenge, startId, endId]
   );
+  const shortestGraph = useMemo(() => ({
+    ...graph,
+    edges: shortestPath.slice(1).map((target, index) => ({ source: shortestPath[index], target })),
+  }), [graph, shortestPath]);
+  const shortestNodes = useMemo(
+    () => shortestPath.map((id) => graph.byId.get(id)).filter(Boolean),
+    [shortestPath, graph.byId]
+  );
   const shortestIds = useMemo(() => {
     if (!challenge) return new Set();
     const fromStart = buildDistances(graph.adjacency, startId);
@@ -294,6 +366,13 @@ export default function GamePage({ students, links }) {
       .filter(([id, distance]) => distance + (fromEnd.get(id) ?? Infinity) === challenge.distance)
       .map(([id]) => id));
   }, [graph.adjacency, challenge, startId, endId]);
+  const possibleIds = useMemo(() => {
+    const ids = new Set([startId, endId].filter(Boolean));
+    foundIds.forEach((id) => {
+      if (isOnPossiblePath(graph.adjacency, startId, id, endId)) ids.add(id);
+    });
+    return ids;
+  }, [graph.adjacency, startId, endId, foundIds]);
   const winningPath = useMemo(
     () => challenge ? findPath(graph.adjacency, startId, endId, visibleIds) : [],
     [graph.adjacency, challenge, startId, endId, visibleIds]
@@ -317,7 +396,7 @@ export default function GamePage({ students, links }) {
     setQuery('');
     setFeedback('');
     setActiveSuggestion(0);
-    setShowSolution(false);
+    setActivePanel(null);
     if (mode === 'practice') setRound((value) => value + 1);
   };
 
@@ -328,7 +407,7 @@ export default function GamePage({ students, links }) {
     setQuery('');
     setFeedback('');
     setActiveSuggestion(0);
-    setShowSolution(false);
+    setActivePanel(null);
   };
 
   const addStudent = (student) => {
@@ -482,15 +561,17 @@ export default function GamePage({ students, links }) {
                   <button
                     type="button"
                     className="game-help-link game-help-link--button"
-                    onClick={() => setShowSolution((visible) => !visible)}
+                    ref={solutionButtonRef}
+                    onClick={() => setActivePanel('solution')}
+                    aria-haspopup="dialog"
                   >
-                    {showSolution ? 'Masquer la solution' : 'Voir le chemin optimal'}
+                    Voir le chemin optimal
                   </button>
                   <button
                     ref={helpButtonRef}
                     type="button"
                     className="game-help-link game-help-link--button"
-                    onClick={() => setShowHelp(true)}
+                    onClick={() => setActivePanel('help')}
                     aria-haspopup="dialog"
                   >
                     Comment jouer&nbsp;?
@@ -498,14 +579,6 @@ export default function GamePage({ students, links }) {
                 </div>
               </div>
 
-              {showSolution && (
-                <div className="game-solution">
-                  <strong>Un chemin le plus court</strong>
-                  <ol>
-                    {shortestPath.map((id) => <li key={id}>{graph.byId.get(id)?.name}</li>)}
-                  </ol>
-                </div>
-              )}
             </section>
 
             <section className="game-graph" aria-labelledby="game-graph-title">
@@ -514,7 +587,10 @@ export default function GamePage({ students, links }) {
                   <p className="game-section-kicker">Ton arbre se construit au fil des réponses</p>
                   <h2 id="game-graph-title">Connexions trouvées</h2>
                 </div>
-                <span className="game-graph__legend"><i /> Chemin le plus court</span>
+                <span className="game-graph__legend">
+                  <span className="game-graph__legend-item"><i /> Chemin le plus court</span>
+                  <span className="game-graph__legend-item"><i className="game-graph__legend-off-path" /> Hors chemin possible</span>
+                </span>
               </header>
               <GameGraph
                 graph={graph}
@@ -522,6 +598,7 @@ export default function GamePage({ students, links }) {
                 startId={startId}
                 endId={endId}
                 shortestIds={shortestIds}
+                possibleIds={possibleIds}
               />
             </section>
           </div>
@@ -532,36 +609,55 @@ export default function GamePage({ students, links }) {
           </section>
         )}
 
-        {showHelp && (
+        {activePanel && (
           <div
             className="game-help-backdrop"
             onClick={(event) => {
-              if (event.target === event.currentTarget) setShowHelp(false);
+              if (event.target === event.currentTarget) setActivePanel(null);
             }}
           >
             <section
-              className="game-help-panel"
+              className={'game-help-panel' + (activePanel === 'solution' ? ' game-help-panel--solution' : '')}
               role="dialog"
               aria-modal="true"
-              aria-labelledby="game-help-title"
+              aria-labelledby="game-panel-title"
             >
               <button
-                ref={helpCloseRef}
+                ref={panelCloseRef}
                 type="button"
                 className="game-help-panel__close"
-                onClick={() => setShowHelp(false)}
-                aria-label="Fermer l’aide"
+                onClick={() => setActivePanel(null)}
+                aria-label="Fermer le panneau"
               >
                 ×
               </button>
-              <p className="game-section-kicker">Règles</p>
-              <h2 id="game-help-title">Comment jouer&nbsp;?</h2>
-              <ol>
-                <li>Choisis des noms dans la recherche pour compléter la chaîne.</li>
-                <li>Les traits montrent les liens directs entre les étudiants affichés.</li>
-                <li>Les symboles indiquent leur promotion. Le jaune marque les étudiants sur un chemin le plus court.</li>
-                <li>Tu gagnes dès qu’un chemin continu relie le départ à l’arrivée.</li>
-              </ol>
+              {activePanel === 'help' ? (
+                <>
+                  <p className="game-section-kicker">Règles</p>
+                  <h2 id="game-panel-title">Comment jouer&nbsp;?</h2>
+                  <ol>
+                    <li>Choisis des noms dans la recherche pour compléter la chaîne.</li>
+                    <li>Les traits montrent les liens directs entre les étudiants affichés.</li>
+                    <li>Les symboles indiquent leur promotion. Le jaune marque le chemin le plus court, les nœuds grisés ne sont sur aucun chemin possible.</li>
+                    <li>Tu gagnes dès qu’un chemin continu relie le départ à l’arrivée.</li>
+                  </ol>
+                </>
+              ) : (
+                <>
+                  <p className="game-section-kicker">Solution</p>
+                  <h2 id="game-panel-title">Chemin le plus court</h2>
+                  <p className="game-solution__summary">{Math.max(0, shortestPath.length - 1)} liens entre le départ et l’arrivée</p>
+                  <GameGraph
+                    graph={shortestGraph}
+                    nodes={shortestNodes}
+                    startId={startId}
+                    endId={endId}
+                    shortestIds={shortestIds}
+                    possibleIds={new Set(shortestPath)}
+                    ariaLabel="Graphe du chemin le plus court"
+                  />
+                </>
+              )}
             </section>
           </div>
         )}
