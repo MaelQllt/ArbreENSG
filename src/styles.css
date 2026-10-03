@@ -1387,13 +1387,13 @@ button {
   }
 
   .dock > .btn:not(.legend-disclosure__standalone) {
-    order: 2;
+    order: 1;
     align-self: flex-end;
   }
 
   .dock > .legend-disclosure,
   .dock > .legend-disclosure__standalone {
-    order: 1;
+    order: 2;
   }
 
   .dock > .btn,
