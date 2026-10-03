@@ -4,11 +4,13 @@ import Legend from './components/Legend';
 import StudentCard from './components/StudentCard';
 import StudentSearch from './components/StudentSearch';
 import AdminPanel from './components/AdminPanel';
+import GamePage from './GamePage';
 import { loadData } from './lib/loadData';
 import { getLineage, prepareGraph } from './lib/lineage';
 
 export default function App() {
   const [loaded, setLoaded] = useState(null);
+  const [showGame, setShowGame] = useState(() => window.location.hash.startsWith('#jeu'));
   const [selectedId, setSelectedId] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [deleteStudentRequest, setDeleteStudentRequest] = useState(null);
@@ -23,6 +25,12 @@ export default function App() {
   const globalViewButtonRef = useRef(null);
   const globalViewRect = useRef(null);
   const globalViewAnimation = useRef(null);
+
+  useEffect(() => {
+    const syncPage = () => setShowGame(window.location.hash.startsWith('#jeu'));
+    window.addEventListener('hashchange', syncPage);
+    return () => window.removeEventListener('hashchange', syncPage);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,6 +110,8 @@ export default function App() {
     );
   }
 
+  if (showGame) return <GamePage students={loaded.data.nodes} links={loaded.data.links} source={loaded.source} />;
+
   const { index, promos, graphData } = graph;
   const student = selectedId ? index.byId.get(selectedId) : null;
   const resolve = (ids) => (ids ?? []).map((id) => index.byId.get(id));
@@ -165,24 +175,27 @@ export default function App() {
           <Legend promos={promos} visible={showLegend} onToggle={toggleLegend} />
         </div>
 
-        <AdminPanel
-          data={loaded.data}
-          initialSelectedId={selectedId}
-          deleteRequest={deleteStudentRequest}
-          onDeleteHandled={(requestId) => {
-            setDeleteStudentRequest((request) => request?.id === requestId ? null : request);
-          }}
-          quickAddRequest={quickAddRequest}
-          onQuickAddHandled={(requestId) => {
-            setQuickAddRequest((request) => request?.id === requestId ? null : request);
-          }}
-          onAdminStatus={setIsAdmin}
-          onSaved={(data, warnings) => {
-            setLoaded((current) => ({ ...current, data, warnings, source: 'shared' }));
-            setSelectedId(null);
-            setResetTick((tick) => tick + 1);
-          }}
-        />
+        <div className="controls__actions">
+          <a className="btn btn--ghost game-launch" href="#jeu" target="_blank" rel="noopener noreferrer">Jouer</a>
+          <AdminPanel
+            data={loaded.data}
+            initialSelectedId={selectedId}
+            deleteRequest={deleteStudentRequest}
+            onDeleteHandled={(requestId) => {
+              setDeleteStudentRequest((request) => request?.id === requestId ? null : request);
+            }}
+            quickAddRequest={quickAddRequest}
+            onQuickAddHandled={(requestId) => {
+              setQuickAddRequest((request) => request?.id === requestId ? null : request);
+            }}
+            onAdminStatus={setIsAdmin}
+            onSaved={(data, warnings) => {
+              setLoaded((current) => ({ ...current, data, warnings, source: 'shared' }));
+              setSelectedId(null);
+              setResetTick((tick) => tick + 1);
+            }}
+          />
+        </div>
       </div>
 
       <StudentCard

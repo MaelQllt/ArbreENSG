@@ -1612,3 +1612,37 @@ button {
     overflow-y: auto;
   }
 }
+
+
+/* ========== Accès au jeu depuis l’arbre ========== */
+.controls__actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex: none;
+  pointer-events: auto;
+}
+
+.game-launch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  text-decoration: none;
+}
+
+@media (max-width: 720px) {
+  .controls__actions {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+
+  .game-launch,
+  .admin-access__button {
+    min-height: 44px;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+}
