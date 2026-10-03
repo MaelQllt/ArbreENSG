@@ -29,6 +29,8 @@ function buildLines() {
   // Quelques ruptures discrètes gardent le caractère de la ligne sans la rendre dentelée.
   const xs = [];
   for (let x = -80; x < W + 80; x += 90 + rand() * 110) xs.push(x);
+  // Garantir que chaque trait dépasse le bord droit, même si le dernier pas aléatoire est court.
+  xs.push(W + 80);
   // Profil commun à toutes les lignes pour obtenir des courbes proches et parallèles.
   const ridge = xs.map((x) => {
     const u = x / W;
