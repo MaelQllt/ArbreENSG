@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import GraphView from './components/GraphView';
 import Legend from './components/Legend';
 import StudentCard from './components/StudentCard';
@@ -20,6 +20,9 @@ export default function App() {
   const [resetTick, setResetTick] = useState(0);
   const quickAddSequence = useRef(0);
   const deleteStudentSequence = useRef(0);
+  const globalViewButtonRef = useRef(null);
+  const globalViewRect = useRef(null);
+  const globalViewAnimation = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,10 +52,48 @@ export default function App() {
 
   // Calculé une seule fois par jeu de données : react-force-graph mute les objets qu'on lui passe
   const graph = useMemo(() => (loaded ? prepareGraph(loaded.data) : null), [loaded]);
+
+  useLayoutEffect(() => {
+    const button = globalViewButtonRef.current;
+    if (!button) return;
+
+    if (globalViewAnimation.current) {
+      cancelAnimationFrame(globalViewAnimation.current);
+      globalViewAnimation.current = null;
+      button.style.transition = '';
+      button.style.transform = '';
+    }
+
+    const nextRect = button.getBoundingClientRect();
+    const previousRect = globalViewRect.current;
+    globalViewRect.current = { left: nextRect.left, top: nextRect.top };
+    if (!previousRect || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const dx = previousRect.left - nextRect.left;
+    const dy = previousRect.top - nextRect.top;
+    if (Math.hypot(dx, dy) < 1) return;
+
+    // Keep the button visually in its old place for this frame, then animate
+    // it to its new flex position when the legend opens or closes.
+    button.style.transition = 'none';
+    button.style.transform = `translate(${dx}px, ${dy}px)`;
+    button.getBoundingClientRect();
+    globalViewAnimation.current = requestAnimationFrame(() => {
+      button.style.transition = '';
+      button.style.transform = '';
+      globalViewAnimation.current = null;
+    });
+  }, [graph, showLegend]);
+
   const lineage = useMemo(
     () => (graph && selectedId ? getLineage(graph.index, selectedId) : null),
     [graph, selectedId]
   );
+  const toggleLegend = () => {
+    const rect = globalViewButtonRef.current?.getBoundingClientRect();
+    if (rect) globalViewRect.current = { left: rect.left, top: rect.top };
+    setShowLegend((visible) => !visible);
+  };
 
   if (!graph) {
     return (
@@ -113,7 +154,8 @@ export default function App() {
           )}
           <button
             type="button"
-            className="btn btn--ghost"
+            ref={globalViewButtonRef}
+            className="btn btn--ghost global-view-control"
             onClick={() => {
               setSelectedId(null);
               setResetTick((t) => t + 1);
@@ -121,7 +163,7 @@ export default function App() {
           >
             Vue globale
           </button>
-          <Legend promos={promos} visible={showLegend} onToggle={() => setShowLegend((v) => !v)} />
+          <Legend promos={promos} visible={showLegend} onToggle={toggleLegend} />
         </div>
 
         <AdminPanel

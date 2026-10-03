@@ -93,6 +93,10 @@ button {
   transition: background 0.15s, color 0.15s;
 }
 
+.global-view-control {
+  transition: transform 0.44s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .btn--ghost {
   background: var(--blue);
   color: var(--yellow);
@@ -1321,6 +1325,9 @@ button {
   }
   .btn,
   .card__link {
+    transition: none;
+  }
+  .global-view-control {
     transition: none;
   }
   .card__link::before {
