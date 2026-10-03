@@ -26,6 +26,23 @@ const normalizeName = (value) =>
     .join(' ');
 
 const endpointId = (value) => (typeof value === 'object' ? value.id : value);
+const normalizeOptionText = (value) => value
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLocaleLowerCase('fr')
+  .trim();
+
+const FILIERE_NAMES = [
+  'Carthagéo', 'IGAST', 'TSI', 'PPMD', 'GDS', 'DDMEG', 'GDM', 'Double diplôme', 'FRS', 'FIRS',
+];
+const CODE_OPTIONS = [
+  { value: '', label: 'Choisir un code' },
+  ...['ING', 'LG', 'M'].map((code) => ({ value: code, label: code })),
+];
+const FILIERE_OPTIONS = [
+  { value: '', label: 'Aucune filière' },
+  ...FILIERE_NAMES.map((filiere) => ({ value: filiere, label: filiere })),
+];
 
 const getCurrentPromoYear = (date) => date.getFullYear() - (date.getMonth() < 8 ? 1 : 0);
 
@@ -178,6 +195,140 @@ function StudentSelect({ id, label, students, value, onChange, disabled = false,
   );
 }
 
+function ChoiceSelect({ id, label, options, value, onChange, searchPlaceholder }) {
+  const rootRef = useRef(null);
+  const triggerRef = useRef(null);
+  const searchRef = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(0);
+  const normalizedQuery = normalizeOptionText(query);
+  const filteredOptions = options.filter((option) => normalizeOptionText(option.label).includes(normalizedQuery));
+  const selected = options.find((option) => option.value === value);
+  const activeOption = filteredOptions[activeIndex] ?? filteredOptions[0];
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onPointerDown = (event) => {
+      if (!rootRef.current?.contains(event.target)) {
+        setOpen(false);
+        setQuery('');
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    searchRef.current?.focus();
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const selectedIndex = filteredOptions.findIndex((option) => option.value === value);
+    setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0);
+  }, [open, value, options]);
+
+  const close = (restoreFocus = false) => {
+    setOpen(false);
+    setQuery('');
+    if (restoreFocus) triggerRef.current?.focus();
+  };
+
+  const choose = (option) => {
+    if (!option) return;
+    onChange(option.value);
+    close(true);
+  };
+
+  const moveActive = (direction) => {
+    if (!filteredOptions.length) return;
+    setActiveIndex((index) => (index + direction + filteredOptions.length) % filteredOptions.length);
+  };
+
+  const handleTriggerKeyDown = (event) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      if (!open) setOpen(true);
+    }
+  };
+
+  const handleSearchKeyDown = (event) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      moveActive(1);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      moveActive(-1);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      choose(activeOption);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      close(true);
+    }
+  };
+
+  return (
+    <div className="admin-student-select" ref={rootRef}>
+      <button
+        ref={triggerRef}
+        id={id}
+        type="button"
+        className="admin-student-select__trigger"
+        aria-label={label}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={`${id}-listbox`}
+        onClick={() => {
+          if (open) close();
+          else setOpen(true);
+        }}
+        onKeyDown={handleTriggerKeyDown}
+      >
+        <span className="admin-student-select__label">
+          <span className="admin-student-select__name">{selected?.label ?? options[0]?.label}</span>
+        </span>
+      </button>
+      {open && (
+        <div className="admin-student-select__popover">
+          <input
+            ref={searchRef}
+            className="admin-student-select__search"
+            type="search"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setActiveIndex(0);
+            }}
+            onKeyDown={handleSearchKeyDown}
+            placeholder={searchPlaceholder}
+            aria-label={`Rechercher — ${label}`}
+            aria-controls={`${id}-listbox`}
+            aria-activedescendant={activeOption ? `${id}-option-${activeIndex}` : undefined}
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded="true"
+          />
+          <div id={`${id}-listbox`} className="admin-student-select__options" role="listbox" aria-label={label}>
+            {filteredOptions.length ? filteredOptions.map((option, index) => (
+              <div
+                id={`${id}-option-${index}`}
+                key={option.value}
+                className={`admin-student-select__option${option.value === value ? ' is-selected' : ''}${index === activeIndex ? ' is-active' : ''}`}
+                role="option"
+                aria-selected={option.value === value}
+                onMouseEnter={() => setActiveIndex(index)}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => choose(option)}
+              >
+                {option.label}
+              </div>
+            )) : <p className="admin-student-select__empty">Aucun résultat</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPanel({
   data,
   initialSelectedId,
@@ -208,6 +359,13 @@ export default function AdminPanel({
   const [newPromo, setNewPromo] = useState(() => String(getCurrentPromoYear(new Date())));
   const [newCode, setNewCode] = useState('');
   const [newFiliere, setNewFiliere] = useState('');
+  const promoOptions = useMemo(() => [
+    { value: '', label: 'Choisir une année' },
+    ...Array.from({ length: Math.max(0, currentPromoYear - 1999) }, (_, index) => {
+      const year = String(currentPromoYear - index);
+      return { value: year, label: year };
+    }),
+  ], [currentPromoYear]);
 
   useEffect(() => {
     let timeout;
@@ -301,6 +459,14 @@ export default function AdminPanel({
       setExistingId(selectablePeople[0]?.id ?? '');
     }
   }, [selectablePeople, existingId]);
+
+  const hintAnchor = students.find((student) => student.id === anchorId)?.name ?? 'l’étudiant·e concerné·e';
+  const hintRelated = personType === 'new'
+    ? [newFirstName.trim(), newLastName.trim()].filter(Boolean).join(' ') || 'La nouvelle personne'
+    : students.find((student) => student.id === existingId)?.name ?? 'La personne choisie';
+  const relationshipHint = relationType === 'parrain'
+    ? `${hintRelated} deviendra le parrain ou la marraine de ${hintAnchor}.`
+    : `${hintRelated} deviendra le fillot ou la fillotte de ${hintAnchor}.`;
 
   if (!isSupabaseConfigured()) return null;
 
@@ -600,26 +766,37 @@ export default function AdminPanel({
                     <div className="admin-form__row">
                       <label>
                         Année d’arrivée
-                        <select value={newPromo} onChange={(event) => setNewPromo(event.target.value)} required>
-                          {Array.from({ length: Math.max(0, currentPromoYear - 1999) }, (_, index) => currentPromoYear - index).map((year) => (
-                            <option key={year} value={year}>{year}</option>
-                          ))}
-                        </select>
+                        <ChoiceSelect
+                          id="new-person-year"
+                          label="Année d’arrivée"
+                          options={promoOptions}
+                          value={newPromo}
+                          onChange={setNewPromo}
+                          searchPlaceholder="Rechercher une année"
+                        />
                       </label>
                       <label>
                         Code
-                        <select value={newCode} onChange={(event) => setNewCode(event.target.value)}>
-                          <option value="">Choisir un code</option>
-                          {['ING', 'LG', 'M'].map((code) => <option key={code} value={code}>{code}</option>)}
-                        </select>
+                        <ChoiceSelect
+                          id="new-person-code"
+                          label="Code"
+                          options={CODE_OPTIONS}
+                          value={newCode}
+                          onChange={setNewCode}
+                          searchPlaceholder="Rechercher un code"
+                        />
                       </label>
                     </div>
                     <label>
                       Filière
-                      <select value={newFiliere} onChange={(event) => setNewFiliere(event.target.value)}>
-                        <option value="">Aucune filière</option>
-                        {['Carthagéo', 'IGAST', 'TSI', 'PPMD', 'GDS', 'DDMEG', 'GDM', 'Double diplôme', 'FRS'].map((filiere) => <option key={filiere} value={filiere}>{filiere}</option>)}
-                      </select>
+                      <ChoiceSelect
+                        id="new-person-filiere"
+                        label="Filière"
+                        options={FILIERE_OPTIONS}
+                        value={newFiliere}
+                        onChange={setNewFiliere}
+                        searchPlaceholder="Rechercher une filière"
+                      />
                     </label>
                   </div>
                 )}
@@ -627,9 +804,7 @@ export default function AdminPanel({
                 <p className="admin-form__hint">
                   {relationAction === 'remove'
                     ? `Seuls les ${relationType === 'parrain' ? 'parrains et marraines' : 'fillots et fillottes'} déjà liés à cet étudiant sont proposés.`
-                    : relationType === 'parrain'
-                      ? 'La personne choisie sera reliée comme parrain ou marraine de l’étudiant concerné.'
-                      : 'La personne choisie sera reliée comme fillot ou fillotte de l’étudiant concerné.'}
+                    : relationshipHint}
                 </p>
                 {error && <p className="admin-message admin-message--error" role="alert">{error}</p>}
                 {message && <p className="admin-message admin-message--success" role="status">{message}</p>}
