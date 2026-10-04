@@ -13,8 +13,8 @@ const PANEL_WIDTH = 380;  // doit rester synchrone avec --panel-width en CSS
 const SELECTED_SCALE = 1.5; // le noeud sélectionné grossit
 
 // Zoom
-const MIN_ZOOM = 0.35;
-const MOBILE_MIN_ZOOM = 0.18;
+const MIN_ZOOM = 0.4;
+const MOBILE_MIN_ZOOM = 0.22;
 const MAX_ZOOM = 6;
 const MAX_FIT_ZOOM = 3.5;
 

@@ -564,16 +564,14 @@ export default function GamePage({ students, links }) {
             <span>Les familles de</span>
             <strong>Géodata Paris</strong>
           </div>
+          <div className="game-page__title-block">
+            <h1>ENSGdle</h1>
+            <p>Jeu de parrainage <BrandDivider /> {pairLabel}</p>
+          </div>
           <a className="btn btn--ghost game-page__back" href="#" aria-label="Retour à l’arbre">
             <span aria-hidden="true">←</span> Retour à l’arbre
           </a>
         </header>
-
-        <section className="game-hero">
-          <p className="game-hero__eyebrow">Jeu de parrainage <BrandDivider /> {pairLabel}</p>
-          <h1>ENSGdle</h1>
-          <p>Retrouve une chaîne de parrains, marraines, fillots et fillottes entre ces deux étudiants.</p>
-        </section>
 
         <nav className="game-modes" aria-label="Mode de jeu">
           <button type="button" className={mode === 'daily' ? 'is-active' : ''} onClick={() => selectMode('daily')}>Journalier</button>

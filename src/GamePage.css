@@ -23,50 +23,71 @@
 }
 
 .game-page__header {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 20px;
+  gap: 12px;
+  min-height: 58px;
 }
 
 .game-page__brand {
   display: flex;
   flex-direction: column;
   font-family: var(--font-title);
-  font-size: 1.05rem;
+  font-size: 0.82rem;
   font-weight: 200;
-  line-height: 1.1;
+  line-height: 1.06;
 }
 
 .game-page__brand strong {
   color: var(--yellow);
-  font-size: 1.2rem;
+  font-size: 0.98rem;
   font-weight: 700;
+}
+
+.game-page__title-block {
+  min-width: 0;
+  text-align: center;
+}
+
+.game-page__title-block h1 {
+  margin: 0;
+  color: var(--yellow);
+  font-family: var(--font-title);
+  font-size: clamp(1.65rem, 2.5vw, 2.2rem);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.game-page__title-block p {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  margin: 4px 0 0;
+  color: var(--sand);
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.game-page__title-block .brand-divider {
+  width: 16px;
+  margin: 0;
 }
 
 .game-page__back {
   display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
+  justify-self: end;
+  gap: 0.35rem;
+  min-height: 34px;
+  padding: 0.38rem 0.58rem;
+  font-size: 0.72rem;
   text-decoration: none;
   white-space: nowrap;
 }
-
-.game-hero {
-  display: grid;
-  grid-template-columns: auto minmax(240px, 1fr);
-  grid-template-areas: "eyebrow eyebrow" "title description";
-  align-items: end;
-  gap: 0 22px;
-  max-width: none;
-  margin: clamp(14px, 2.4vh, 26px) auto 10px;
-  padding: 10px 16px;
-  border: 1px solid var(--sand);
-  background: rgb(38 48 119 / 80%);
-  text-align: left;
-}
-
-.game-hero__eyebrow,
 .game-section-kicker {
   margin: 0 0 0.3rem;
   color: var(--sand);
@@ -74,28 +95,6 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-}
-
-.game-hero__eyebrow {
-  grid-area: eyebrow;
-}
-
-.game-hero h1 {
-  grid-area: title;
-  margin: 0;
-  color: var(--yellow);
-  font-family: var(--font-title);
-  font-size: clamp(1.8rem, 3.2vw, 2.7rem);
-  font-weight: 700;
-  line-height: 0.98;
-}
-
-.game-hero > p:last-child {
-  grid-area: description;
-  max-width: 700px;
-  margin: 0 0 0.2rem;
-  font-size: clamp(0.82rem, 1.3vw, 0.98rem);
-  line-height: 1.35;
 }
 
 .game-modes {
@@ -411,11 +410,6 @@
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
-}
-
-.game-hero__eyebrow .brand-divider {
-  width: 18px;
-  margin: 0 0.25rem;
 }
 
 .game-help-backdrop {
@@ -787,18 +781,6 @@
     grid-row: auto;
   }
 
-  .game-hero {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "eyebrow" "title" "description";
-    gap: 2px;
-    margin: 12px auto 8px;
-    text-align: center;
-  }
-
-  .game-hero > p:last-child {
-    margin: 0.45rem auto 0;
-  }
-
   .game-graph__header {
     align-items: flex-start;
     flex-direction: column;
@@ -821,37 +803,39 @@
   }
 
   .game-page__header {
-    align-items: flex-start;
-    gap: 10px;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 5px;
+    min-height: 48px;
   }
 
   .game-page__brand {
-    font-size: 0.85rem;
+    font-size: 0.63rem;
   }
 
   .game-page__brand strong {
-    font-size: 1rem;
+    font-size: 0.78rem;
+  }
+
+  .game-page__title-block h1 {
+    font-size: 1.35rem;
+  }
+
+  .game-page__title-block p {
+    gap: 0.15rem;
+    margin-top: 3px;
+    font-size: 0.52rem;
+    white-space: normal;
+  }
+
+  .game-page__title-block .brand-divider {
+    width: 12px;
   }
 
   .game-page__back {
-    min-height: 36px;
-    padding: 0.4rem 0.6rem;
-    font-size: 0.72rem;
-  }
-
-  .game-hero {
-    margin: 12px auto 8px;
-    padding: 9px 10px;
-  }
-
-  .game-hero h1 {
-    font-size: 1.85rem;
-  }
-
-  .game-hero > p:last-child {
-    max-width: 52ch;
-    margin: 0.25rem auto 0;
-    font-size: 0.78rem;
+    min-height: 30px;
+    gap: 0.22rem;
+    padding: 0.28rem 0.38rem;
+    font-size: 0.58rem;
   }
 
   .game-modes {
