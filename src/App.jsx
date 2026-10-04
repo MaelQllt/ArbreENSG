@@ -138,7 +138,7 @@ export default function App() {
           <span className="masthead__bold">Géodata Paris</span>
         </h1>
         <p className="masthead__hint">
-          Les promotions sont séparées par année ; cliquez sur un étudiant pour voir sa lignée.
+          Cliquez sur un étudiant pour voir sa lignée.
         </p>
         <StudentSearch students={loaded.data.nodes} onSelect={setSelectedId} />
       </header>

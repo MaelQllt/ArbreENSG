@@ -1,7 +1,7 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import BrandDivider from './components/BrandDivider';
 import ShapeSwatch from './components/ShapeSwatch';
-import TopoBackground from './components/TopoBackground';
+import TopoBackground, { TopoDivider } from './components/TopoBackground';
 import { describePromo } from './lib/promo';
 import './GamePage.css';
 
@@ -179,29 +179,46 @@ function getChallenge(pairs, mode, practiceSeed, round, byId) {
 const normalizeName = (value) =>
   value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr').trim();
 
-function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys, possibleIds, ariaLabel = 'Graphe des personnes trouvées' }) {
+function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys, possibleIds, orderedIds, ariaLabel = 'Graphe des personnes trouvées' }) {
+  const viewportRef = useRef(null);
   const canvasRef = useRef(null);
+  const planeRef = useRef(null);
+  const levelsRef = useRef(null);
   const nodeRefs = useRef(new Map());
-  const [layout, setLayout] = useState({ width: 0, height: 0, lines: [] });
-  const markerId = useId().replace(/:/g, '');
+  const [layout, setLayout] = useState({ width: 0, height: 0, scale: 1, lines: [] });
+  const scaleRef = useRef(1);
+  scaleRef.current = layout.scale;
 
   const visibleIds = useMemo(() => new Set(nodes.map((node) => node.id)), [nodes]);
+  const stepNumbers = useMemo(
+    () => orderedIds ? new Map(orderedIds.map((id, index) => [id, index + 1])) : null,
+    [orderedIds]
+  );
   const groups = useMemo(() => {
+    const orderIndex = orderedIds ? new Map(orderedIds.map((id, index) => [id, index])) : null;
+    const visibleNodeIds = new Set(nodes.map((node) => node.id));
     const byPromo = new Map();
     nodes.forEach((node) => {
       if (!byPromo.has(node.promo)) byPromo.set(node.promo, []);
       byPromo.get(node.promo).push(node);
     });
-    const promos = [...byPromo.keys()].sort((a, b) => a - b);
-    const ordered = new Map(promos.map((promo) => [
+    const presentPromos = [...byPromo.keys()].sort((a, b) => a - b);
+    const firstPromo = presentPromos[0];
+    const lastPromo = presentPromos[presentPromos.length - 1];
+    const promos = presentPromos.length
+      ? Array.from({ length: lastPromo - firstPromo + 1 }, (_, index) => firstPromo + index)
+      : [];
+    const ordered = new Map(presentPromos.map((promo) => [
       promo,
-      byPromo.get(promo).sort((a, b) => a.name.localeCompare(b.name, 'fr')),
+      byPromo.get(promo).sort((a, b) => orderIndex
+        ? orderIndex.get(a.id) - orderIndex.get(b.id)
+        : a.name.localeCompare(b.name, 'fr')),
     ]));
 
     // Aligne chaque promo sur ses liens avec les promos voisines pour réduire
     // les croisements qui apparaissent avec un tri alphabétique seul.
-    for (let pass = 0; pass < 3; pass += 1) {
-      const directions = [promos, [...promos].reverse()];
+    for (let pass = 0; pass < (orderIndex ? 0 : 8); pass += 1) {
+      const directions = [presentPromos, [...presentPromos].reverse()];
       directions.forEach((sweep) => {
         sweep.forEach((promo) => {
           const current = ordered.get(promo);
@@ -236,16 +253,102 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
         });
       });
     }
-    return promos.map((promo) => [promo, ordered.get(promo)]);
-  }, [nodes, graph.adjacency, graph.byId]);
+
+    // Improve the row order by counting actual edge crossings, then keep any
+    // adjacent swap that reduces them. Links are undirected, so count each
+    // pair of promo rows once regardless of the stored edge direction.
+    const visibleEdges = graph.edges.filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target));
+    const countCrossings = () => {
+      const positions = new Map([...ordered].map(([promo, members]) => [
+        promo,
+        new Map(members.map((node, index) => [node.id, {
+          index,
+          position: members.length > 1 ? index / (members.length - 1) : 0.5,
+        }])),
+      ]));
+      const levelSegments = new Map();
+      let sameLevelSpan = 0;
+      visibleEdges.forEach((edge) => {
+        const source = graph.byId.get(edge.source);
+        const target = graph.byId.get(edge.target);
+        if (!source || !target) return;
+        if (source.promo === target.promo) {
+          const row = positions.get(source.promo);
+          const sourcePosition = row?.get(edge.source)?.index;
+          const targetPosition = row?.get(edge.target)?.index;
+          if (sourcePosition !== undefined && targetPosition !== undefined) {
+            sameLevelSpan += Math.max(0, Math.abs(sourcePosition - targetPosition) - 1);
+          }
+          return;
+        }
+        const [topPromo, bottomPromo] = [source.promo, target.promo].sort((a, b) => a - b);
+        const topIndex = positions.get(topPromo)?.get(source.promo === topPromo ? edge.source : edge.target)?.position;
+        const bottomIndex = positions.get(bottomPromo)?.get(source.promo === bottomPromo ? edge.source : edge.target)?.position;
+        if (topIndex === undefined || bottomIndex === undefined) return;
+        const promoSpan = bottomPromo - topPromo;
+        for (let promo = topPromo; promo < bottomPromo; promo += 1) {
+          const fromRatio = (promo - topPromo) / promoSpan;
+          const toRatio = (promo + 1 - topPromo) / promoSpan;
+          const pairKey = promo + '|' + (promo + 1);
+          if (!levelSegments.has(pairKey)) levelSegments.set(pairKey, []);
+          levelSegments.get(pairKey).push({
+            from: topIndex + (bottomIndex - topIndex) * fromRatio,
+            to: topIndex + (bottomIndex - topIndex) * toRatio,
+          });
+        }
+      });
+
+      let crossings = 0;
+      levelSegments.forEach((edgesInPair) => {
+        for (let first = 0; first < edgesInPair.length; first += 1) {
+          for (let second = first + 1; second < edgesInPair.length; second += 1) {
+            const a = edgesInPair[first];
+            const b = edgesInPair[second];
+            if ((a.from - b.from) * (a.to - b.to) < 0) {
+              crossings += 1;
+            }
+          }
+        }
+      });
+      return crossings * (visibleEdges.length * nodes.length + 1) + sameLevelSpan;
+    };
+
+    for (let pass = 0; pass < 8; pass += 1) {
+      let improved = false;
+      presentPromos.forEach((promo) => {
+        const members = ordered.get(promo);
+        for (let index = 0; index < members.length - 1; index += 1) {
+          const currentCrossings = countCrossings();
+          [members[index], members[index + 1]] = [members[index + 1], members[index]];
+          const swappedCrossings = countCrossings();
+          if (swappedCrossings < currentCrossings) {
+            improved = true;
+          } else {
+            [members[index], members[index + 1]] = [members[index + 1], members[index]];
+          }
+        }
+      });
+      if (!improved) break;
+    }
+    return promos.map((promo) => [promo, ordered.get(promo) ?? []]);
+  }, [nodes, graph.edges, graph.adjacency, graph.byId, orderedIds]);
 
   useLayoutEffect(() => {
+    const viewport = viewportRef.current;
     const canvas = canvasRef.current;
-    if (!canvas) return undefined;
+    const plane = planeRef.current;
+    const levels = levelsRef.current;
+    if (!viewport || !canvas || !plane || !levels) return undefined;
 
     const update = () => {
-      const canvasRect = canvas.getBoundingClientRect();
-      const lines = graph.edges
+      const availableWidth = Math.max(1, viewport.clientWidth);
+      const availableHeight = Math.max(1, viewport.clientHeight);
+      const width = Math.max(1, plane.offsetWidth || availableWidth);
+      const height = Math.max(1, plane.offsetHeight);
+      const scale = Math.min(1, availableWidth / width, availableHeight / height);
+      const planeRect = plane.getBoundingClientRect();
+      const renderedScale = scaleRef.current || 1;
+      const descriptors = graph.edges
         .filter((edge) => visibleIds.has(edge.source) && visibleIds.has(edge.target))
         .map((edge) => {
           const sourceElement = nodeRefs.current.get(edge.source);
@@ -253,75 +356,188 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
           if (!sourceElement || !targetElement) return null;
           const sourceRect = sourceElement.getBoundingClientRect();
           const targetRect = targetElement.getBoundingClientRect();
-          const sourceCenterX = sourceRect.left + sourceRect.width / 2 - canvasRect.left;
-          const sourceCenterY = sourceRect.top + sourceRect.height / 2 - canvasRect.top;
-          const targetCenterX = targetRect.left + targetRect.width / 2 - canvasRect.left;
-          const targetCenterY = targetRect.top + targetRect.height / 2 - canvasRect.top;
-          const vertical = Math.abs(targetCenterY - sourceCenterY) >= Math.abs(targetCenterX - sourceCenterX);
-          const direction = vertical
-            ? Math.sign(targetCenterY - sourceCenterY) || 1
-            : Math.sign(targetCenterX - sourceCenterX) || 1;
-          const x1 = sourceCenterX + (vertical ? 0 : direction * sourceRect.width / 2);
-          const y1 = sourceCenterY + (vertical ? direction * sourceRect.height / 2 : 0);
-          const arrowGap = 9;
-          const x2 = targetCenterX - (vertical ? 0 : direction * (targetRect.width / 2 + arrowGap));
-          const y2 = targetCenterY - (vertical ? direction * (targetRect.height / 2 + arrowGap) : 0);
-          const dx = x2 - x1;
-          const dy = y2 - y1;
-          const bend = Math.max(34, Math.min(110, Math.hypot(dx, dy) * 0.32));
-          const c1x = x1 + (vertical ? dx * 0.18 : direction * bend);
-          const c1y = y1 + (vertical ? direction * bend : dy * 0.18);
-          const c2x = x2 - (vertical ? dx * 0.18 : direction * bend);
-          const c2y = y2 - (vertical ? direction * bend : dy * 0.18);
+          const sourceWidth = sourceRect.width / renderedScale;
+          const sourceHeight = sourceRect.height / renderedScale;
+          const targetWidth = targetRect.width / renderedScale;
+          const targetHeight = targetRect.height / renderedScale;
+          const sourceCenterX = (sourceRect.left + sourceRect.width / 2 - planeRect.left) / renderedScale;
+          const sourceCenterY = (sourceRect.top + sourceRect.height / 2 - planeRect.top) / renderedScale;
+          const targetCenterX = (targetRect.left + targetRect.width / 2 - planeRect.left) / renderedScale;
+          const targetCenterY = (targetRect.top + targetRect.height / 2 - planeRect.top) / renderedScale;
           const edgeKey = [edge.source, edge.target].sort().join('|');
+          const sourcePromo = graph.byId.get(edge.source)?.promo;
+          const targetPromo = graph.byId.get(edge.target)?.promo;
+          const vertical = sourcePromo !== targetPromo
+            || Math.abs(targetCenterY - sourceCenterY) > Math.abs(targetCenterX - sourceCenterX);
           return {
-            key: edge.source + '>' + edge.target,
-            d: 'M ' + x1 + ' ' + y1 + ' C ' + c1x + ' ' + c1y + ', ' + c2x + ' ' + c2y + ', ' + x2 + ' ' + y2,
-            shortest: shortestEdgeKeys.has(edgeKey),
-            possible: possibleIds.has(edge.source) && possibleIds.has(edge.target),
+            edge,
+            edgeKey,
+            sourceWidth,
+            sourceHeight,
+            targetWidth,
+            targetHeight,
+            sourceCenterX,
+            sourceCenterY,
+            targetCenterX,
+            targetCenterY,
+            vertical,
+            laneGroup: vertical
+              ? 'v:' + [sourcePromo, targetPromo].sort((a, b) => a - b).join('|')
+              : 'h:' + sourcePromo,
+            lanePosition: vertical
+              ? (sourceCenterX + targetCenterX) / 2
+              : (sourceCenterY + targetCenterY) / 2,
           };
         })
         .filter(Boolean);
-      setLayout({ width: canvas.scrollWidth, height: canvas.scrollHeight, lines });
+
+      const portBuckets = new Map();
+      const registerPort = (nodeId, edgeKey, side, neighborPosition, extent) => {
+        const bucketKey = nodeId + '\u0000' + side;
+        if (!portBuckets.has(bucketKey)) portBuckets.set(bucketKey, []);
+        portBuckets.get(bucketKey).push({ edgeKey, side, neighborPosition, extent });
+      };
+      descriptors.forEach((descriptor) => {
+        const { edge, vertical, sourceCenterX, sourceCenterY, targetCenterX, targetCenterY, sourceWidth, sourceHeight, targetWidth, targetHeight } = descriptor;
+        const delta = vertical ? targetCenterY - sourceCenterY : targetCenterX - sourceCenterX;
+        const forward = Math.sign(delta) || 1;
+        const sourceSide = vertical
+          ? (forward > 0 ? 'bottom' : 'top')
+          : (forward > 0 ? 'right' : 'left');
+        const targetSide = vertical
+          ? (forward > 0 ? 'top' : 'bottom')
+          : (forward > 0 ? 'left' : 'right');
+        registerPort(edge.source, descriptor.edgeKey, sourceSide, vertical ? targetCenterX : targetCenterY, vertical ? sourceWidth : sourceHeight);
+        registerPort(edge.target, descriptor.edgeKey, targetSide, vertical ? sourceCenterX : sourceCenterY, vertical ? targetWidth : targetHeight);
+      });
+
+      const portOffsets = new Map();
+      portBuckets.forEach((ports, bucketKey) => {
+        ports.sort((a, b) => a.neighborPosition - b.neighborPosition || a.edgeKey.localeCompare(b.edgeKey));
+        const narrowestPort = Math.min(...ports.map((port) => port.extent));
+        const maxSpread = Math.min(54, narrowestPort * 0.56);
+        const step = ports.length > 1 ? Math.min(14, maxSpread / (ports.length - 1)) : 0;
+        ports.forEach((port, index) => {
+          const offset = (index - (ports.length - 1) / 2) * step;
+          portOffsets.set(bucketKey + '\u0000' + port.edgeKey, offset);
+        });
+      });
+
+      // Give each connection between the same pair of levels its own gentle
+      // curve. This separates parallel branches instead of stacking them.
+      const laneOffsets = new Map();
+      const laneGroups = new Map();
+      descriptors.forEach((descriptor) => {
+        if (!laneGroups.has(descriptor.laneGroup)) laneGroups.set(descriptor.laneGroup, []);
+        laneGroups.get(descriptor.laneGroup).push(descriptor);
+      });
+      laneGroups.forEach((edgesInLane) => {
+        edgesInLane.sort((a, b) => a.lanePosition - b.lanePosition || a.edgeKey.localeCompare(b.edgeKey));
+        const spread = Math.min(112, Math.max(0, (edgesInLane.length - 1) * 18));
+        const step = edgesInLane.length > 1 ? spread / (edgesInLane.length - 1) : 0;
+        edgesInLane.forEach((descriptor, index) => {
+          laneOffsets.set(descriptor.edgeKey, (index - (edgesInLane.length - 1) / 2) * step);
+        });
+      });
+
+      const lines = descriptors.map((descriptor) => {
+        const {
+          edge, edgeKey, vertical, sourceWidth, sourceHeight, targetWidth, targetHeight,
+          sourceCenterX, sourceCenterY, targetCenterX, targetCenterY,
+        } = descriptor;
+        const sourceSide = vertical
+          ? (targetCenterY > sourceCenterY ? 'bottom' : 'top')
+          : (targetCenterX > sourceCenterX ? 'right' : 'left');
+        const targetSide = vertical
+          ? (targetCenterY > sourceCenterY ? 'top' : 'bottom')
+          : (targetCenterX > sourceCenterX ? 'left' : 'right');
+        const sourceOffset = portOffsets.get(edge.source + '\u0000' + sourceSide + '\u0000' + edgeKey) ?? 0;
+        const targetOffset = portOffsets.get(edge.target + '\u0000' + targetSide + '\u0000' + edgeKey) ?? 0;
+        const laneOffset = vertical ? (laneOffsets.get(edgeKey) ?? 0) : 0;
+        let x1;
+        let y1;
+        let x2;
+        let y2;
+        let c1x;
+        let c1y;
+        let c2x;
+        let c2y;
+
+        if (vertical) {
+          const direction = Math.sign(targetCenterY - sourceCenterY);
+          x1 = sourceCenterX + sourceOffset;
+          y1 = sourceCenterY + direction * sourceHeight / 2;
+          x2 = targetCenterX + targetOffset;
+          y2 = targetCenterY - direction * targetHeight / 2;
+          const dx = x2 - x1;
+          const bend = Math.min(72, Math.abs(y2 - y1) * 0.42);
+          c1x = x1 + dx * 0.22 + laneOffset;
+          c1y = y1 + direction * bend;
+          c2x = x2 - dx * 0.22 + laneOffset;
+          c2y = y2 - direction * bend;
+        } else {
+          const direction = Math.sign(targetCenterX - sourceCenterX) || 1;
+          x1 = sourceCenterX + direction * sourceWidth / 2;
+          y1 = sourceCenterY + sourceOffset;
+          x2 = targetCenterX - direction * targetWidth / 2;
+          y2 = targetCenterY + targetOffset;
+          const bend = Math.min(72, Math.abs(x2 - x1) * 0.38);
+          c1x = x1 + direction * bend;
+          c1y = y1 + (y2 - y1) * 0.3 + laneOffset;
+          c2x = x2 - direction * bend;
+          c2y = y2 - (y2 - y1) * 0.3 + laneOffset;
+        }
+
+        return {
+          key: edge.source + '>' + edge.target,
+          d: 'M ' + x1 + ' ' + y1 + ' C ' + c1x + ' ' + c1y + ', ' + c2x + ' ' + c2y + ', ' + x2 + ' ' + y2,
+          shortest: shortestEdgeKeys.has(edgeKey),
+          possible: possibleIds.has(edge.source) && possibleIds.has(edge.target),
+        };
+      });
+      const priority = (line) => (line.shortest ? 2 : line.possible ? 1 : 0);
+      lines.sort((a, b) => priority(a) - priority(b) || a.key.localeCompare(b.key));
+      setLayout({ width, height, scale, lines });
     };
 
     update();
     const observer = new ResizeObserver(update);
-    observer.observe(canvas);
+    observer.observe(viewport);
+    observer.observe(levels);
     nodeRefs.current.forEach((element) => observer.observe(element));
     return () => observer.disconnect();
   }, [graph.edges, visibleIds, groups, shortestEdgeKeys, possibleIds]);
 
   return (
-    <div className="game-graph__viewport" role="region" aria-label={ariaLabel}>
-      <div ref={canvasRef} className="game-graph__canvas">
-        <svg
-          className="game-graph__links"
-          width={layout.width}
-          height={layout.height}
-          viewBox={'0 0 ' + layout.width + ' ' + layout.height}
-          aria-hidden="true"
+    <div ref={viewportRef} className="game-graph__viewport" role="region" aria-label={ariaLabel}>
+      <div
+        ref={canvasRef}
+        className="game-graph__canvas"
+        style={{ height: layout.height ? layout.height * layout.scale : '100%' }}
+      >
+        <div
+          ref={planeRef}
+          className="game-graph__plane"
+          style={{ '--graph-scale': layout.scale }}
         >
-          <defs>
-            <marker id={markerId} viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" />
-            </marker>
-            <marker id={markerId + '-shortest'} viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" />
-            </marker>
-          </defs>
-          {layout.lines.map((line) => (
-            <path
-              key={line.key}
-              d={line.d}
-              markerEnd={'url(#' + markerId + (line.shortest ? '-shortest' : '') + ')'}
-              className={'game-graph__edge'
-                + (line.shortest ? ' game-graph__edge--shortest' : '')
-                + (!line.possible ? ' game-graph__edge--off-path' : '')}
-            />
-          ))}
-        </svg>
-        <div className="game-graph__levels">
+          <svg
+            className="game-graph__links"
+            width={layout.width}
+            height={layout.height}
+            viewBox={'0 0 ' + layout.width + ' ' + layout.height}
+            aria-hidden="true"
+          >
+            {layout.lines.map((line) => (
+              <path
+                key={line.key}
+                d={line.d}
+                className={'game-graph__edge'
+                  + (line.shortest ? ' game-graph__edge--shortest' : '')
+                  + (!line.possible ? ' game-graph__edge--off-path' : '')}
+              />
+            ))}
+          </svg>
+          <div ref={levelsRef} className="game-graph__levels">
           {groups.map(([promo, members]) => {
             const promoInfo = describePromo(promo);
             return (
@@ -332,7 +548,8 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
                   <span>Promo {promo}</span>
                 </header>
                 <div className={'game-graph__nodes'
-                  + (members.length >= 5 ? ' game-graph__nodes--dense'
+                  + (members.length === 0 ? ' game-graph__nodes--empty'
+                    : members.length >= 5 ? ' game-graph__nodes--dense'
                     : members.length >= 3 ? ' game-graph__nodes--many'
                       : members.length === 1 ? ' game-graph__nodes--single'
                         : ' game-graph__nodes--pair')}>
@@ -341,6 +558,7 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
                     const isEnd = student.id === endId;
                     const isShortest = shortestIds.has(student.id);
                     const isOffPath = !possibleIds.has(student.id);
+                    const stepIndex = stepNumbers?.get(student.id) ?? 0;
                     return (
                       <div
                         key={student.id}
@@ -354,6 +572,7 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
                           + (isShortest ? ' game-node--shortest' : '')
                           + (isOffPath ? ' game-node--off-path' : '')}
                       >
+                        {stepIndex > 0 && <span className="game-node__step" aria-hidden="true">{stepIndex}</span>}
                         <ShapeSwatch promo={student.promo} size={members.length >= 5 ? 16 : members.length >= 3 ? 18 : 20} />
                         <span className="game-node__copy">
                           <strong>{student.name}</strong>
@@ -366,11 +585,9 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
               </section>
             );
           })}
+          </div>
         </div>
       </div>
-      {layout.lines.length === 0 && ariaLabel === 'Graphe des personnes trouvées' && (
-        <p className="game-graph__hint">Les liens apparaîtront ici quand tu ajouteras des étudiant·es.</p>
-      )}
     </div>
   );
 }
@@ -380,10 +597,13 @@ export default function GamePage({ students, links }) {
   const [round, setRound] = useState(0);
   const [practiceSeed] = useState(() => Math.floor(Math.random() * 0xffffffff));
   const [foundIds, setFoundIds] = useState([]);
+  const [hintsUsed, setHintsUsed] = useState(0);
   const [query, setQuery] = useState('');
   const [feedback, setFeedback] = useState('');
   const [activeSuggestion, setActiveSuggestion] = useState(0);
   const [activePanel, setActivePanel] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
   const helpButtonRef = useRef(null);
   const solutionButtonRef = useRef(null);
   const panelCloseRef = useRef(null);
@@ -405,6 +625,24 @@ export default function GamePage({ students, links }) {
       trigger.current?.focus();
     };
   }, [activePanel]);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const closeMenuOnOutsideClick = (event) => {
+      if (!menuRef.current?.contains(event.target)) setMenuOpen(false);
+    };
+    const closeMenuOnEscape = (event) => {
+      if (event.key !== 'Escape') return;
+      setMenuOpen(false);
+      helpButtonRef.current?.focus();
+    };
+    document.addEventListener('pointerdown', closeMenuOnOutsideClick);
+    window.addEventListener('keydown', closeMenuOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeMenuOnOutsideClick);
+      window.removeEventListener('keydown', closeMenuOnEscape);
+    };
+  }, [menuOpen]);
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -492,10 +730,12 @@ export default function GamePage({ students, links }) {
 
   const clearRound = () => {
     setFoundIds([]);
+    setHintsUsed(0);
     setQuery('');
     setFeedback('');
     setActiveSuggestion(0);
     setActivePanel(null);
+    setMenuOpen(false);
     if (mode === 'practice') setRound((value) => value + 1);
   };
 
@@ -503,10 +743,12 @@ export default function GamePage({ students, links }) {
     if (nextMode === mode) return;
     setMode(nextMode);
     setFoundIds([]);
+    setHintsUsed(0);
     setQuery('');
     setFeedback('');
     setActiveSuggestion(0);
     setActivePanel(null);
+    setMenuOpen(false);
   };
 
   const addStudent = (student) => {
@@ -560,24 +802,49 @@ export default function GamePage({ students, links }) {
       <TopoBackground />
       <div className="game-page__content">
         <header className="game-page__header">
-          <div className="game-page__brand">
-            <span>Les familles de</span>
-            <strong>Géodata Paris</strong>
-          </div>
-          <div className="game-page__title-block">
+          <div className="game-page__identity">
             <h1>ENSGdle</h1>
             <p>Jeu de parrainage <BrandDivider /> {pairLabel}</p>
           </div>
-          <a className="btn btn--ghost game-page__back" href="#" aria-label="Retour à l’arbre">
-            <span aria-hidden="true">←</span> Retour à l’arbre
-          </a>
+          <nav className="game-modes" aria-label="Mode de jeu">
+            <button type="button" className={mode === 'daily' ? 'is-active' : ''} onClick={() => selectMode('daily')}>Journalier</button>
+            <button type="button" className={mode === 'weekly' ? 'is-active' : ''} onClick={() => selectMode('weekly')}>Hebdomadaire</button>
+            <button type="button" className={mode === 'practice' ? 'is-active' : ''} onClick={() => selectMode('practice')}>Entraînement</button>
+          </nav>
+          <div className="game-page__actions">
+            <a className="btn btn--ghost game-page__back" href="#" aria-label="Retour à l’arbre">
+              <span aria-hidden="true">←</span> Retour à l’arbre
+            </a>
+            <div className="game-menu" ref={menuRef}>
+              <button
+                ref={helpButtonRef}
+                className="btn btn--ghost game-menu__trigger"
+                type="button"
+                aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+                aria-expanded={menuOpen}
+                aria-controls="game-menu-panel"
+                onClick={() => setMenuOpen((open) => !open)}
+              >
+                <svg aria-hidden="true" viewBox="0 0 18 18" focusable="false">
+                  <path d="M1 4h16M1 9h16M1 14h16" />
+                </svg>
+              </button>
+              {menuOpen && (
+                <div className="game-menu__panel" id="game-menu-panel" role="group" aria-label="Menu du jeu">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setActivePanel('help');
+                    }}
+                  >
+                    Comment jouer&nbsp;?
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </header>
-
-        <nav className="game-modes" aria-label="Mode de jeu">
-          <button type="button" className={mode === 'daily' ? 'is-active' : ''} onClick={() => selectMode('daily')}>Journalier</button>
-          <button type="button" className={mode === 'weekly' ? 'is-active' : ''} onClick={() => selectMode('weekly')}>Hebdomadaire</button>
-          <button type="button" className={mode === 'practice' ? 'is-active' : ''} onClick={() => selectMode('practice')}>Entraînement</button>
-        </nav>
 
         {challenge && start && end ? (
           <div className="game-layout">
@@ -587,7 +854,6 @@ export default function GamePage({ students, links }) {
                   <p className="game-section-kicker">{pairLabel}</p>
                   <h2 id="game-challenge-title">Qui relie ces deux étudiants&nbsp;?</h2>
                 </div>
-                <p className="game-attempt-count">{foundIds.length} étudiant{foundIds.length === 1 ? '' : 's'} ajouté{foundIds.length === 1 ? '' : 's'}</p>
               </div>
               <div className="game-endpoints">
                 <article className="game-endpoint">
@@ -600,6 +866,10 @@ export default function GamePage({ students, links }) {
                   <div><small>Arrivée</small><strong>{end.name}</strong><span>{end.code || 'Promo'}{end.code ? String(end.promo).slice(-2) : ' ' + end.promo}</span></div>
                 </article>
               </div>
+              <TopoDivider
+                className="game-challenge__divider"
+                lineIndex={mode === 'daily' ? 3 : mode === 'weekly' ? 7 : 11}
+              />
             </section>
 
             <section className="game-graph" aria-labelledby="game-graph-title">
@@ -609,9 +879,9 @@ export default function GamePage({ students, links }) {
                   <h2 id="game-graph-title">Connexions trouvées</h2>
                 </div>
                 <div className="game-graph__legend">
-                  <span className="game-graph__legend-item game-graph__direction"><span aria-hidden="true">→</span> Parrain·marraine → fillot·te</span>
+                  <span className="game-graph__legend-item"><i aria-hidden="true" /> Lien de famille</span>
                   <span className="game-graph__legend-item"><i className="game-graph__legend-shortest" /> Chemin le plus court</span>
-                  <span className="game-graph__legend-item"><i className="game-graph__legend-off-path" /> Hors chemin possible</span>
+                  <span className="game-graph__legend-item"><i className="game-graph__legend-off-path" /> Hors chemin</span>
                 </div>
               </header>
               <GameGraph
@@ -626,7 +896,7 @@ export default function GamePage({ students, links }) {
             </section>
 
             <form className="game-search" onSubmit={handleSubmit}>
-              <label htmlFor="game-student-search">Choisis un étudiant dans toute la base</label>
+              <label htmlFor="game-student-search">Ajoute un étudiant pour compléter l'arbre</label>
               <div className="game-search__controls">
                 <div className="game-search__input-wrap">
                   <input
@@ -671,32 +941,52 @@ export default function GamePage({ students, links }) {
             <div className={'game-feedback' + (won ? ' game-feedback--won' : '')} role="status" aria-live="polite">
               {won
                 ? 'Bravo ! Tu as trouvé une chaîne de ' + Math.max(0, winningPath.length - 1) + ' liens.'
-                : feedback || 'Tu peux choisir parmi tous les étudiants ; les liens montrent lesquels rejoignent la chaîne.'}
+                : feedback || (
+                  <span>
+                    Tu peux choisir parmi tous les étudiants <BrandDivider /> les liens montrent lesquels rejoignent la chaîne.
+                  </span>
+                )}
             </div>
 
             <div className="game-round-actions">
-              <button type="button" className="btn btn--ghost" onClick={clearRound}>
-                {mode === 'practice' ? 'Nouvelle partie' : 'Rejouer le défi'}
-              </button>
+              <div className="game-hints" role="group" aria-label="Indices">
+                {[1, 2, 3].map((hintIndex) => {
+                  const used = hintIndex <= hintsUsed;
+                  return (
+                    <button
+                      key={hintIndex}
+                      type="button"
+                      className={'btn btn--ghost game-hint' + (used ? ' is-used' : '')}
+                      disabled={hintIndex !== hintsUsed + 1}
+                      aria-pressed={used}
+                      onClick={() => setHintsUsed(hintIndex)}
+                    >
+                      Indice {hintIndex}
+                    </button>
+                  );
+                })}
+              </div>
+              {mode === 'practice' && (
+                <button type="button" className="btn btn--ghost" onClick={clearRound}>
+                  Nouvelle partie
+                </button>
+              )}
               <div className="game-round-actions__links">
-                <button
-                  type="button"
-                  className="game-help-link game-help-link--button"
-                  ref={solutionButtonRef}
-                  onClick={() => setActivePanel('solution')}
-                  aria-haspopup="dialog"
+                <span
+                  className="game-help-link-tooltip"
+                  data-tooltip={hintsUsed < 3 ? 'disponible après indices' : undefined}
                 >
-                  Voir le chemin optimal
-                </button>
-                <button
-                  ref={helpButtonRef}
-                  type="button"
-                  className="game-help-link game-help-link--button"
-                  onClick={() => setActivePanel('help')}
-                  aria-haspopup="dialog"
-                >
-                  Comment jouer&nbsp;?
-                </button>
+                  <button
+                    type="button"
+                    className="game-help-link game-help-link--button"
+                    ref={solutionButtonRef}
+                    onClick={() => setActivePanel('solution')}
+                    aria-haspopup="dialog"
+                    disabled={hintsUsed < 3}
+                  >
+                    Voir le chemin optimal
+                  </button>
+                </span>
               </div>
             </div>
           </div>
@@ -745,6 +1035,7 @@ export default function GamePage({ students, links }) {
                   <p className="game-section-kicker">Solution</p>
                   <h2 id="game-panel-title">Chemin le plus court</h2>
                   <p className="game-solution__summary">{Math.max(0, shortestPath.length - 1)} liens entre le départ et l’arrivée</p>
+                  <p className="game-solution__note">Il peut exister d’autres chemins aussi courts.</p>
                   <GameGraph
                     graph={shortestGraph}
                     nodes={shortestNodes}
@@ -753,6 +1044,7 @@ export default function GamePage({ students, links }) {
                     shortestIds={shortestIds}
                     shortestEdgeKeys={shortestPathEdgeKeys}
                     possibleIds={new Set(shortestPath)}
+                    orderedIds={shortestPath}
                     ariaLabel="Graphe du chemin le plus court"
                   />
                 </>

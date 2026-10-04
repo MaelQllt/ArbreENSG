@@ -611,8 +611,8 @@ export default function AdminPanel({
     ? [newFirstName.trim(), newLastName.trim()].filter(Boolean).join(' ') || 'La nouvelle personne'
     : students.find((student) => student.id === existingId)?.name ?? 'La personne choisie';
   const relationshipHint = relationType === 'parrain'
-    ? `${hintRelated} deviendra le parrain ou la marraine de ${hintAnchor}.`
-    : `${hintRelated} deviendra le fillot ou la fillotte de ${hintAnchor}.`;
+    ? `${hintRelated} deviendra le parrain/marraine de ${hintAnchor}.`
+    : `${hintRelated} deviendra le fillot/fillotte de ${hintAnchor}.`;
   const selectedPeopleNames = selectedExistingPeople.map((student) => student.name);
   const selectedPeopleLabel = selectedPeopleNames.length < 2
     ? selectedPeopleNames[0]
@@ -621,8 +621,8 @@ export default function AdminPanel({
   const selectedRelationshipHint = selectedExistingPeople.length === 0
     ? 'Sélectionne au moins une personne.'
     : relationType === 'parrain'
-      ? `${selectedPeopleLabel} ${selectedPeopleVerb} ${selectedPeopleNames.length > 1 ? 'les parrains ou marraines' : 'le parrain ou la marraine'} de ${hintAnchor}.`
-      : `${selectedPeopleLabel} ${selectedPeopleVerb} ${selectedPeopleNames.length > 1 ? 'les fillots ou fillottes' : 'le fillot ou la fillotte'} de ${hintAnchor}.`;
+      ? `${selectedPeopleLabel} ${selectedPeopleVerb} ${selectedPeopleNames.length > 1 ? 'les parrains ou marraines' : 'le parrain/marraine'} de ${hintAnchor}.`
+      : `${selectedPeopleLabel} ${selectedPeopleVerb} ${selectedPeopleNames.length > 1 ? 'les fillots ou fillottes' : 'le fillot/fillotte'} de ${hintAnchor}.`;
 
   const closeDialog = () => {
     setDialog(null);
@@ -1006,7 +1006,7 @@ export default function AdminPanel({
                       Supprimer un lien
                     </button>
                     <button type="button" role="tab" aria-selected={relationAction === 'create'} className={relationAction === 'create' ? 'is-active' : ''} onClick={() => setRelationAction('create')}>
-                      Créer sans lien
+                      Créer un étudiant
                     </button>
                     <button type="button" role="tab" aria-selected={relationAction === 'edit'} className={relationAction === 'edit' ? 'is-active' : ''} onClick={() => setRelationAction('edit')}>
                       Modifier un étudiant
@@ -1185,9 +1185,6 @@ export default function AdminPanel({
                 </p>
                 {error && <p className="admin-message admin-message--error" role="alert">{error}</p>}
                 {message && <p className="admin-message admin-message--success" role="status">{message}</p>}
-                <p className="admin-form__hint">
-                  Pour appliquer des changements faits dans Excel, importe ici le classeur modifié. Il devient une nouvelle base active ; les versions précédentes restent conservées.
-                </p>
                 <footer className="admin-form__footer">
                   <input
                     ref={workbookInputRef}
@@ -1198,15 +1195,21 @@ export default function AdminPanel({
                     tabIndex={-1}
                     aria-hidden="true"
                   />
-                  <button type="button" className="admin-panel__logout" onClick={closeDialog}>Fermer</button>
-                  <button type="button" className="admin-panel__logout" onClick={() => workbookInputRef.current?.click()} disabled={busy}>
-                    {busy ? 'Importation…' : 'Importer un classeur (.xlsx)'}
+                  <button
+                    type="button"
+                    className="admin-panel__logout"
+                    data-tooltip="Importer un nouveau fichier Excel de référence"
+                    aria-label="Importer un nouveau fichier Excel de référence"
+                    onClick={() => workbookInputRef.current?.click()}
+                    disabled={busy}
+                  >
+                    {busy ? 'Import…' : 'Importer'}
                   </button>
-                  <button type="button" className="admin-panel__logout" onClick={handleCreateBase} disabled={busy || !data.nodes.length}>
-                    {busy ? 'Création de la base…' : 'Créer et télécharger la base (.xlsx)'}
+                  <button type="button" className="admin-panel__logout" data-tooltip="Télécharger le fichier actuel" aria-label="Télécharger le fichier actuel" onClick={handleCreateBase} disabled={busy || !data.nodes.length}>
+                    {busy ? 'Téléchargement…' : 'Télécharger'}
                   </button>
                   <button className={`btn admin-submit${relationAction === 'delete' ? ' admin-submit--danger' : ''}`} type="submit" disabled={busy || (relationAction !== 'create' && !data.nodes.length) || (relationAction === 'remove' ? !selectablePeople.some((student) => student.id === existingId) : relationAction === 'add' && personType === 'existing' && !selectedIds.length)}>
-                    {busy ? 'Enregistrement…' : relationAction === 'delete' ? 'Supprimer l’étudiant' : relationAction === 'remove' ? 'Supprimer le lien' : relationAction === 'create' ? 'Créer la personne' : relationAction === 'edit' ? 'Enregistrer les modifications' : 'Enregistrer dans la base partagée'}
+                    {busy ? 'Enregistrement…' : relationAction === 'delete' ? 'Supprimer' : 'Enregistrer'}
                   </button>
                 </footer>
               </form>

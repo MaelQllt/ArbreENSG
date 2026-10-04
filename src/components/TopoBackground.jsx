@@ -47,11 +47,38 @@ function buildLines() {
       .join(' ');
     return {
       points,
+      base,
       stroke: mix(COLORS.sand, COLORS.violet, Math.min(1, t * 1.15)),
       width: 0.9 + 2.4 * t,
       opacity: 0.2 + 0.38 * t,
     };
   });
+}
+
+export function TopoDivider({ className, lineIndex = 7 }) {
+  const line = useMemo(() => buildLines()[lineIndex], [lineIndex]);
+  const viewHeight = 200;
+
+  return (
+    <svg
+      className={className}
+      viewBox={`0 ${line.base - viewHeight / 2} ${W} ${viewHeight}`}
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <polyline
+        points={line.points}
+        fill="none"
+        stroke={line.stroke}
+        strokeWidth={line.width}
+        strokeOpacity={line.opacity}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
 }
 
 export default function TopoBackground() {
