@@ -143,10 +143,10 @@
 
 .game-challenge {
   display: grid;
-  grid-template-columns: minmax(330px, 0.8fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
   align-items: center;
-  gap: 12px 26px;
-  padding: clamp(18px, 3vw, 28px);
+  gap: 10px 22px;
+  padding: clamp(14px, 2vw, 22px);
 }
 
 .game-challenge__heading,
@@ -477,12 +477,7 @@
 }
 
 .game-help-panel--solution .game-graph__viewport {
-  min-height: 280px;
   max-height: min(480px, 58vh);
-}
-
-.game-help-panel--solution .game-graph__canvas {
-  min-height: 280px;
 }
 
 .game-graph {
@@ -491,19 +486,19 @@
 }
 
 .game-graph__header {
-  align-items: flex-end;
-  margin-bottom: 14px;
+  align-items: center;
+  margin-bottom: 10px;
 }
 
 .game-graph__legend {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 7px 15px;
+  gap: 6px 13px;
   justify-content: flex-end;
   min-width: 0;
   color: var(--violet);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
 }
 
 .game-graph__legend-item {
@@ -555,24 +550,21 @@
 
 .game-graph__direction > span {
   color: #a97758;
-  font-size: 1.2rem;
+  font-size: 1rem;
   font-weight: 700;
 }
 
 .game-graph__viewport {
-  min-height: 360px;
-  max-height: clamp(420px, 58vh, 820px);
+  max-height: min(58vh, 700px);
   overflow: auto;
-  border: 1px solid rgb(56 35 91 / 14%);
-  background: #fbfaf6;
   overscroll-behavior: contain;
 }
 
 .game-graph__canvas {
   position: relative;
   min-width: 0;
-  min-height: 360px;
-  padding: 12px;
+  min-height: 0;
+  padding: 2px 0;
 }
 
 .game-graph__links {
@@ -594,13 +586,13 @@
 .game-graph__edge {
   fill: none;
   stroke: #a97758;
-  stroke-width: 2.4;
-  stroke-opacity: 0.75;
+  stroke-width: 1.7;
+  stroke-opacity: 0.68;
 }
 
 .game-graph__edge--shortest {
   stroke: #b4b000;
-  stroke-width: 4;
+  stroke-width: 2.7;
   stroke-opacity: 1;
 }
 
@@ -613,33 +605,26 @@
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 2px;
 }
 
 .game-graph__level {
   display: grid;
-  grid-template-columns: minmax(120px, 0.18fr) minmax(0, 1fr);
+  grid-template-columns: minmax(100px, 0.17fr) minmax(0, 1fr);
   align-items: center;
-  gap: 14px;
-  min-height: 82px;
-  padding: 10px 14px;
-  border: 1px solid rgb(56 35 91 / 9%);
-  border-left: 4px solid rgb(177 121 77 / 55%);
-  background: rgb(255 255 255 / 62%);
+  gap: 12px;
+  min-height: 0;
+  padding: 7px 0;
 }
 
 .game-graph__level-title {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 5px 7px;
-  width: max-content;
+  gap: 6px;
+  width: auto;
   max-width: 100%;
-  padding: 7px 9px;
-  border: 1px solid rgb(142 111 85 / 20%);
-  background: #f3eee3;
   color: #8e6f55;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 700;
 }
 
@@ -650,9 +635,10 @@
 
 .game-graph__nodes {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 260px));
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  gap: 8px 12px;
   width: 100%;
 }
 
@@ -661,8 +647,8 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  min-height: 56px;
-  padding: 8px 11px;
+  min-height: 50px;
+  padding: 7px 10px;
   border: 1px solid #d5d1c2;
   background: var(--paper);
   box-shadow: 2px 2px 0 rgb(56 35 91 / 14%);
@@ -692,7 +678,14 @@
 
 .game-node--off-path {
   filter: grayscale(0.7);
-  opacity: 0.48;
+  opacity: 0.44;
+}
+
+.game-graph__hint {
+  margin: 7px 0 2px;
+  color: #8e6f55;
+  font-size: 0.78rem;
+  text-align: center;
 }
 
 .game-node__copy {
@@ -728,24 +721,30 @@
 }
 
 @media (max-width: 820px) {
-  .game-challenge {
+  .game-hero {
     grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
+    grid-template-areas: "eyebrow" "title" "description";
+    gap: 2px;
+    margin: 22px auto 15px;
+    text-align: center;
   }
 
-  .game-challenge__heading,
-  .game-endpoints,
-  .game-search {
-    grid-column: 1;
-    grid-row: auto;
+  .game-hero > p:last-child {
+    margin: 0.45rem auto 0;
   }
 
-  .game-challenge__heading {
-    align-items: center;
+  .game-graph__header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .game-graph__legend {
+    justify-content: flex-start;
   }
 
   .game-graph__viewport {
-    max-height: clamp(360px, 56vh, 650px);
+    max-height: min(52vh, 600px);
   }
 }
 
@@ -775,11 +774,7 @@
   }
 
   .game-hero {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "eyebrow" "title" "description";
-    gap: 2px;
     margin: 26px auto 17px;
-    text-align: center;
   }
 
   .game-hero h1 {
@@ -806,6 +801,18 @@
   .game-challenge,
   .game-graph {
     padding: 16px;
+  }
+
+  .game-challenge {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .game-challenge__heading,
+  .game-endpoints,
+  .game-search {
+    grid-column: 1;
+    grid-row: auto;
   }
 
   .game-challenge__heading {
@@ -838,40 +845,33 @@
   }
 
   .game-graph__header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 8px;
+    gap: 5px;
   }
 
   .game-graph__viewport {
-    min-height: 320px;
-    max-height: 56vh;
+    max-height: 58vh;
   }
 
   .game-graph__canvas {
-    min-height: 320px;
     padding: 8px;
   }
 
   .game-graph__level {
     grid-template-columns: minmax(0, 1fr);
-    gap: 7px;
-    min-height: 0;
-    padding: 9px;
+    gap: 3px;
+    padding: 6px 0;
   }
 
   .game-graph__level-title {
-    padding: 4px 7px;
     font-size: 0.72rem;
   }
 
   .game-graph__nodes {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 195px), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 260px));
     gap: 7px;
   }
 
   .game-node {
-    min-height: 48px;
     padding: 6px 8px;
   }
 

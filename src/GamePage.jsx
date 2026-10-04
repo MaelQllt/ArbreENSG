@@ -364,6 +364,9 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
           })}
         </div>
       </div>
+      {layout.lines.length === 0 && ariaLabel === 'Graphe des personnes trouvées' && (
+        <p className="game-graph__hint">Les liens apparaîtront ici quand tu ajouteras des étudiant·es.</p>
+      )}
     </div>
   );
 }
@@ -576,29 +579,6 @@ export default function GamePage({ students, links }) {
 
         {challenge && start && end ? (
           <div className="game-layout">
-            <section className="game-graph" aria-labelledby="game-graph-title">
-              <header className="game-graph__header">
-                <div>
-                  <p className="game-section-kicker">Les liens directs entre étudiant·es</p>
-                  <h2 id="game-graph-title">Connexions trouvées</h2>
-                </div>
-                <div className="game-graph__legend">
-                  <span className="game-graph__legend-item game-graph__direction"><span aria-hidden="true">→</span> Parrain·marraine vers fillot·te</span>
-                  <span className="game-graph__legend-item"><i className="game-graph__legend-shortest" /> Chemin le plus court</span>
-                  <span className="game-graph__legend-item"><i className="game-graph__legend-off-path" /> Hors chemin possible</span>
-                </div>
-              </header>
-              <GameGraph
-                graph={graph}
-                nodes={shownNodes}
-                startId={startId}
-                endId={endId}
-                shortestIds={shortestIds}
-                shortestEdgeKeys={shortestEdgeKeys}
-                possibleIds={possibleIds}
-              />
-            </section>
-
             <section className="game-challenge" aria-labelledby="game-challenge-title">
               <div className="game-challenge__heading">
                 <div>
@@ -694,6 +674,29 @@ export default function GamePage({ students, links }) {
                 </div>
               </div>
 
+            </section>
+
+            <section className="game-graph" aria-labelledby="game-graph-title">
+              <header className="game-graph__header">
+                <div>
+                  <p className="game-section-kicker">Graphe du défi</p>
+                  <h2 id="game-graph-title">Connexions trouvées</h2>
+                </div>
+                <div className="game-graph__legend">
+                  <span className="game-graph__legend-item game-graph__direction"><span aria-hidden="true">→</span> Parrain·marraine → fillot·te</span>
+                  <span className="game-graph__legend-item"><i className="game-graph__legend-shortest" /> Chemin le plus court</span>
+                  <span className="game-graph__legend-item"><i className="game-graph__legend-off-path" /> Hors chemin possible</span>
+                </div>
+              </header>
+              <GameGraph
+                graph={graph}
+                nodes={shownNodes}
+                startId={startId}
+                endId={endId}
+                shortestIds={shortestIds}
+                shortestEdgeKeys={shortestEdgeKeys}
+                possibleIds={possibleIds}
+              />
             </section>
 
           </div>
