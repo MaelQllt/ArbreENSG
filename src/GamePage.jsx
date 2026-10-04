@@ -331,7 +331,11 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
                   <BrandDivider />
                   <span>Promo {promo}</span>
                 </header>
-                <div className="game-graph__nodes">
+                <div className={'game-graph__nodes'
+                  + (members.length >= 5 ? ' game-graph__nodes--dense'
+                    : members.length >= 3 ? ' game-graph__nodes--many'
+                      : members.length === 1 ? ' game-graph__nodes--single'
+                        : ' game-graph__nodes--pair')}>
                   {members.map((student) => {
                     const isStart = student.id === startId;
                     const isEnd = student.id === endId;
@@ -350,7 +354,7 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
                           + (isShortest ? ' game-node--shortest' : '')
                           + (isOffPath ? ' game-node--off-path' : '')}
                       >
-                        <ShapeSwatch promo={student.promo} size={20} />
+                        <ShapeSwatch promo={student.promo} size={members.length >= 5 ? 16 : members.length >= 3 ? 18 : 20} />
                         <span className="game-node__copy">
                           <strong>{student.name}</strong>
                           {(isStart || isEnd) && <small>{isStart ? 'Départ' : 'Arrivée'}</small>}
@@ -598,82 +602,6 @@ export default function GamePage({ students, links }) {
                   <div><small>Arrivée</small><strong>{end.name}</strong><span>{end.code || 'Promo'}{end.code ? String(end.promo).slice(-2) : ' ' + end.promo}</span></div>
                 </article>
               </div>
-
-              <form className="game-search" onSubmit={handleSubmit}>
-                <label htmlFor="game-student-search">Choisis un étudiant dans toute la base</label>
-                <div className="game-search__controls">
-                  <div className="game-search__input-wrap">
-                    <input
-                      id="game-student-search"
-                      type="search"
-                      autoComplete="off"
-                      value={query}
-                      onChange={(event) => {
-                        setQuery(event.target.value);
-                        setActiveSuggestion(0);
-                      }}
-                      onKeyDown={handleInputKeyDown}
-                      placeholder="Rechercher un étudiant"
-                      disabled={won}
-                    />
-                    {suggestions.length > 0 && !won && (
-                      <ul className="game-search__suggestions" role="listbox">
-                        {suggestions.map((student, index) => (
-                          <li key={student.id}>
-                            <button
-                              type="button"
-                              role="option"
-                              aria-selected={activeSuggestion === index}
-                              className={activeSuggestion === index ? 'is-active' : ''}
-                              onMouseDown={(event) => event.preventDefault()}
-                              onClick={() => addStudent(student)}
-                            >
-                              <span>{student.name}</span>
-                              <small>{student.code || 'Promo'}{student.code ? String(student.promo).slice(-2) : ' ' + student.promo}</small>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                  <button className="btn btn--ghost game-search__submit" type="submit" disabled={won || !query.trim()}>
-                    Ajouter
-                  </button>
-                </div>
-              </form>
-
-              <div className={'game-feedback' + (won ? ' game-feedback--won' : '')} role="status" aria-live="polite">
-                {won
-                  ? 'Bravo ! Tu as trouvé une chaîne de ' + Math.max(0, winningPath.length - 1) + ' liens.'
-                  : feedback || 'Tu peux choisir parmi tous les étudiants ; les liens montrent lesquels rejoignent la chaîne.'}
-              </div>
-
-              <div className="game-round-actions">
-                <button type="button" className="btn btn--ghost" onClick={clearRound}>
-                  {mode === 'practice' ? 'Nouvelle partie' : 'Rejouer le défi'}
-                </button>
-                <div className="game-round-actions__links">
-                  <button
-                    type="button"
-                    className="game-help-link game-help-link--button"
-                    ref={solutionButtonRef}
-                    onClick={() => setActivePanel('solution')}
-                    aria-haspopup="dialog"
-                  >
-                    Voir le chemin optimal
-                  </button>
-                  <button
-                    ref={helpButtonRef}
-                    type="button"
-                    className="game-help-link game-help-link--button"
-                    onClick={() => setActivePanel('help')}
-                    aria-haspopup="dialog"
-                  >
-                    Comment jouer&nbsp;?
-                  </button>
-                </div>
-              </div>
-
             </section>
 
             <section className="game-graph" aria-labelledby="game-graph-title">
@@ -699,6 +627,80 @@ export default function GamePage({ students, links }) {
               />
             </section>
 
+            <form className="game-search" onSubmit={handleSubmit}>
+              <label htmlFor="game-student-search">Choisis un étudiant dans toute la base</label>
+              <div className="game-search__controls">
+                <div className="game-search__input-wrap">
+                  <input
+                    id="game-student-search"
+                    type="search"
+                    autoComplete="off"
+                    value={query}
+                    onChange={(event) => {
+                      setQuery(event.target.value);
+                      setActiveSuggestion(0);
+                    }}
+                    onKeyDown={handleInputKeyDown}
+                    placeholder="Rechercher un étudiant"
+                    disabled={won}
+                  />
+                  {suggestions.length > 0 && !won && (
+                    <ul className="game-search__suggestions" role="listbox">
+                      {suggestions.map((student, index) => (
+                        <li key={student.id}>
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={activeSuggestion === index}
+                            className={activeSuggestion === index ? 'is-active' : ''}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => addStudent(student)}
+                          >
+                            <span>{student.name}</span>
+                            <small>{student.code || 'Promo'}{student.code ? String(student.promo).slice(-2) : ' ' + student.promo}</small>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <button className="btn btn--ghost game-search__submit" type="submit" disabled={won || !query.trim()}>
+                  Ajouter
+                </button>
+              </div>
+            </form>
+
+            <div className={'game-feedback' + (won ? ' game-feedback--won' : '')} role="status" aria-live="polite">
+              {won
+                ? 'Bravo ! Tu as trouvé une chaîne de ' + Math.max(0, winningPath.length - 1) + ' liens.'
+                : feedback || 'Tu peux choisir parmi tous les étudiants ; les liens montrent lesquels rejoignent la chaîne.'}
+            </div>
+
+            <div className="game-round-actions">
+              <button type="button" className="btn btn--ghost" onClick={clearRound}>
+                {mode === 'practice' ? 'Nouvelle partie' : 'Rejouer le défi'}
+              </button>
+              <div className="game-round-actions__links">
+                <button
+                  type="button"
+                  className="game-help-link game-help-link--button"
+                  ref={solutionButtonRef}
+                  onClick={() => setActivePanel('solution')}
+                  aria-haspopup="dialog"
+                >
+                  Voir le chemin optimal
+                </button>
+                <button
+                  ref={helpButtonRef}
+                  type="button"
+                  className="game-help-link game-help-link--button"
+                  onClick={() => setActivePanel('help')}
+                  aria-haspopup="dialog"
+                >
+                  Comment jouer&nbsp;?
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <section className="game-empty" role="status">
