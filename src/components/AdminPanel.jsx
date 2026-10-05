@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { parseStudentsCsv, serializeStudentsCsv } from '../lib/csv';
-import { formatCodeYear } from '../lib/promo';
+import {
+  formatStudentAffiliations,
+  parseAdditionalAffiliations,
+  serializeAdditionalAffiliations,
+} from '../lib/promo';
 import { buildFamilyWorkbook } from '../lib/xlsxWorkbook';
 import { importFamilyWorkbook } from '../lib/xlsxImport';
 import BrandDivider from './BrandDivider';
@@ -55,7 +59,7 @@ const addCurrentChoice = (options, value) => {
 const getCurrentPromoYear = (date) => date.getFullYear() - (date.getMonth() < 8 ? 1 : 0);
 
 const promoLabel = (student) =>
-  student.code ? formatCodeYear(student.code, student.promo) : String(student.promo);
+  formatStudentAffiliations(student) || String(student.promo);
 
 function StudentOptionLabel({ student }) {
   return (
@@ -472,6 +476,7 @@ export default function AdminPanel({
   const [editName, setEditName] = useState('');
   const [editPromo, setEditPromo] = useState('');
   const [editCode, setEditCode] = useState('');
+  const [editAdditionalAffiliations, setEditAdditionalAffiliations] = useState('');
   const [editFiliere, setEditFiliere] = useState('');
   const [editBio, setEditBio] = useState('');
   const [newFirstName, setNewFirstName] = useState('');
@@ -548,6 +553,7 @@ export default function AdminPanel({
     setEditName(student.name ?? '');
     setEditPromo(String(student.promo ?? ''));
     setEditCode(student.code ?? '');
+    setEditAdditionalAffiliations(serializeAdditionalAffiliations(student.additionalAffiliations));
     setEditFiliere(student.filiere ?? '');
     setEditBio(student.bio ?? '');
   }, [relationAction, anchorId, data.nodes]);
@@ -802,6 +808,7 @@ export default function AdminPanel({
         name,
         promo: year,
         code: editCode.trim() || undefined,
+        additionalAffiliations: parseAdditionalAffiliations(editAdditionalAffiliations),
         filiere: editFiliere.trim() || undefined,
         bio: editBio.trim() || undefined,
       };
@@ -1090,6 +1097,15 @@ export default function AdminPanel({
                         searchPlaceholder="Rechercher une filière"
                       />
                     </div>
+                    <label>
+                      Appartenances secondaires
+                      <input
+                        value={editAdditionalAffiliations}
+                        onChange={(event) => setEditAdditionalAffiliations(event.target.value)}
+                        placeholder="Ex. LG23 ; LG21"
+                      />
+                      <small>Codes séparés par des points-virgules. La promo la plus récente reste la position principale.</small>
+                    </label>
                     <label>
                       Bio / description
                       <textarea rows="3" value={editBio} onChange={(event) => setEditBio(event.target.value)} />

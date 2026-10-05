@@ -124,6 +124,7 @@ function tablesToData(tables) {
       lastName: findColumn((header) => ['nom', 'nom de famille', 'last name', 'lastname'].includes(header)),
       promo: findColumn((header) => header.includes('promo') || header.includes('annee')),
       code: findColumn((header) => header === 'code'),
+      additionalAffiliations: findColumn((header) => header.includes('appartenance') || header.includes('additional affiliation')),
       filiere: findColumn((header) => header.includes('filiere')),
       parents: findColumn((header) => header.includes('parrain') || header.includes('marraine')),
       children: findColumn((header) => header.includes('fillot') || header.includes('fillotte')),
@@ -141,6 +142,7 @@ function tablesToData(tables) {
         name: String(nameValue ?? '').trim(),
         promo: row[columns.promo] ?? '',
         code: columns.code >= 0 ? row[columns.code] ?? '' : '',
+        additionalAffiliations: columns.additionalAffiliations >= 0 ? row[columns.additionalAffiliations] ?? '' : '',
         filiere: columns.filiere >= 0 ? row[columns.filiere] ?? '' : '',
         parents: columns.parents >= 0 ? row[columns.parents] ?? '' : '',
         children: columns.children >= 0 ? row[columns.children] ?? '' : '',
@@ -151,8 +153,8 @@ function tablesToData(tables) {
   if (!rawRows.length) throw new Error('Aucun étudiant trouvé dans les onglets du classeur.');
 
   const csvRows = [
-    ['etudiant', 'promo', 'code', 'filiere', 'parrains'],
-    ...rawRows.map((row) => [row.name, row.promo, row.code, row.filiere, row.parents]),
+    ['etudiant', 'promo', 'code', 'appartenances secondaires', 'filiere', 'parrains'],
+    ...rawRows.map((row) => [row.name, row.promo, row.code, row.additionalAffiliations, row.filiere, row.parents]),
   ];
   const parsed = parseStudentsCsv(csvRows.map((row) => row.map(csvQuote).join(',')).join('\n'));
   const idByName = new Map(parsed.data.nodes.map((student) => [nameKey(student.name), student.id]));

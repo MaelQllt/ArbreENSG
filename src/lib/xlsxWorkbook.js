@@ -1,3 +1,5 @@
+import { serializeAdditionalAffiliations } from './promo';
+
 const encoder = new TextEncoder();
 
 const escapeXml = (value) => String(value ?? '')
@@ -26,11 +28,12 @@ function inlineCell(reference, value, style = 0) {
 }
 
 function worksheetXml(students) {
-  const headers = ['Étudiant·e', 'Promo', 'Code', 'Filière', 'Parrains / marraines', 'Fillots / fillottes'];
+  const headers = ['Étudiant·e', 'Promo', 'Code', 'Appartenances secondaires', 'Filière', 'Parrains / marraines', 'Fillots / fillottes'];
   const rows = [headers, ...students.map((student) => [
     student.name,
     student.promo,
     student.code ?? '',
+    serializeAdditionalAffiliations(student.additionalAffiliations),
     student.filiere ?? '',
     student.parents.join('; '),
     student.children.join('; '),
@@ -41,16 +44,16 @@ function worksheetXml(students) {
     const cells = row.map((value, cellIndex) => inlineCell(`${columnName(cellIndex + 1)}${rowNumber}`, value, rowIndex === 0 ? 1 : 0)).join('');
     return `<row r="${rowNumber}">${cells}</row>`;
   }).join('');
-  const columns = [34, 12, 14, 24, 42, 42]
+  const columns = [34, 12, 14, 24, 24, 42, 42]
     .map((width, index) => `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`)
     .join('');
 
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
-    `<dimension ref="A1:F${lastRow}"/>` +
+    `<dimension ref="A1:G${lastRow}"/>` +
     `<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
     `<sheetFormatPr defaultRowHeight="18"/><cols>${columns}</cols><sheetData>${sheetRows}</sheetData>` +
-    `<autoFilter ref="A1:F${lastRow}"/>` +
+    `<autoFilter ref="A1:G${lastRow}"/>` +
     `<pageMargins left="0.25" right="0.25" top="0.5" bottom="0.5" header="0.2" footer="0.2"/>` +
     `</worksheet>`;
 }

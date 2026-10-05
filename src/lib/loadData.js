@@ -1,5 +1,5 @@
 import workbookFallback from '../data/familyWorkbookFallback.json';
-import { parseStudentsCsv } from './csv';
+import { mergeAdditionalAffiliationDefaults, parseStudentsCsv } from './csv';
 import { fetchSharedCsv, isSupabaseConfigured } from './supabase';
 
 const fallbackData = (warning) => ({
@@ -18,7 +18,11 @@ export async function loadData() {
     if (!sharedCsv) return fallbackData('Base Supabase vide ; utilisation de la base Excel intégrée.');
     const shared = parseStudentsCsv(sharedCsv);
     if (shared.warnings.length) console.warn(`[familles] ${shared.warnings.length} avertissement(s) :\n` + shared.warnings.join('\n'));
-    return { data: shared.data, warnings: shared.warnings, source: 'shared' };
+    return {
+      data: mergeAdditionalAffiliationDefaults(shared.data, workbookFallback),
+      warnings: shared.warnings,
+      source: 'shared',
+    };
   } catch (error) {
     return fallbackData(`Base Supabase indisponible : ${error.message}. La base Excel intégrée est utilisée.`);
   }

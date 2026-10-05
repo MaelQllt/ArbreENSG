@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import BrandDivider from './BrandDivider';
 import { promoStyle } from '../theme';
-import { describePromo, formatCodeYear } from '../lib/promo';
+import { describePromo, formatStudentAffiliations } from '../lib/promo';
 
 function RelationList({ title, people, onSelect }) {
   return (
@@ -56,7 +56,7 @@ export default function StudentCard({ student, parrains, fillots, lineage, onSel
   const promo = describePromo(s.promo);
   const { color, onColor } = promoStyle(s.promo);
   const filiere = s.filiere ?? s.parcours;
-  const codeYear = formatCodeYear(s.code, s.promo);
+  const codeYear = formatStudentAffiliations(s);
 
   return (
     <aside

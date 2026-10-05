@@ -38,9 +38,14 @@ version (`v2`, `v3`, etc.), l'active pour le graphe, puis télécharge un classe
 avec un onglet par année de promo. Chaque onglet contient les étudiant·es, leur
 code, leur filière et leurs liens de parrainage. Le premier `public/students.csv`
 reste inchangé et sert de base initiale ou de secours si Supabase est indisponible.
+Le classeur inclut aussi la colonne facultative « Appartenances secondaires »
+pour les personnes inscrites dans plusieurs promotions ; la promo la plus récente
+reste la promotion principale utilisée pour placer la personne dans le graphe.
 
 Pour reprendre des modifications faites manuellement dans Excel, ouvre l'admin
 et utilise **Importer un classeur (.xlsx)**. Le classeur importé devient une
 nouvelle version active ; les versions précédentes et le CSV initial sont
 conservés. Les onglets doivent garder les colonnes Étudiant·e, Promo, Code,
-Filière, Parrains / marraines et Fillots / fillottes du classeur exporté.
+Filière, Parrains / marraines et Fillots / fillottes du classeur exporté. La
+colonne « Appartenances secondaires » est facultative et accepte des codes tels
+que `LG23 ; LG21`.

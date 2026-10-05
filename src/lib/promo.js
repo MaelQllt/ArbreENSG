@@ -12,6 +12,39 @@ export function formatCodeYear(code, year) {
   return `${String(code).trim().toLocaleUpperCase('fr')}${String(year).slice(-2)}`;
 }
 
+export function parseAdditionalAffiliations(value) {
+  const seen = new Set();
+  return String(value ?? '')
+    .split(/[|;,\n]+/)
+    .map((label) => label.trim().toLocaleUpperCase('fr'))
+    .filter(Boolean)
+    .flatMap((label) => {
+      const match = label.match(/^([A-Z][A-Z0-9-]*?)(\d{4}|\d{2})$/);
+      if (!match) return [];
+      const code = match[1];
+      const parsedYear = Number(match[2]);
+      const promo = match[2].length === 2 ? 2000 + parsedYear : parsedYear;
+      const key = `${code}-${promo}`;
+      if (seen.has(key)) return [];
+      seen.add(key);
+      return [{ code, promo }];
+    });
+}
+
+export function serializeAdditionalAffiliations(affiliations = []) {
+  return affiliations
+    .map(({ code, promo }) => formatCodeYear(code, promo))
+    .filter(Boolean)
+    .join(' | ');
+}
+
+export function formatStudentAffiliations(student) {
+  return [
+    formatCodeYear(student.code, student.promo),
+    ...(student.additionalAffiliations ?? []).map(({ code, promo }) => formatCodeYear(code, promo)),
+  ].filter(Boolean).join('/');
+}
+
 export function academicYearStart(date = new Date()) {
   const year = date.getFullYear();
   return date.getMonth() >= 8 ? year : year - 1; // mois 8 = septembre

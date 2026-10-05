@@ -4,10 +4,13 @@
 //   prenom + nom   (ou une seule colonne "nom complet")
 //   promo          année d'entrée, ex. 2024
 //   code           optionnel, ex. ING ou LG
+//   appartenances secondaires : optionnel, ex. LG23 | LG21
 //   filiere        optionnel, distincte du code (ex. Carthagéo)
 //   parrains       optionnel : un ou plusieurs "Prénom Nom", séparés par , ; | ou retour à la ligne
 //   bio            optionnel
 // Les fillots se déduisent automatiquement des colonnes "parrains".
+
+import { parseAdditionalAffiliations, serializeAdditionalAffiliations } from './promo';
 
 const strip = (s) =>
   s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -64,6 +67,7 @@ export function parseStudentsCsv(rawText) {
     full: find((h) => ['nom complet', 'nom prenom', 'prenom nom', 'name', 'etudiant', 'eleve'].includes(h)),
     promo: find((h) => h.includes('promo') || h.includes('annee')),
     code: find((h) => h === 'code'),
+    additionalAffiliations: find((h) => h.includes('appartenance') || h.includes('additional affiliation')),
     filiere: find((h) => h.includes('filiere')),
     parrains: find((h) => h.includes('parrain') || h.includes('marraine')),
     bio: find((h) => h.includes('bio') || h.includes('description')),
@@ -99,6 +103,9 @@ export function parseStudentsCsv(rawText) {
       name,
       promo,
       code: rawCode || (legacyCode ? rawFiliere : undefined),
+      ...(col.additionalAffiliations >= 0
+        ? { additionalAffiliations: parseAdditionalAffiliations(cell(r, col.additionalAffiliations)) }
+        : {}),
       filiere: legacyCode ? undefined : rawFiliere || undefined,
       bio: cell(r, col.bio) || undefined,
     });
@@ -141,6 +148,9 @@ export function mergeStudentData(primary, reference) {
       ['code', 'filiere', 'bio'].forEach((field) => {
         if (referenceNode[field]) existing[field] = referenceNode[field];
       });
+      if (referenceNode.additionalAffiliations !== undefined) {
+        existing.additionalAffiliations = referenceNode.additionalAffiliations;
+      }
       return;
     }
 
@@ -172,6 +182,26 @@ export function mergeStudentData(primary, reference) {
   return { nodes, links };
 }
 
+export function mergeAdditionalAffiliationDefaults(primary, reference) {
+  const nameKeyFor = (value) => strip(value).split(' ').filter(Boolean).sort().join(' ');
+  const referenceByName = new Map(reference.nodes.map((node) => [nameKeyFor(node.name), node]));
+  return {
+    ...primary,
+    nodes: primary.nodes.map((node) => {
+      if (node.additionalAffiliations !== undefined) return node;
+      const referenceNode = referenceByName.get(nameKeyFor(node.name));
+      return referenceNode?.additionalAffiliations !== undefined
+        ? {
+          ...node,
+          promo: referenceNode.promo,
+          code: referenceNode.code,
+          additionalAffiliations: referenceNode.additionalAffiliations,
+        }
+        : node;
+    }),
+  };
+}
+
 export function serializeStudentsCsv(data) {
   const byId = new Map(data.nodes.map((node) => [node.id, node]));
   const parentsByChild = new Map(data.nodes.map((node) => [node.id, []]));
@@ -185,11 +215,12 @@ export function serializeStudentsCsv(data) {
 
   const quote = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
   const rows = [
-    ['etudiant', 'promo', 'code', 'filiere', 'parrains', 'bio'],
+    ['etudiant', 'promo', 'code', 'appartenances secondaires', 'filiere', 'parrains', 'bio'],
     ...data.nodes.map((node) => [
       node.name,
       node.promo,
       node.code ?? '',
+      serializeAdditionalAffiliations(node.additionalAffiliations),
       node.filiere ?? '',
       (parentsByChild.get(node.id) ?? []).join('; '),
       node.bio ?? '',

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { formatCodeYear } from '../lib/promo';
+import { formatStudentAffiliations } from '../lib/promo';
 import { promoStyle } from '../theme';
 import BrandDivider from './BrandDivider';
 
@@ -11,7 +11,7 @@ const normalize = (value) => value
 
 function SearchOption({ student }) {
   const { color } = promoStyle(student.promo);
-  const codeYear = formatCodeYear(student.code, student.promo);
+  const codeYear = formatStudentAffiliations(student);
   return (
     <>
       <span className="student-search__name">{student.name}</span>
@@ -35,7 +35,7 @@ export default function StudentSearch({ students, onSelect }) {
   const results = useMemo(() => {
     if (!normalizedQuery) return [];
     return [...students]
-      .filter((student) => normalize(`${student.name} ${formatCodeYear(student.code, student.promo)} ${student.filiere ?? student.parcours ?? ''}`).includes(normalizedQuery))
+      .filter((student) => normalize(`${student.name} ${formatStudentAffiliations(student)} ${student.filiere ?? student.parcours ?? ''}`).includes(normalizedQuery))
       .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
       .slice(0, 8);
   }, [students, normalizedQuery]);

@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import BrandDivider from './components/BrandDivider';
 import ShapeSwatch from './components/ShapeSwatch';
 import TopoBackground, { TopoDivider } from './components/TopoBackground';
-import { describePromo } from './lib/promo';
+import { describePromo, formatStudentAffiliations } from './lib/promo';
 import './GamePage.css';
 
 const endpointId = (value) => (typeof value === 'object' ? value.id : value);
@@ -1585,7 +1585,7 @@ export default function GamePage({ students, links }) {
                               <span>{student.name}</span>
                               <small>{isForbidden
                                 ? 'Interdit'
-                                : (student.code || 'Promo') + (student.code ? String(student.promo).slice(-2) : ' ' + student.promo)}</small>
+                                : (formatStudentAffiliations(student) || 'Promo ' + student.promo)}</small>
                             </button>
                           </li>
                         );
@@ -1651,7 +1651,7 @@ export default function GamePage({ students, links }) {
                 </button>
               )}
               {mode === 'weekly' && (
-                <button type="button" className="btn btn--ghost" onClick={generateWeeklyPreview}>
+                <button type="button" className="btn btn--ghost" onClick={generateWeeklyPreview} hidden>
                   Générer un autre défi hebdo
                 </button>
               )}
