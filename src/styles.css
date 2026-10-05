@@ -1247,16 +1247,23 @@ video {
 }
 
 .card__promo {
-  padding: 0.25rem 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 1.3rem;
+  padding: 0 0.55rem;
   background: var(--promo-color);
   color: var(--promo-ink);
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
+  line-height: 1;
 }
 
 .card__cohort {
   color: var(--violet);
   font-size: 0.8rem;
+  line-height: 1;
   opacity: 0.72;
 }
 
@@ -1861,4 +1868,24 @@ video {
   font-size: 0.8rem;
   line-height: 1;
   white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .app--card-open .controls__actions:not(:has(.admin-scrim)) {
+    position: fixed;
+    right: calc(var(--panel-width) + 36px);
+    bottom: 24px;
+  }
+}
+
+@media (max-width: 767px) {
+  .app--card-open .controls__actions:not(:has(.admin-scrim)) {
+    position: fixed;
+    right: auto;
+    bottom: calc(min(42dvh, 360px) + max(12px, env(safe-area-inset-bottom)) + 12px + var(--keyboard-inset, 0px));
+    left: max(6px, env(safe-area-inset-left));
+    z-index: 12;
+    flex-direction: row;
+    align-items: center;
+  }
 }
