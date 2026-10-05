@@ -16,7 +16,7 @@ export default function App() {
   const [deleteStudentRequest, setDeleteStudentRequest] = useState(null);
   const [quickAddRequest, setQuickAddRequest] = useState(null);
   const [showLegend, setShowLegend] = useState(() =>
-    typeof window === 'undefined' || !window.matchMedia('(max-width: 720px)').matches
+    typeof window === 'undefined' || !window.matchMedia('(max-width: 767px)').matches
   );
   const [showWarnings, setShowWarnings] = useState(false);
   const [resetTick, setResetTick] = useState(0);
@@ -30,6 +30,26 @@ export default function App() {
     const syncPage = () => setShowGame(window.location.hash.startsWith('#jeu'));
     window.addEventListener('hashchange', syncPage);
     return () => window.removeEventListener('hashchange', syncPage);
+  }, []);
+
+  useEffect(() => {
+    const visualViewport = window.visualViewport;
+    if (!visualViewport) return undefined;
+
+    const updateKeyboardInset = () => {
+      const obscuredHeight = Math.max(0, window.innerHeight - visualViewport.height - visualViewport.offsetTop);
+      const keyboardInset = obscuredHeight > 120 ? obscuredHeight : 0;
+      document.documentElement.style.setProperty('--keyboard-inset', keyboardInset + 'px');
+    };
+
+    updateKeyboardInset();
+    visualViewport.addEventListener('resize', updateKeyboardInset);
+    visualViewport.addEventListener('scroll', updateKeyboardInset);
+    return () => {
+      visualViewport.removeEventListener('resize', updateKeyboardInset);
+      visualViewport.removeEventListener('scroll', updateKeyboardInset);
+      document.documentElement.style.removeProperty('--keyboard-inset');
+    };
   }, []);
 
   useEffect(() => {

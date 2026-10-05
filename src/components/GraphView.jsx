@@ -75,8 +75,20 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
   const labelWidths = useRef(new Map());
   const size = useElementSize(containerRef);
   const ready = size.width > 0 && size.height > 0;
-  const nodeRadius = size.width <= 720 ? MOBILE_NODE_R : NODE_R;
-  const minZoom = size.width <= 720 ? MOBILE_MIN_ZOOM : MIN_ZOOM;
+  const [reducedMotion, setReducedMotion] = useState(() => (
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  ));
+  const nodeRadius = size.width <= 767 ? MOBILE_NODE_R : NODE_R;
+  const minZoom = size.width <= 767 ? MOBILE_MIN_ZOOM : MIN_ZOOM;
+  const disableGraphAnimations = reducedMotion || size.width <= 767;
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updatePreference = (event) => setReducedMotion(event.matches);
+    setReducedMotion(media.matches);
+    media.addEventListener?.('change', updatePreference);
+    return () => media.removeEventListener?.('change', updatePreference);
+  }, []);
 
   // react-force-graph ajoute x/y/vx/vy aux nœuds. Réutiliser ces coordonnées
   // lors d'un changement de lien évite de relancer tout le réseau à zéro.
@@ -134,9 +146,9 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
       const box = fg?.getGraphBbox(filter);
       if (!box) return;
       const { width: W, height: H } = size;
-      const pad = { l: W < 720 ? 94 : 130, r: 70, t: 90, b: 70 };
+      const pad = { l: W < 768 ? 94 : 130, r: 70, t: 90, b: 70 };
       if (withPanel) {
-        if (W < 720) pad.b += H * 0.5;
+        if (W < 768) pad.b += H * 0.5;
         else pad.r += PANEL_WIDTH;
       }
       const k = Math.max(
@@ -149,10 +161,11 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
       );
       const cx = (box.x[0] + box.x[1]) / 2 + (pad.r - pad.l) / (2 * k);
       const cy = (box.y[0] + box.y[1]) / 2 + (pad.b - pad.t) / (2 * k);
-      fg.centerAt(cx, cy, 700);
-      fg.zoom(k, 700);
+      const duration = disableGraphAnimations ? 0 : 700;
+      fg.centerAt(cx, cy, duration);
+      fg.zoom(k, duration);
     },
-    [minZoom, size]
+    [minZoom, size, disableGraphAnimations]
   );
 
   // Au clic : on cadre la lignée entière
@@ -302,7 +315,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
             return 'rgba(255,255,255,0.06)';
           }}
           linkWidth={(l) => (inLineage(l) ? 2 : 0.45)}
-          linkDirectionalParticles={(l) => (inLineage(l) ? 1 : 0)}
+          linkDirectionalParticles={(l) => (!disableGraphAnimations && inLineage(l) ? 1 : 0)}
           linkDirectionalParticleWidth={5}
           linkDirectionalParticleSpeed={0.01}
           linkDirectionalParticleColor={() => COLORS.sand}
@@ -331,7 +344,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
             node.fx = node.x;
             node.fy = node.y;
 
-            if (!distance) return;
+            if (!distance || disableGraphAnimations) return;
             const amplitude = Math.min(7, Math.max(3, distance * 0.025));
             const startedAt = performance.now();
             const animate = (now) => {
@@ -360,9 +373,9 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
           maxZoom={MAX_ZOOM}
           d3VelocityDecay={VELOCITY_DECAY}
           // nécessaire : les accesseurs dépendent de l'état React, le canvas doit se redessiner
-          autoPauseRedraw={false}
-          warmupTicks={80}
-          cooldownTicks={250}
+          autoPauseRedraw={disableGraphAnimations}
+          warmupTicks={size.width <= 767 ? 36 : 80}
+          cooldownTicks={size.width <= 767 ? 150 : 250}
           onEngineStop={() => {
             if (!hasFitted.current) {
               hasFitted.current = true;

@@ -26,11 +26,26 @@ html,
 body,
 #root {
   height: 100%;
+  min-height: 100%;
   margin: 0;
   overflow: hidden;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+@supports (height: 100dvh) {
+  html,
+  body,
+  #root {
+    height: 100dvh;
+  }
+}
+
 #root {
+  position: relative;
   overflow: clip;
 }
 
@@ -45,6 +60,19 @@ body {
 button {
   font: inherit;
   cursor: pointer;
+  touch-action: manipulation;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+img,
+video {
+  height: auto;
 }
 
 :focus-visible {
@@ -235,6 +263,7 @@ button {
   align-items: center;
   gap: 0.7rem;
   width: 100%;
+  min-height: 44px;
   padding: 0.55rem 0.6rem;
   border: 0;
   background: transparent;
@@ -281,7 +310,7 @@ button {
   opacity: 0.75;
 }
 
-@media (min-width: 721px) {
+@media (min-width: 768px) {
   .student-search {
     position: fixed;
     top: 24px;
@@ -972,7 +1001,16 @@ button {
   opacity: 0.6;
 }
 
-@media (max-width: 600px) {
+.card__link {
+  min-height: 44px;
+}
+
+.notice__toggle,
+.legend__toggle {
+  min-height: 44px;
+}
+
+@media (max-width: 767px) {
   .controls {
     right: max(12px, env(safe-area-inset-right));
     bottom: max(12px, env(safe-area-inset-bottom));
@@ -994,16 +1032,16 @@ button {
   }
 
   .admin-access {
-    position: fixed;
+    position: relative;
+    top: auto;
+    right: auto;
     z-index: 15;
-    top: max(10px, env(safe-area-inset-top));
-    right: max(10px, env(safe-area-inset-right));
   }
 
   .admin-access__button {
     min-width: 0;
-    min-height: 34px;
-    padding: 0.3rem 0.55rem;
+    min-height: 44px;
+    padding: 0.5rem 0.65rem;
     font-size: 0.68rem;
     white-space: nowrap;
   }
@@ -1060,12 +1098,53 @@ button {
   }
 
   .admin-scrim {
-    padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+    position: fixed;
+    height: auto;
+    bottom: var(--keyboard-inset, 0px);
+    overflow-y: auto;
+    padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
   }
 
   .admin-panel {
+    width: min(680px, 100%);
     max-height: calc(100dvh - 24px);
     padding: 1rem;
+  }
+
+  .admin-panel__close {
+    width: 44px;
+    height: 44px;
+  }
+
+  .admin-panel .admin-submit {
+    min-height: 44px;
+  }
+
+  .admin-panel__logout,
+  .admin-form__footer > button {
+    min-height: 44px;
+  }
+
+  .admin-form input:not([type="checkbox"]),
+  .admin-form select,
+  .admin-student-select__trigger {
+    min-height: 44px;
+  }
+
+  .admin-student-select__search {
+    min-height: 44px !important;
+  }
+
+  .admin-tabs button,
+  .admin-tabs--compact button {
+    min-height: 44px;
+  }
+
+  .admin-form input:not([type="checkbox"]),
+  .admin-form select,
+  .admin-form textarea,
+  .admin-student-select__search {
+    font-size: 16px;
   }
 
   .admin-panel__header h2 {
@@ -1104,8 +1183,8 @@ button {
 
   .admin-form__footer button {
     flex: 0 0 auto;
-    height: 32px;
-    min-height: 32px;
+    height: 44px;
+    min-height: 44px;
   }
 }
 
@@ -1381,14 +1460,18 @@ button {
 }
 
 /* ========== Mobile : la fiche devient un volet bas qui monte ========== */
-@media (max-width: 720px) {
+@media (max-width: 767px) {
   .app {
     height: 100dvh;
   }
 
   .masthead {
+    position: static;
+  }
+
+  .masthead__title {
+    position: absolute;
     top: max(12px, env(safe-area-inset-top));
-    right: max(12px, env(safe-area-inset-right));
     left: max(12px, env(safe-area-inset-left));
   }
 
@@ -1397,10 +1480,10 @@ button {
   }
 
   .student-search {
-    position: fixed;
+    position: absolute;
     z-index: 14;
     right: max(12px, env(safe-area-inset-right));
-    bottom: max(12px, env(safe-area-inset-bottom));
+    bottom: calc(max(12px, env(safe-area-inset-bottom)) + var(--keyboard-inset, 0px));
     left: max(12px, env(safe-area-inset-left));
     width: auto;
     margin: 0;
@@ -1421,7 +1504,7 @@ button {
 
   .controls {
     right: max(12px, env(safe-area-inset-right));
-    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 52px + 12px);
+    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 52px + 12px + var(--keyboard-inset, 0px));
     left: max(12px, env(safe-area-inset-left));
     align-items: center;
   }
@@ -1563,7 +1646,7 @@ button {
   }
 
   .app--card-open .student-search {
-    bottom: calc(min(42vh, 360px) + max(12px, env(safe-area-inset-bottom)) + 8px);
+    bottom: calc(min(42dvh, 360px) + max(12px, env(safe-area-inset-bottom)) + 8px + var(--keyboard-inset, 0px));
   }
 
   .card {
@@ -1571,7 +1654,7 @@ button {
     top: auto;
     left: 0;
     width: auto;
-    height: min(42vh, 360px);
+    height: min(42dvh, 360px);
     max-height: calc(100dvh - 200px);
     padding: 0.65rem 0.9rem 0.8rem;
     border-top: 8px solid var(--promo-color);
@@ -1653,6 +1736,33 @@ button {
     max-height: 85px;
     overflow-y: auto;
   }
+
+  .card__close {
+    width: 44px;
+    height: 44px;
+  }
+
+  .student-search__field input {
+    font-size: 16px;
+  }
+
+  .student-search__option {
+    align-items: flex-start;
+  }
+
+  .student-search__name {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .card__name {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .card__meta {
+    flex-wrap: wrap;
+  }
 }
 
 
@@ -1673,11 +1783,67 @@ button {
   text-decoration: none;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 767px) {
   .controls__actions {
     flex-direction: column;
     align-items: flex-end;
     gap: 6px;
+  }
+}
+
+@media (max-width: 374px) {
+  .masthead__title {
+    top: max(8px, env(safe-area-inset-top));
+  }
+
+  .masthead__light {
+    font-size: 1.25rem;
+  }
+
+  .masthead__bold {
+    font-size: 1.65rem;
+  }
+
+  .student-search__field {
+    gap: 0.45rem;
+    padding-inline: 0.55rem;
+  }
+
+  .controls {
+    gap: 6px;
+  }
+
+  .dock {
+    max-width: calc(100% - 112px);
+  }
+
+  .dock > .btn,
+  .legend-disclosure__standalone,
+  .legend-disclosure__target {
+    padding-inline: 0.5rem;
+    font-size: 0.72rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .admin-student-select__option,
+  .admin-form label.admin-student-multi-select__option {
+    min-height: 44px;
+  }
+
+  .admin-student-multi-select__chip button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .admin-student-multi-select__clear {
+    min-height: 44px;
+    padding-inline: 0.65rem;
+  }
+
+  .admin-form__footer > button[data-tooltip]:active::after {
+    visibility: visible;
+    opacity: 1;
   }
 }
 

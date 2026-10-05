@@ -12,7 +12,7 @@ function buildDistances(adjacency, startId) {
   const queue = [startId];
   for (let cursor = 0; cursor < queue.length; cursor += 1) {
     const current = queue[cursor];
-    for (const next of adjacency.get(current) ?? []) {
+    for (const next of [...(adjacency.get(current) ?? [])].sort(compareIds)) {
       if (!distance.has(next)) {
         distance.set(next, distance.get(current) + 1);
         queue.push(next);
@@ -29,7 +29,7 @@ function findPath(adjacency, startId, endId, allowedIds) {
   for (let cursor = 0; cursor < queue.length; cursor += 1) {
     const current = queue[cursor];
     if (current === endId) break;
-    for (const next of adjacency.get(current) ?? []) {
+    for (const next of [...(adjacency.get(current) ?? [])].sort(compareIds)) {
       if (allowedIds && !allowedIds.has(next)) continue;
       if (!previous.has(next)) {
         previous.set(next, current);
@@ -43,11 +43,43 @@ function findPath(adjacency, startId, endId, allowedIds) {
   return path.reverse();
 }
 
+function findPathThrough(adjacency, startId, viaId, endId, allowedIds) {
+  const canUse = (id) => !allowedIds || allowedIds.has(id);
+  if (![startId, viaId, endId].every(canUse)) return [];
+  if (!isOnPossiblePath(adjacency, startId, viaId, endId, allowedIds)) return [];
+  const queue = [{ id: startId, path: [startId], visited: new Set([startId]) }];
+  for (let cursor = 0; cursor < queue.length; cursor += 1) {
+    const current = queue[cursor];
+    if (current.id === endId) continue;
+    for (const next of [...(adjacency.get(current.id) ?? [])].sort(compareIds)) {
+      if (!canUse(next) || current.visited.has(next)) continue;
+      const path = [...current.path, next];
+      if (next === endId && path.includes(viaId)) return path;
+      const visited = new Set(current.visited);
+      visited.add(next);
+      queue.push({ id: next, path, visited });
+    }
+  }
+  return [];
+}
+
+function findChallengePath(adjacency, startId, endId, allowedIds, constraint) {
+  if (constraint?.type === 'through') {
+    return findPathThrough(adjacency, startId, constraint.studentId, endId, allowedIds);
+  }
+  if (constraint?.type === 'avoid') {
+    const permittedIds = new Set([...(allowedIds ?? adjacency.keys())]
+      .filter((id) => id !== constraint.studentId));
+    return findPath(adjacency, startId, endId, permittedIds);
+  }
+  return findPath(adjacency, startId, endId, allowedIds);
+}
+
 // Un étudiant appartient à un chemin simple entre les deux bornes si deux
 // routes intérieurement disjointes le relient à chacune des bornes.
-function isOnPossiblePath(adjacency, startId, candidateId, endId) {
+function isOnPossiblePath(adjacency, startId, candidateId, endId, allowedIds) {
   if (candidateId === startId || candidateId === endId) return true;
-  const ids = [...adjacency.keys()];
+  const ids = [...(allowedIds ?? adjacency.keys())];
   const indexes = new Map(ids.map((id, index) => [id, index]));
   const startIndex = indexes.get(startId);
   const endIndex = indexes.get(endId);
@@ -130,7 +162,7 @@ function buildGameGraph(students, links) {
       const distance = distances.get(other.id);
       // ENSGdle requires at least two students between the endpoints.
       if (!distance || distance < 3) return;
-      const [start, end] = [student, other].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+      const [start, end] = [student, other].sort((a, b) => compareIds(a.id, b.id));
       validPairs.push({ startId: start.id, endId: end.id, distance });
     });
   });
@@ -147,49 +179,333 @@ function hashString(value) {
   return hash >>> 0;
 }
 
-function dateKey(date) {
-  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
-}
+function makeGraphPath(start, segments) {
+  const points = [start];
+  let length = 0;
+  let commands = '';
+  let previous = start;
 
-function weekKey(date) {
-  const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate() - ((date.getDay() + 6) % 7));
-  return dateKey(monday);
-}
+  segments.forEach(({ control1, control2, end }) => {
+    commands += ' C ' + control1.x + ' ' + control1.y
+      + ', ' + control2.x + ' ' + control2.y
+      + ', ' + end.x + ' ' + end.y;
+    const controlLength = Math.hypot(control1.x - previous.x, control1.y - previous.y)
+      + Math.hypot(control2.x - control1.x, control2.y - control1.y)
+      + Math.hypot(end.x - control2.x, end.y - control2.y);
+    length += controlLength;
 
-function getChallenge(pairs, mode, practiceSeed, round, byId) {
-  if (!pairs.length) return null;
-  const sorted = [...pairs].sort((a, b) => {
-    const aKey = [byId.get(a.startId)?.name, byId.get(a.endId)?.name].sort().join('|');
-    const bKey = [byId.get(b.startId)?.name, byId.get(b.endId)?.name].sort().join('|');
-    return aKey.localeCompare(bKey);
+    const steps = Math.min(256, Math.max(24, Math.ceil(controlLength / 8)));
+    for (let index = 1; index <= steps; index += 1) {
+      const t = index / steps;
+      const inverse = 1 - t;
+      points.push({
+        x: inverse ** 3 * previous.x
+          + 3 * inverse ** 2 * t * control1.x
+          + 3 * inverse * t ** 2 * control2.x
+          + t ** 3 * end.x,
+        y: inverse ** 3 * previous.y
+          + 3 * inverse ** 2 * t * control1.y
+          + 3 * inverse * t ** 2 * control2.y
+          + t ** 3 * end.y,
+      });
+    }
+    previous = end;
   });
-  const now = new Date();
-  const seed = mode === 'daily'
-    ? 'daily:' + dateKey(now)
-    : mode === 'weekly'
-      ? 'weekly:' + weekKey(now)
-      : 'practice:' + practiceSeed + ':' + round;
+
+  return { commands, points, length };
+}
+
+function connectGraphPathThroughCenters(start, sourcePort, exteriorPath, targetPort, end) {
+  return {
+    d: 'M ' + start.x + ' ' + start.y
+      + ' L ' + sourcePort.x + ' ' + sourcePort.y
+      + exteriorPath.commands
+      + ' L ' + end.x + ' ' + end.y,
+    points: [start, ...exteriorPath.points, end],
+    length: exteriorPath.length
+      + Math.hypot(sourcePort.x - start.x, sourcePort.y - start.y)
+      + Math.hypot(end.x - targetPort.x, end.y - targetPort.y),
+  };
+}
+
+function findGraphPathBlockers(path, obstacles, excludedIds) {
+  const blocked = [];
+  obstacles.forEach((obstacle) => {
+    if (excludedIds.has(obstacle.id)) return;
+    const padding = 5;
+    const intersects = path.points.some((point) => (
+      point.x >= obstacle.left - padding
+      && point.x <= obstacle.right + padding
+      && point.y >= obstacle.top - padding
+      && point.y <= obstacle.bottom + padding
+    ));
+    if (intersects) blocked.push(obstacle);
+  });
+  return blocked;
+}
+
+function parisDateParts(date) {
+  const values = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Paris',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  return Object.fromEntries(values
+    .filter(({ type }) => type !== 'literal')
+    .map(({ type, value }) => [type, Number(value)]));
+}
+
+function parisEffectiveDate(date) {
+  const { year, month, day, hour } = parisDateParts(date);
+  return new Date(Date.UTC(year, month - 1, day - (hour < 12 ? 1 : 0)));
+}
+
+function dateKey(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function dailyPeriodKey(date) {
+  return dateKey(parisEffectiveDate(date));
+}
+
+function weeklyPeriodKey(date) {
+  const effectiveDate = parisEffectiveDate(date);
+  const daysSinceMonday = (effectiveDate.getUTCDay() + 6) % 7;
+  effectiveDate.setUTCDate(effectiveDate.getUTCDate() - daysSinceMonday);
+  return dateKey(effectiveDate);
+}
+
+function getNextParisNoon(date) {
+  const parts = parisDateParts(date);
+  const day = parts.day + (parts.hour < 12 ? 0 : 1);
+  return parisWallTimeToUtc(parts.year, parts.month, day, 12);
+}
+
+function parisWallTimeToUtc(year, month, day, hour) {
+  const targetWallTime = Date.UTC(year, month - 1, day, hour);
+  let guess = targetWallTime;
+  for (let iteration = 0; iteration < 4; iteration += 1) {
+    const local = parisDateParts(new Date(guess));
+    const representedWallTime = Date.UTC(
+      local.year,
+      local.month - 1,
+      local.day,
+      local.hour,
+      local.minute,
+      local.second
+    );
+    guess += targetWallTime - representedWallTime;
+  }
+  return guess;
+}
+
+function getNextParisMondayNoon(date) {
+  const { year, month, day, hour } = parisDateParts(date);
+  const calendarDate = new Date(Date.UTC(year, month - 1, day));
+  const daysUntilMonday = (8 - calendarDate.getUTCDay()) % 7;
+  const daysToAdd = daysUntilMonday === 0 && hour >= 12 ? 7 : daysUntilMonday;
+  calendarDate.setUTCDate(calendarDate.getUTCDate() + daysToAdd);
+  return parisWallTimeToUtc(
+    calendarDate.getUTCFullYear(),
+    calendarDate.getUTCMonth() + 1,
+    calendarDate.getUTCDate(),
+    12
+  );
+}
+
+function formatCountdown(milliseconds) {
+  const totalMinutes = Math.max(0, Math.ceil(milliseconds / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return String(hours).padStart(2, '0') + 'h' + String(minutes).padStart(2, '0') + 'min';
+}
+
+function formatWeeklyReset(date) {
+  const nextReset = new Date(getNextParisMondayNoon(date));
+  const parts = new Intl.DateTimeFormat('fr-FR', {
+    timeZone: 'Europe/Paris',
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+  }).formatToParts(nextReset);
+  const values = Object.fromEntries(parts
+    .filter(({ type }) => type !== 'literal')
+    .map(({ type, value }) => [type, value]));
+  return 'Prochain défi ' + values.weekday + ' ' + values.day + '/' + values.month + ' à 12h';
+}
+
+function compareIds(a, b) {
+  const left = String(a);
+  const right = String(b);
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function orientChallenge(pair, seed, constraint, solutionPath) {
+  const reverse = hashString(seed + ':direction') % 2 === 1;
+  const startId = reverse ? pair.endId : pair.startId;
+  const endId = reverse ? pair.startId : pair.endId;
+  const orientedPath = reverse ? [...solutionPath].reverse() : solutionPath;
+  return {
+    ...pair,
+    startId,
+    endId,
+    constraint,
+    solutionPath: orientedPath,
+    distance: Math.max(0, orientedPath.length - 1),
+  };
+}
+
+function getChallenge(gameGraph, mode, practiceSeed, round, periodKey, weeklyVariant = 0) {
+  if (!gameGraph.validPairs.length) return null;
+  const sorted = [...gameGraph.validPairs].sort((a, b) => (
+    compareIds(a.startId, b.startId) || compareIds(a.endId, b.endId)
+  ));
+  const seed = mode === 'practice'
+    ? 'practice:' + practiceSeed + ':' + round
+    : mode + ':' + periodKey
+      + (mode === 'weekly' && weeklyVariant > 0 ? ':preview:' + weeklyVariant : '');
   const hash = hashString(seed);
+
+  if (mode === 'daily') {
+    const accessible = sorted.filter((pair) => pair.distance <= 4);
+    const candidates = accessible.length ? accessible : sorted;
+    const pair = candidates[hash % candidates.length];
+    return orientChallenge(
+      pair,
+      seed,
+      null,
+      findPath(gameGraph.adjacency, pair.startId, pair.endId)
+    );
+  }
+
+  if (mode === 'weekly') {
+    const harder = sorted.filter((pair) => pair.distance >= 4 && pair.distance <= 7);
+    const candidates = harder.length ? harder : sorted.filter((pair) => pair.distance >= 3);
+    const startIndex = candidates.length ? hash % candidates.length : 0;
+    const orderedPairs = candidates.length
+      ? [...candidates.slice(startIndex), ...candidates.slice(0, startIndex)]
+      : [];
+    const preferredType = hashString(seed + ':rule') % 2 === 0 ? 'avoid' : 'through';
+    const findScenario = (type) => {
+      for (const pair of orderedPairs.slice(0, 256)) {
+        const shortest = findPath(gameGraph.adjacency, pair.startId, pair.endId);
+        const interior = shortest.slice(1, -1);
+        if (type === 'through') {
+          for (const blockedId of interior) {
+            const permittedIds = new Set([...gameGraph.adjacency.keys()].filter((id) => id !== blockedId));
+            const detour = findPath(gameGraph.adjacency, pair.startId, pair.endId, permittedIds);
+            if (!detour.length || detour.length <= shortest.length || detour.length > 10) continue;
+            const extraStudents = detour.slice(1, -1).filter((id) => !shortest.includes(id));
+            for (const studentId of extraStudents) {
+              const routeThroughStudent = findPathThrough(
+                gameGraph.adjacency,
+                pair.startId,
+                studentId,
+                pair.endId
+              );
+              if (routeThroughStudent.length > shortest.length && routeThroughStudent.length <= 10) {
+                return {
+                  pair,
+                  constraint: { type: 'through', studentId },
+                  solutionPath: routeThroughStudent,
+                };
+              }
+            }
+          }
+          const deeper = shortest.slice(2, -2);
+          const candidatesForVia = deeper.length ? deeper : interior;
+          if (!candidatesForVia.length) continue;
+          const studentId = candidatesForVia[hashString(seed + ':' + pair.startId + ':via') % candidatesForVia.length];
+          return {
+            pair,
+            constraint: { type: 'through', studentId },
+            solutionPath: shortest,
+          };
+        }
+        for (const studentId of interior) {
+          const permittedIds = new Set([...gameGraph.adjacency.keys()].filter((id) => id !== studentId));
+          const detour = findPath(gameGraph.adjacency, pair.startId, pair.endId, permittedIds);
+          if (detour.length <= shortest.length || detour.length > 10) continue;
+          return {
+            pair,
+            constraint: { type: 'avoid', studentId },
+            solutionPath: detour,
+          };
+        }
+      }
+      return null;
+    };
+
+    const scenario = findScenario(preferredType) ?? findScenario(preferredType === 'avoid' ? 'through' : 'avoid');
+    if (scenario) return orientChallenge(scenario.pair, seed, scenario.constraint, scenario.solutionPath);
+    const pair = orderedPairs[0] ?? sorted[hash % sorted.length];
+    return orientChallenge(
+      pair,
+      seed,
+      null,
+      findPath(gameGraph.adjacency, pair.startId, pair.endId)
+    );
+  }
+
   const pair = sorted[hash % sorted.length];
-  return hashString(seed + ':direction') % 2
-    ? { ...pair, startId: pair.endId, endId: pair.startId }
-    : pair;
+  return orientChallenge(
+    pair,
+    seed,
+    null,
+    findPath(gameGraph.adjacency, pair.startId, pair.endId)
+  );
+}
+
+function challengeSignature(challenge) {
+  if (!challenge) return '';
+  const forwardPath = challenge.solutionPath.join('>');
+  const reversePath = [...challenge.solutionPath].reverse().join('>');
+  return [
+    [challenge.startId, challenge.endId].sort(compareIds).join('|'),
+    challenge.constraint?.type ?? '',
+    challenge.constraint?.studentId ?? '',
+    [forwardPath, reversePath].sort()[0],
+  ].join('::');
 }
 
 const normalizeName = (value) =>
   value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr').trim();
 
-function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys, possibleIds, orderedIds, ariaLabel = 'Graphe des personnes trouvées' }) {
+function getStudentInitials(name) {
+  const [firstName, ...surnameParts] = name.trim().split(/\s+/);
+  return [firstName, surnameParts.join(' ')]
+    .filter(Boolean)
+    .map((part) => Array.from(part)[0].toLocaleUpperCase('fr') + '…')
+    .join(' ');
+}
+
+function GameGraph({ graph, nodes, hintNodes = [], startId, endId, requiredId, shortestIds, shortestEdgeKeys, possibleIds, orderedIds, ariaLabel = 'Graphe des personnes trouvées' }) {
   const viewportRef = useRef(null);
   const canvasRef = useRef(null);
   const planeRef = useRef(null);
   const levelsRef = useRef(null);
   const nodeRefs = useRef(new Map());
-  const [layout, setLayout] = useState({ width: 0, height: 0, scale: 1, lines: [] });
+  const [layout, setLayout] = useState({ width: 0, height: 0, scale: 1, planeWidth: 0, lines: [] });
   const scaleRef = useRef(1);
   scaleRef.current = layout.scale;
 
   const visibleIds = useMemo(() => new Set(nodes.map((node) => node.id)), [nodes]);
+  const renderedNodes = useMemo(() => {
+    const byId = new Map(nodes.map((node) => [node.id, node]));
+    hintNodes.forEach((node) => {
+      if (!byId.has(node.id)) byId.set(node.id, node);
+    });
+    return [...byId.values()];
+  }, [nodes, hintNodes]);
+  const renderedIds = useMemo(() => new Set(renderedNodes.map((node) => node.id)), [renderedNodes]);
+  const ghostIds = useMemo(() => new Set(hintNodes
+    .filter((node) => !visibleIds.has(node.id))
+    .map((node) => node.id)), [hintNodes, visibleIds]);
   const stepNumbers = useMemo(
     () => orderedIds ? new Map(orderedIds.map((id, index) => [id, index + 1])) : null,
     [orderedIds]
@@ -198,7 +514,7 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
     const orderIndex = orderedIds ? new Map(orderedIds.map((id, index) => [id, index])) : null;
     const visibleNodeIds = new Set(nodes.map((node) => node.id));
     const byPromo = new Map();
-    nodes.forEach((node) => {
+    renderedNodes.forEach((node) => {
       if (!byPromo.has(node.promo)) byPromo.set(node.promo, []);
       byPromo.get(node.promo).push(node);
     });
@@ -217,7 +533,7 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
 
     // Aligne chaque promo sur ses liens avec les promos voisines pour réduire
     // les croisements qui apparaissent avec un tri alphabétique seul.
-    for (let pass = 0; pass < (orderIndex ? 0 : 8); pass += 1) {
+    for (let pass = 0; pass < 3; pass += 1) {
       const directions = [presentPromos, [...presentPromos].reverse()];
       directions.forEach((sweep) => {
         sweep.forEach((promo) => {
@@ -254,10 +570,10 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
       });
     }
 
-    // Improve the row order by counting actual edge crossings, then keep any
-    // adjacent swap that reduces them. Links are undirected, so count each
-    // pair of promo rows once regardless of the stored edge direction.
+    // Improve row order by counting crossings and then favoring shorter links.
+    // Links are undirected, regardless of their stored direction.
     const visibleEdges = graph.edges.filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target));
+    const maxRowWidth = Math.max(1, ...[...ordered.values()].map((members) => members.length));
     const countCrossings = () => {
       const positions = new Map([...ordered].map(([promo, members]) => [
         promo,
@@ -267,23 +583,30 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
         }])),
       ]));
       const levelSegments = new Map();
-      let sameLevelSpan = 0;
+      const sameLevelSegments = new Map();
+      const spanningEdges = [];
+      let rowSpan = 0;
       visibleEdges.forEach((edge) => {
         const source = graph.byId.get(edge.source);
         const target = graph.byId.get(edge.target);
         if (!source || !target) return;
+        const sourcePosition = positions.get(source.promo)?.get(edge.source);
+        const targetPosition = positions.get(target.promo)?.get(edge.target);
+        if (!sourcePosition || !targetPosition) return;
         if (source.promo === target.promo) {
-          const row = positions.get(source.promo);
-          const sourcePosition = row?.get(edge.source)?.index;
-          const targetPosition = row?.get(edge.target)?.index;
-          if (sourcePosition !== undefined && targetPosition !== undefined) {
-            sameLevelSpan += Math.max(0, Math.abs(sourcePosition - targetPosition) - 1);
-          }
+          rowSpan += Math.abs(sourcePosition.index - targetPosition.index);
+          if (!sameLevelSegments.has(source.promo)) sameLevelSegments.set(source.promo, []);
+          sameLevelSegments.get(source.promo).push({
+            from: Math.min(sourcePosition.position, targetPosition.position),
+            to: Math.max(sourcePosition.position, targetPosition.position),
+          });
           return;
         }
+        rowSpan += Math.abs(sourcePosition.position - targetPosition.position) * maxRowWidth;
         const [topPromo, bottomPromo] = [source.promo, target.promo].sort((a, b) => a - b);
-        const topIndex = positions.get(topPromo)?.get(source.promo === topPromo ? edge.source : edge.target)?.position;
-        const bottomIndex = positions.get(bottomPromo)?.get(source.promo === bottomPromo ? edge.source : edge.target)?.position;
+        const topIndex = source.promo === topPromo ? sourcePosition.position : targetPosition.position;
+        const bottomIndex = source.promo === bottomPromo ? sourcePosition.position : targetPosition.position;
+        spanningEdges.push({ topPromo, bottomPromo, topIndex, bottomIndex });
         if (topIndex === undefined || bottomIndex === undefined) return;
         const promoSpan = bottomPromo - topPromo;
         for (let promo = topPromo; promo < bottomPromo; promo += 1) {
@@ -310,28 +633,95 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
           }
         }
       });
-      return crossings * (visibleEdges.length * nodes.length + 1) + sameLevelSpan;
+      sameLevelSegments.forEach((segments, promo) => {
+        const row = positions.get(promo);
+        spanningEdges.forEach(({ topPromo, bottomPromo, topIndex, bottomIndex }) => {
+          if (promo <= topPromo || promo >= bottomPromo) return;
+          const ratio = (promo - topPromo) / (bottomPromo - topPromo);
+          const x = topIndex + (bottomIndex - topIndex) * ratio;
+          const hiddenByNode = [...(row?.values() ?? [])].some((node) => Math.abs(node.position - x) < 0.12);
+          if (hiddenByNode) return;
+          if (segments.some((segment) => x > segment.from && x < segment.to)) crossings += 1;
+        });
+      });
+      return crossings * (visibleEdges.length * maxRowWidth + 1) + rowSpan;
     };
 
-    for (let pass = 0; pass < 8; pass += 1) {
-      let improved = false;
-      presentPromos.forEach((promo) => {
-        const members = ordered.get(promo);
-        for (let index = 0; index < members.length - 1; index += 1) {
-          const currentCrossings = countCrossings();
-          [members[index], members[index + 1]] = [members[index + 1], members[index]];
-          const swappedCrossings = countCrossings();
-          if (swappedCrossings < currentCrossings) {
-            improved = true;
-          } else {
-            [members[index], members[index + 1]] = [members[index + 1], members[index]];
-          }
+    const swapsByPromo = presentPromos.map((promo) => {
+      const members = ordered.get(promo);
+      const swaps = [];
+      for (let first = 0; first < members.length - 1; first += 1) {
+        for (let second = first + 1; second < members.length; second += 1) {
+          swaps.push([first, second]);
         }
+      }
+      return { promo, swaps };
+    });
+    for (let pass = 0; pass < 6; pass += 1) {
+      const currentCrossings = countCrossings();
+      let bestScore = currentCrossings;
+      let bestMove = null;
+
+      // Test every pair in a row, not just neighbors: an edge pattern can
+      // require moving a student across several positions to remove a crossing.
+      const rankedSwapsByPromo = swapsByPromo.map(({ promo, swaps }) => {
+        const members = ordered.get(promo);
+        const candidates = [];
+        swaps.forEach(([first, second]) => {
+          [members[first], members[second]] = [members[second], members[first]];
+          const score = countCrossings();
+          candidates.push({ promo, first, second, score });
+          if (score < bestScore) {
+            bestScore = score;
+            bestMove = [{ promo, first, second }];
+          }
+          [members[first], members[second]] = [members[second], members[first]];
+        });
+        candidates.sort((a, b) => a.score - b.score);
+        return { promo, swaps: candidates.slice(0, 16) };
       });
-      if (!improved) break;
+
+      // Sometimes two rows must change together. Check paired swaps as well
+      // so a useful move is not rejected just because its first half is neutral.
+      for (let firstRow = 0; firstRow < rankedSwapsByPromo.length - 1; firstRow += 1) {
+        const firstEntry = rankedSwapsByPromo[firstRow];
+        if (!firstEntry.swaps.length) continue;
+        const firstMembers = ordered.get(firstEntry.promo);
+        for (let secondRow = firstRow + 1; secondRow < rankedSwapsByPromo.length; secondRow += 1) {
+          const secondEntry = rankedSwapsByPromo[secondRow];
+          if (!secondEntry.swaps.length) continue;
+          const secondMembers = ordered.get(secondEntry.promo);
+          firstEntry.swaps.forEach((firstSwap) => {
+            const { first: firstA, second: firstB } = firstSwap;
+            [firstMembers[firstA], firstMembers[firstB]] = [firstMembers[firstB], firstMembers[firstA]];
+            secondEntry.swaps.forEach((secondSwap) => {
+              const { first: secondA, second: secondB } = secondSwap;
+              [secondMembers[secondA], secondMembers[secondB]] = [secondMembers[secondB], secondMembers[secondA]];
+              const score = countCrossings();
+              if (score < bestScore) {
+                bestScore = score;
+                bestMove = [
+                  { promo: firstEntry.promo, first: firstA, second: firstB },
+                  { promo: secondEntry.promo, first: secondA, second: secondB },
+                ];
+              }
+              [secondMembers[secondA], secondMembers[secondB]] = [secondMembers[secondB], secondMembers[secondA]];
+            });
+            [firstMembers[firstA], firstMembers[firstB]] = [firstMembers[firstB], firstMembers[firstA]];
+          });
+        }
+      }
+
+      if (!bestMove) break;
+      bestMove.forEach(({ promo, first, second }) => {
+        const members = ordered.get(promo);
+        [members[first], members[second]] = [members[second], members[first]];
+      });
     }
     return promos.map((promo) => [promo, ordered.get(promo) ?? []]);
-  }, [nodes, graph.edges, graph.adjacency, graph.byId, orderedIds]);
+  }, [nodes, renderedNodes, graph.edges, graph.adjacency, graph.byId, orderedIds]);
+
+  const widestPromoRow = Math.max(1, ...groups.map(([, members]) => members.length));
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
@@ -343,11 +733,36 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
     const update = () => {
       const availableWidth = Math.max(1, viewport.clientWidth);
       const availableHeight = Math.max(1, viewport.clientHeight);
-      const width = Math.max(1, plane.offsetWidth || availableWidth);
+      const compact = availableWidth <= 560;
+      const titleColumnWidth = compact ? 0 : 128;
+      const edgeGutter = compact ? 40 : 72;
+      const nodeSlotWidth = widestPromoRow === 1 ? 330 : compact ? 136 : 176;
+      const columnGap = compact ? 8 : 14;
+      const nodeAreaWidth = widestPromoRow * nodeSlotWidth
+        + Math.max(0, widestPromoRow - 1) * columnGap
+        + edgeGutter;
+      const planeWidth = Math.max(availableWidth, titleColumnWidth + nodeAreaWidth);
+      const width = Math.max(1, plane.offsetWidth, planeWidth);
       const height = Math.max(1, plane.offsetHeight);
       const scale = Math.min(1, availableWidth / width, availableHeight / height);
       const planeRect = plane.getBoundingClientRect();
       const renderedScale = scaleRef.current || 1;
+      const obstacles = Array.from(nodeRefs.current.entries())
+        .filter(([id]) => renderedIds.has(id))
+        .map(([id, element]) => {
+          const rect = element.getBoundingClientRect();
+          const left = (rect.left - planeRect.left) / renderedScale;
+          const top = (rect.top - planeRect.top) / renderedScale;
+          const obstacleWidth = rect.width / renderedScale;
+          const obstacleHeight = rect.height / renderedScale;
+          return {
+            id,
+            left,
+            top,
+            right: left + obstacleWidth,
+            bottom: top + obstacleHeight,
+          };
+        });
       const descriptors = graph.edges
         .filter((edge) => visibleIds.has(edge.source) && visibleIds.has(edge.target))
         .map((edge) => {
@@ -381,12 +796,6 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
             targetCenterX,
             targetCenterY,
             vertical,
-            laneGroup: vertical
-              ? 'v:' + [sourcePromo, targetPromo].sort((a, b) => a - b).join('|')
-              : 'h:' + sourcePromo,
-            lanePosition: vertical
-              ? (sourceCenterX + targetCenterX) / 2
-              : (sourceCenterY + targetCenterY) / 2,
           };
         })
         .filter(Boolean);
@@ -415,28 +824,11 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
       portBuckets.forEach((ports, bucketKey) => {
         ports.sort((a, b) => a.neighborPosition - b.neighborPosition || a.edgeKey.localeCompare(b.edgeKey));
         const narrowestPort = Math.min(...ports.map((port) => port.extent));
-        const maxSpread = Math.min(54, narrowestPort * 0.56);
-        const step = ports.length > 1 ? Math.min(14, maxSpread / (ports.length - 1)) : 0;
+        const maxSpread = Math.min(72, narrowestPort * 0.72);
+        const step = ports.length > 1 ? Math.min(24, maxSpread / (ports.length - 1)) : 0;
         ports.forEach((port, index) => {
           const offset = (index - (ports.length - 1) / 2) * step;
           portOffsets.set(bucketKey + '\u0000' + port.edgeKey, offset);
-        });
-      });
-
-      // Give each connection between the same pair of levels its own gentle
-      // curve. This separates parallel branches instead of stacking them.
-      const laneOffsets = new Map();
-      const laneGroups = new Map();
-      descriptors.forEach((descriptor) => {
-        if (!laneGroups.has(descriptor.laneGroup)) laneGroups.set(descriptor.laneGroup, []);
-        laneGroups.get(descriptor.laneGroup).push(descriptor);
-      });
-      laneGroups.forEach((edgesInLane) => {
-        edgesInLane.sort((a, b) => a.lanePosition - b.lanePosition || a.edgeKey.localeCompare(b.edgeKey));
-        const spread = Math.min(112, Math.max(0, (edgesInLane.length - 1) * 18));
-        const step = edgesInLane.length > 1 ? spread / (edgesInLane.length - 1) : 0;
-        edgesInLane.forEach((descriptor, index) => {
-          laneOffsets.set(descriptor.edgeKey, (index - (edgesInLane.length - 1) / 2) * step);
         });
       });
 
@@ -445,59 +837,137 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
           edge, edgeKey, vertical, sourceWidth, sourceHeight, targetWidth, targetHeight,
           sourceCenterX, sourceCenterY, targetCenterX, targetCenterY,
         } = descriptor;
+        const sourceForward = Math.sign(vertical ? targetCenterY - sourceCenterY : targetCenterX - sourceCenterX) || 1;
+        const targetForward = -sourceForward;
         const sourceSide = vertical
-          ? (targetCenterY > sourceCenterY ? 'bottom' : 'top')
-          : (targetCenterX > sourceCenterX ? 'right' : 'left');
+          ? (sourceForward > 0 ? 'bottom' : 'top')
+          : (sourceForward > 0 ? 'right' : 'left');
         const targetSide = vertical
-          ? (targetCenterY > sourceCenterY ? 'top' : 'bottom')
-          : (targetCenterX > sourceCenterX ? 'left' : 'right');
+          ? (sourceForward > 0 ? 'top' : 'bottom')
+          : (sourceForward > 0 ? 'left' : 'right');
         const sourceOffset = portOffsets.get(edge.source + '\u0000' + sourceSide + '\u0000' + edgeKey) ?? 0;
         const targetOffset = portOffsets.get(edge.target + '\u0000' + targetSide + '\u0000' + edgeKey) ?? 0;
-        const laneOffset = vertical ? (laneOffsets.get(edgeKey) ?? 0) : 0;
-        let x1;
-        let y1;
-        let x2;
-        let y2;
-        let c1x;
-        let c1y;
-        let c2x;
-        let c2y;
-
+        let start;
+        let end;
+        let sourcePort;
+        let targetPort;
+        let directPath;
         if (vertical) {
           const direction = Math.sign(targetCenterY - sourceCenterY);
-          x1 = sourceCenterX + sourceOffset;
-          y1 = sourceCenterY + direction * sourceHeight / 2;
-          x2 = targetCenterX + targetOffset;
-          y2 = targetCenterY - direction * targetHeight / 2;
-          const dx = x2 - x1;
-          const bend = Math.min(72, Math.abs(y2 - y1) * 0.42);
-          c1x = x1 + dx * 0.22 + laneOffset;
-          c1y = y1 + direction * bend;
-          c2x = x2 - dx * 0.22 + laneOffset;
-          c2y = y2 - direction * bend;
+          start = { x: sourceCenterX, y: sourceCenterY };
+          end = { x: targetCenterX, y: targetCenterY };
+          sourcePort = { x: sourceCenterX + sourceOffset, y: sourceCenterY + direction * sourceHeight / 2 };
+          targetPort = { x: targetCenterX + targetOffset, y: targetCenterY - direction * targetHeight / 2 };
+          const lead = Math.min(48, Math.abs(targetPort.y - sourcePort.y) * 0.34);
+          const exteriorPath = makeGraphPath(sourcePort, [{
+            control1: { x: sourcePort.x, y: sourcePort.y + direction * lead },
+            control2: { x: targetPort.x, y: targetPort.y - direction * lead },
+            end: targetPort,
+          }]);
+          directPath = connectGraphPathThroughCenters(start, sourcePort, exteriorPath, targetPort, end);
         } else {
-          const direction = Math.sign(targetCenterX - sourceCenterX) || 1;
-          x1 = sourceCenterX + direction * sourceWidth / 2;
-          y1 = sourceCenterY + sourceOffset;
-          x2 = targetCenterX - direction * targetWidth / 2;
-          y2 = targetCenterY + targetOffset;
-          const bend = Math.min(72, Math.abs(x2 - x1) * 0.38);
-          c1x = x1 + direction * bend;
-          c1y = y1 + (y2 - y1) * 0.3 + laneOffset;
-          c2x = x2 - direction * bend;
-          c2y = y2 - (y2 - y1) * 0.3 + laneOffset;
+          start = { x: sourceCenterX, y: sourceCenterY };
+          end = { x: targetCenterX, y: targetCenterY };
+          sourcePort = { x: sourceCenterX + sourceForward * sourceWidth / 2, y: sourceCenterY + sourceOffset };
+          targetPort = { x: targetCenterX + targetForward * targetWidth / 2, y: targetCenterY + targetOffset };
+          const lead = Math.min(42, Math.abs(targetPort.x - sourcePort.x) * 0.34);
+          const exteriorPath = makeGraphPath(sourcePort, [{
+            control1: { x: sourcePort.x + sourceForward * lead, y: sourcePort.y },
+            control2: { x: targetPort.x - sourceForward * lead, y: targetPort.y },
+            end: targetPort,
+          }]);
+          directPath = connectGraphPathThroughCenters(start, sourcePort, exteriorPath, targetPort, end);
+        }
+
+        const excludedIds = new Set([edge.source, edge.target]);
+        let chosenPath = directPath;
+        const directBlockers = findGraphPathBlockers(directPath, obstacles, excludedIds);
+        if (directBlockers.length > 0 && vertical) {
+          const direction = Math.sign(end.y - start.y);
+          const middleY = (sourcePort.y + targetPort.y) / 2;
+          const railCurve = Math.min(42, Math.abs(middleY - sourcePort.y) * 0.58);
+          const blockedLeft = Math.min(...directBlockers.map((obstacle) => obstacle.left));
+          const blockedRight = Math.max(...directBlockers.map((obstacle) => obstacle.right));
+          const outerLeft = Math.min(...obstacles.map((obstacle) => obstacle.left));
+          const outerRight = Math.max(...obstacles.map((obstacle) => obstacle.right));
+          const railCandidates = [...new Set([
+            blockedLeft - 12,
+            blockedRight + 12,
+            outerLeft - 12,
+            outerRight + 12,
+          ])];
+          const detours = railCandidates.map((routeX) => {
+            const exteriorPath = makeGraphPath(sourcePort, [
+              {
+                control1: { x: sourcePort.x, y: sourcePort.y + direction * railCurve },
+                control2: { x: routeX, y: middleY - direction * railCurve },
+                end: { x: routeX, y: middleY },
+              },
+              {
+                control1: { x: routeX, y: middleY + direction * railCurve },
+                control2: { x: targetPort.x, y: targetPort.y - direction * railCurve },
+                end: targetPort,
+              },
+            ]);
+            const path = connectGraphPathThroughCenters(start, sourcePort, exteriorPath, targetPort, end);
+            return { path, blockers: findGraphPathBlockers(path, obstacles, excludedIds) };
+          });
+          detours.sort((a, b) => a.blockers.length - b.blockers.length || a.path.length - b.path.length);
+          chosenPath = detours[0]?.path ?? directPath;
+        } else if (directBlockers.length > 0) {
+          const laneBase = (Math.max(sourceHeight, targetHeight) / 2 + 8) / 0.75;
+          const detours = [-1, 1].flatMap((side) => [0, 16, 36].map((extra) => {
+            const laneY = (sourceCenterY + targetCenterY) / 2 + side * (laneBase + extra);
+            const sourceDetourPort = { x: sourceCenterX, y: sourceCenterY + side * sourceHeight / 2 };
+            const targetDetourPort = { x: targetCenterX, y: targetCenterY + side * targetHeight / 2 };
+            const exteriorPath = makeGraphPath(sourceDetourPort, [{
+              control1: { x: sourceDetourPort.x, y: laneY },
+              control2: { x: targetDetourPort.x, y: laneY },
+              end: targetDetourPort,
+            }]);
+            const path = connectGraphPathThroughCenters(start, sourceDetourPort, exteriorPath, targetDetourPort, end);
+            return { path, blockers: findGraphPathBlockers(path, obstacles, excludedIds) };
+          }));
+          detours.sort((a, b) => a.blockers.length - b.blockers.length || a.path.length - b.path.length);
+          chosenPath = detours[0]?.path ?? directPath;
         }
 
         return {
           key: edge.source + '>' + edge.target,
-          d: 'M ' + x1 + ' ' + y1 + ' C ' + c1x + ' ' + c1y + ', ' + c2x + ' ' + c2y + ', ' + x2 + ' ' + y2,
+          d: chosenPath.d,
           shortest: shortestEdgeKeys.has(edgeKey),
           possible: possibleIds.has(edge.source) && possibleIds.has(edge.target),
         };
       });
       const priority = (line) => (line.shortest ? 2 : line.possible ? 1 : 0);
       lines.sort((a, b) => priority(a) - priority(b) || a.key.localeCompare(b.key));
-      setLayout({ width, height, scale, lines });
+      setLayout((current) => {
+        const closeEnough = (left, right, tolerance = 0.01) => Math.abs(left - right) < tolerance;
+        const pathCoordinates = (path) => (
+          path.match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi) ?? []
+        ).map(Number);
+        const pathsCloseEnough = (left, right) => {
+          if (left === right) return true;
+          const leftCoordinates = pathCoordinates(left);
+          const rightCoordinates = pathCoordinates(right);
+          return leftCoordinates.length === rightCoordinates.length
+            && leftCoordinates.every((value, index) => Math.abs(value - rightCoordinates[index]) < 0.15);
+        };
+        const sameLines = current.lines.length === lines.length
+          && lines.every((line, index) => {
+            const previous = current.lines[index];
+            return previous.key === line.key
+              && previous.shortest === line.shortest
+              && previous.possible === line.possible
+              && pathsCloseEnough(previous.d, line.d);
+          });
+        const unchanged = closeEnough(current.width, width)
+          && closeEnough(current.height, height)
+          && closeEnough(current.scale, scale, 0.0001)
+          && closeEnough(current.planeWidth, planeWidth)
+          && sameLines;
+        return unchanged ? current : { width, height, scale, planeWidth, lines };
+      });
     };
 
     update();
@@ -506,7 +976,7 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
     observer.observe(levels);
     nodeRefs.current.forEach((element) => observer.observe(element));
     return () => observer.disconnect();
-  }, [graph.edges, visibleIds, groups, shortestEdgeKeys, possibleIds]);
+  }, [graph.edges, graph.byId, visibleIds, renderedIds, groups, shortestEdgeKeys, possibleIds, widestPromoRow]);
 
   return (
     <div ref={viewportRef} className="game-graph__viewport" role="region" aria-label={ariaLabel}>
@@ -518,7 +988,7 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
         <div
           ref={planeRef}
           className="game-graph__plane"
-          style={{ '--graph-scale': layout.scale }}
+          style={{ '--graph-scale': layout.scale, width: layout.planeWidth ? `max(100%, ${layout.planeWidth}px)` : '100%' }}
         >
           <svg
             className="game-graph__links"
@@ -538,53 +1008,64 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
             ))}
           </svg>
           <div ref={levelsRef} className="game-graph__levels">
-          {groups.map(([promo, members]) => {
-            const promoInfo = describePromo(promo);
-            return (
-              <section className="game-graph__level" key={promo} aria-label={'Promotion ' + promo}>
-                <header className="game-graph__level-title">
-                  <span>{promoInfo.label}</span>
-                  <BrandDivider />
-                  <span>Promo {promo}</span>
-                </header>
-                <div className={'game-graph__nodes'
-                  + (members.length === 0 ? ' game-graph__nodes--empty'
-                    : members.length >= 5 ? ' game-graph__nodes--dense'
-                    : members.length >= 3 ? ' game-graph__nodes--many'
-                      : members.length === 1 ? ' game-graph__nodes--single'
-                        : ' game-graph__nodes--pair')}>
-                  {members.map((student) => {
-                    const isStart = student.id === startId;
-                    const isEnd = student.id === endId;
-                    const isShortest = shortestIds.has(student.id);
-                    const isOffPath = !possibleIds.has(student.id);
-                    const stepIndex = stepNumbers?.get(student.id) ?? 0;
-                    return (
-                      <div
-                        key={student.id}
-                        ref={(element) => {
-                          if (element) nodeRefs.current.set(student.id, element);
-                          else nodeRefs.current.delete(student.id);
-                        }}
-                        className={'game-node'
-                          + (isStart ? ' game-node--start' : '')
-                          + (isEnd ? ' game-node--end' : '')
-                          + (isShortest ? ' game-node--shortest' : '')
-                          + (isOffPath ? ' game-node--off-path' : '')}
-                      >
-                        {stepIndex > 0 && <span className="game-node__step" aria-hidden="true">{stepIndex}</span>}
-                        <ShapeSwatch promo={student.promo} size={members.length >= 5 ? 16 : members.length >= 3 ? 18 : 20} />
-                        <span className="game-node__copy">
-                          <strong>{student.name}</strong>
-                          {(isStart || isEnd) && <small>{isStart ? 'Départ' : 'Arrivée'}</small>}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            );
-          })}
+            {groups.map(([promo, members]) => {
+              const promoInfo = describePromo(promo);
+              return (
+                <section className="game-graph__level" key={promo} aria-label={'Promotion ' + promo}>
+                  <header className="game-graph__level-title">
+                    <span>{promoInfo.label}</span>
+                    <BrandDivider />
+                    <span>Promo {promo}</span>
+                  </header>
+                  <div
+                    className={'game-graph__nodes'
+                      + (members.length === 0 ? ' game-graph__nodes--empty'
+                        : members.length >= 5 ? ' game-graph__nodes--dense'
+                          : members.length >= 3 ? ' game-graph__nodes--many'
+                            : members.length === 1 ? ' game-graph__nodes--single'
+                              : ' game-graph__nodes--pair')}
+                    style={{ '--game-node-count': Math.max(1, members.length) }}
+                  >
+                    {members.map((student) => {
+                      const isStart = student.id === startId;
+                      const isEnd = student.id === endId;
+                      const isRequired = student.id === requiredId;
+                      const isShortest = shortestIds.has(student.id);
+                      const isOffPath = !possibleIds.has(student.id);
+                      const isHinted = ghostIds.has(student.id);
+                      const stepIndex = stepNumbers?.get(student.id) ?? 0;
+                      return (
+                        <div
+                          key={student.id}
+                          ref={(element) => {
+                            if (element) nodeRefs.current.set(student.id, element);
+                            else nodeRefs.current.delete(student.id);
+                          }}
+                          className={'game-node'
+                            + (isStart ? ' game-node--start' : '')
+                            + (isEnd ? ' game-node--end' : '')
+                            + (isRequired ? ' game-node--required' : '')
+                            + (isShortest ? ' game-node--shortest' : '')
+                            + (isHinted ? ' game-node--hinted' : '')
+                            + (isOffPath ? ' game-node--off-path' : '')}
+                          aria-label={isHinted
+                            ? 'Indice : ' + getStudentInitials(student.name)
+                            : isRequired ? student.name + ', passage obligatoire' : undefined}
+                        >
+                          {stepIndex > 0 && <span className="game-node__step" aria-hidden="true">{stepIndex}</span>}
+                          <ShapeSwatch promo={student.promo} size={members.length >= 5 ? 16 : members.length >= 3 ? 18 : 20} />
+                          <span className="game-node__copy">
+                            <strong>{isHinted ? getStudentInitials(student.name) : student.name}</strong>
+                            {isRequired && <small>Passage obligatoire</small>}
+                            {(isStart || isEnd) && <small>{isStart ? 'Départ' : 'Arrivée'}</small>}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -595,18 +1076,38 @@ function GameGraph({ graph, nodes, startId, endId, shortestIds, shortestEdgeKeys
 export default function GamePage({ students, links }) {
   const [mode, setMode] = useState('daily');
   const [round, setRound] = useState(0);
+  const [attemptCount, setAttemptCount] = useState(1);
+  const [weeklyPreviewIndex, setWeeklyPreviewIndex] = useState(0);
+  const [challengeClock, setChallengeClock] = useState(() => new Date());
   const [practiceSeed] = useState(() => Math.floor(Math.random() * 0xffffffff));
   const [foundIds, setFoundIds] = useState([]);
   const [hintsUsed, setHintsUsed] = useState(0);
+  const [hintedStudentIds, setHintedStudentIds] = useState([]);
   const [query, setQuery] = useState('');
   const [feedback, setFeedback] = useState('');
   const [activeSuggestion, setActiveSuggestion] = useState(0);
+  const [searchFocused, setSearchFocused] = useState(false);
   const [activePanel, setActivePanel] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const helpButtonRef = useRef(null);
   const solutionButtonRef = useRef(null);
   const panelCloseRef = useRef(null);
+
+  useEffect(() => {
+    let timer;
+    const scheduleClockRefresh = () => {
+      const now = new Date();
+      const nextMinute = (Math.floor(now.getTime() / 60000) + 1) * 60000;
+      const nextRefresh = Math.min(nextMinute, getNextParisNoon(now));
+      timer = window.setTimeout(() => {
+        setChallengeClock(new Date());
+        scheduleClockRefresh();
+      }, Math.max(0, nextRefresh - now.getTime() + 30));
+    };
+    scheduleClockRefresh();
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (!activePanel) return undefined;
@@ -651,27 +1152,61 @@ export default function GamePage({ students, links }) {
   }, []);
 
   const graph = useMemo(() => buildGameGraph(students, links), [students, links]);
+  const challengePeriod = mode === 'daily'
+    ? dailyPeriodKey(challengeClock)
+    : mode === 'weekly'
+      ? weeklyPeriodKey(challengeClock)
+      : 'practice:' + practiceSeed + ':' + round;
+  const currentPeriodRef = useRef(challengePeriod);
+  useEffect(() => {
+    if (currentPeriodRef.current === challengePeriod) return;
+    currentPeriodRef.current = challengePeriod;
+    setFoundIds([]);
+    setHintsUsed(0);
+    setHintedStudentIds([]);
+    setAttemptCount(1);
+    setWeeklyPreviewIndex(0);
+    setQuery('');
+    setFeedback('');
+    setActiveSuggestion(0);
+    setActivePanel(null);
+  }, [challengePeriod]);
+
   const challenge = useMemo(
-    () => getChallenge(graph.validPairs, mode, practiceSeed, round, graph.byId),
-    [graph.validPairs, graph.byId, mode, practiceSeed, round]
+    () => getChallenge(
+      graph,
+      mode,
+      practiceSeed,
+      round,
+      challengePeriod,
+      weeklyPreviewIndex
+    ),
+    [graph, mode, practiceSeed, round, challengePeriod, weeklyPreviewIndex]
   );
   const startId = challenge?.startId;
   const endId = challenge?.endId;
+  const requiredStudentId = challenge?.constraint?.type === 'through'
+    ? challenge.constraint.studentId
+    : null;
   const start = graph.byId.get(startId);
   const end = graph.byId.get(endId);
 
   const visibleIds = useMemo(
-    () => new Set([startId, endId, ...foundIds].filter(Boolean)),
-    [startId, endId, foundIds]
+    () => new Set([startId, endId, requiredStudentId, ...foundIds].filter(Boolean)),
+    [startId, endId, requiredStudentId, foundIds]
   );
   const shownNodes = useMemo(
     () => [...visibleIds].map((id) => graph.byId.get(id)).filter(Boolean),
     [visibleIds, graph.byId]
   );
   const shortestPath = useMemo(
-    () => challenge ? findPath(graph.adjacency, startId, endId) : [],
-    [graph.adjacency, challenge, startId, endId]
+    () => challenge?.solutionPath ?? [],
+    [challenge]
   );
+  const nextHintStudent = shortestPath
+    .slice(1, -1)
+    .map((id) => graph.byId.get(id))
+    .find((student) => student && !visibleIds.has(student.id));
   const shortestPathEdgeKeys = useMemo(
     () => new Set(shortestPath.slice(1).map((target, index) => [shortestPath[index], target].sort().join('|'))),
     [shortestPath]
@@ -684,16 +1219,25 @@ export default function GamePage({ students, links }) {
     () => shortestPath.map((id) => graph.byId.get(id)).filter(Boolean),
     [shortestPath, graph.byId]
   );
+  const solutionPossibleIds = useMemo(() => new Set(shortestPath), [shortestPath]);
+  const hintedNodes = useMemo(() => hintsUsed >= 3
+    ? shortestNodes
+    : hintedStudentIds.map((id) => graph.byId.get(id)).filter(Boolean),
+  [hintsUsed, hintedStudentIds, shortestNodes, graph.byId]);
   const shortestIds = useMemo(() => {
     if (!challenge) return new Set();
+    if (challenge.constraint) return new Set(shortestPath);
     const fromStart = buildDistances(graph.adjacency, startId);
     const fromEnd = buildDistances(graph.adjacency, endId);
     return new Set([...fromStart]
       .filter(([id, distance]) => distance + (fromEnd.get(id) ?? Infinity) === challenge.distance)
       .map(([id]) => id));
-  }, [graph.adjacency, challenge, startId, endId]);
+  }, [graph.adjacency, challenge, startId, endId, shortestPath]);
   const shortestEdgeKeys = useMemo(() => {
     if (!challenge) return new Set();
+    if (challenge.constraint) {
+      return new Set(shortestPath.slice(1).map((target, index) => [shortestPath[index], target].sort(compareIds).join('|')));
+    }
     const fromStart = buildDistances(graph.adjacency, startId);
     const fromEnd = buildDistances(graph.adjacency, endId);
     return new Set(graph.edges
@@ -702,19 +1246,43 @@ export default function GamePage({ students, links }) {
         || fromStart.get(edge.target) + 1 + fromEnd.get(edge.source) === challenge.distance
       ))
       .map((edge) => [edge.source, edge.target].sort().join('|')));
-  }, [graph.edges, graph.adjacency, challenge, startId, endId]);
+  }, [graph.edges, graph.adjacency, challenge, startId, endId, shortestPath]);
   const possibleIds = useMemo(() => {
-    const ids = new Set([startId, endId].filter(Boolean));
+    const ids = new Set([startId, endId, requiredStudentId].filter(Boolean));
+    const avoidId = challenge?.constraint?.type === 'avoid'
+      ? challenge.constraint.studentId
+      : null;
+    const permittedIds = avoidId
+      ? new Set([...graph.adjacency.keys()].filter((id) => id !== avoidId))
+      : null;
     foundIds.forEach((id) => {
-      if (isOnPossiblePath(graph.adjacency, startId, id, endId)) ids.add(id);
+      if (challenge?.constraint?.type === 'through') {
+        if (shortestIds.has(id)) ids.add(id);
+        return;
+      }
+      if (permittedIds && !permittedIds.has(id)) return;
+      if (isOnPossiblePath(graph.adjacency, startId, id, endId, permittedIds)) ids.add(id);
     });
     return ids;
-  }, [graph.adjacency, startId, endId, foundIds]);
+  }, [graph.adjacency, startId, endId, requiredStudentId, foundIds, challenge, shortestIds]);
   const winningPath = useMemo(
-    () => challenge ? findPath(graph.adjacency, startId, endId, visibleIds) : [],
+    () => challenge ? findChallengePath(graph.adjacency, startId, endId, visibleIds, challenge.constraint) : [],
     [graph.adjacency, challenge, startId, endId, visibleIds]
   );
-  const won = winningPath.length > 0;
+  const shortestPathFound = shortestPath.length > 0 && shortestPath.every((id) => visibleIds.has(id));
+  const won = hintsUsed >= 3 ? shortestPathFound : winningPath.length > 0;
+  const attemptLimit = (challenge?.distance ?? 0) + 5;
+  const lost = attemptCount > attemptLimit && !won;
+  const displayedAttemptCount = Math.min(attemptCount, attemptLimit);
+  const graphNodes = useMemo(() => {
+    if (!lost) return shownNodes;
+    const byId = new Map(shownNodes.map((student) => [student.id, student]));
+    shortestNodes.forEach((student) => byId.set(student.id, student));
+    return [...byId.values()];
+  }, [lost, shownNodes, shortestNodes]);
+  const graphPossibleIds = useMemo(() => (
+    lost ? new Set([...possibleIds, ...shortestPath]) : possibleIds
+  ), [lost, possibleIds, shortestPath]);
 
   const suggestions = useMemo(() => {
     const normalized = normalizeName(query);
@@ -727,10 +1295,19 @@ export default function GamePage({ students, links }) {
       .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
       .slice(0, 8);
   }, [students, query, visibleIds]);
+  const forbiddenStudentId = challenge?.constraint?.type === 'avoid'
+    ? challenge.constraint.studentId
+    : null;
+  const selectableSuggestions = useMemo(
+    () => suggestions.filter((student) => student.id !== forbiddenStudentId),
+    [suggestions, forbiddenStudentId]
+  );
 
   const clearRound = () => {
     setFoundIds([]);
     setHintsUsed(0);
+    setHintedStudentIds([]);
+    setAttemptCount(1);
     setQuery('');
     setFeedback('');
     setActiveSuggestion(0);
@@ -744,6 +1321,9 @@ export default function GamePage({ students, links }) {
     setMode(nextMode);
     setFoundIds([]);
     setHintsUsed(0);
+    setHintedStudentIds([]);
+    setAttemptCount(1);
+    setWeeklyPreviewIndex(0);
     setQuery('');
     setFeedback('');
     setActiveSuggestion(0);
@@ -752,14 +1332,21 @@ export default function GamePage({ students, links }) {
   };
 
   const addStudent = (student) => {
-    if (!student || won || visibleIds.has(student.id)) return;
+    if (!student || won || lost || visibleIds.has(student.id)) return;
+    if (student.id === forbiddenStudentId) {
+      setFeedback(student.name + ' est interdit par la consigne de cette semaine.');
+      return;
+    }
 
     const connectsToShown = [...(graph.adjacency.get(student.id) ?? [])].some((id) => visibleIds.has(id));
     const onShortest = shortestIds.has(student.id);
+    setAttemptCount((current) => current + 1);
     setFoundIds((current) => [...current, student.id]);
     setFeedback(
       onShortest
-        ? student.name + ' est sur un des chemins les plus courts.'
+        ? challenge?.constraint
+          ? student.name + ' est sur un chemin qui respecte la consigne.'
+          : student.name + ' est sur un des chemins les plus courts.'
         : connectsToShown
           ? student.name + ' prolonge la chaîne affichée.'
           : student.name + ' est ajouté·e, mais ne rejoint pas encore les personnes affichées.'
@@ -774,21 +1361,61 @@ export default function GamePage({ students, links }) {
       normalizeName(student.name) === normalizeName(query)
       && !visibleIds.has(student.id)
     );
-    const choice = exact ?? suggestions[activeSuggestion];
+    if (exact?.id === forbiddenStudentId) {
+      setFeedback(exact.name + ' est interdit par la consigne de cette semaine.');
+      return;
+    }
+    const choice = exact ?? selectableSuggestions[activeSuggestion];
     if (!choice) {
-      setFeedback('Aucun étudiant correspondant. Essaie un autre nom.');
+      const forbiddenMatch = suggestions.find((student) => student.id === forbiddenStudentId);
+      setFeedback(forbiddenMatch
+        ? forbiddenMatch.name + ' est interdit par la consigne de cette semaine.'
+        : 'Aucun étudiant correspondant. Essaie un autre nom.');
       return;
     }
     addStudent(choice);
   };
 
+  const generateWeeklyPreview = () => {
+    if (mode !== 'weekly' || !challenge) return;
+    const currentSignature = challengeSignature(challenge);
+    let variant = weeklyPreviewIndex;
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      variant += 1;
+      const candidate = getChallenge(
+        graph,
+        'weekly',
+        practiceSeed,
+        round,
+        challengePeriod,
+        variant
+      );
+      if (
+        candidate?.constraint
+        && challengeSignature(candidate) !== currentSignature
+      ) {
+        setWeeklyPreviewIndex(variant);
+        setFoundIds([]);
+        setHintsUsed(0);
+        setHintedStudentIds([]);
+        setAttemptCount(1);
+        setQuery('');
+        setFeedback('');
+        setActiveSuggestion(0);
+        setActivePanel(null);
+        return;
+      }
+    }
+    setFeedback('Aucun autre scénario hebdomadaire disponible pour cette base.');
+  };
+
   const handleInputKeyDown = (event) => {
-    if (event.key === 'ArrowDown' && suggestions.length) {
+    if (event.key === 'ArrowDown' && selectableSuggestions.length) {
       event.preventDefault();
-      setActiveSuggestion((index) => (index + 1) % suggestions.length);
-    } else if (event.key === 'ArrowUp' && suggestions.length) {
+      setActiveSuggestion((index) => (index + 1) % selectableSuggestions.length);
+    } else if (event.key === 'ArrowUp' && selectableSuggestions.length) {
       event.preventDefault();
-      setActiveSuggestion((index) => (index - 1 + suggestions.length) % suggestions.length);
+      setActiveSuggestion((index) => (index - 1 + selectableSuggestions.length) % selectableSuggestions.length);
     } else if (event.key === 'Escape') {
       setQuery('');
       setActiveSuggestion(0);
@@ -796,6 +1423,17 @@ export default function GamePage({ students, links }) {
   };
 
   const pairLabel = mode === 'daily' ? 'Défi du jour' : mode === 'weekly' ? 'Défi de la semaine' : 'Entraînement';
+  const ruleStudent = challenge?.constraint
+    ? graph.byId.get(challenge.constraint.studentId)
+    : null;
+  const challengeQuestion = ruleStudent
+    ? 'Peux-tu relier ces deux étudiants '
+      + (challenge.constraint.type === 'through'
+        ? 'en passant obligatoirement par '
+        : 'sans passer par ')
+      + ruleStudent.name
+      + ' ?'
+    : 'Peux-tu relier ces deux étudiants ?';
 
   return (
     <main className="game-page">
@@ -849,10 +1487,18 @@ export default function GamePage({ students, links }) {
         {challenge && start && end ? (
           <div className="game-layout">
             <section className="game-challenge" aria-labelledby="game-challenge-title">
-              <div className="game-challenge__heading">
+              <div className={'game-challenge__heading' + (challenge?.constraint ? ' game-challenge__heading--constrained' : '')}>
                 <div>
                   <p className="game-section-kicker">{pairLabel}</p>
-                  <h2 id="game-challenge-title">Qui relie ces deux étudiants&nbsp;?</h2>
+                  <h2 id="game-challenge-title">{challengeQuestion}</h2>
+                  {mode === 'daily' && (
+                    <p className="game-challenge__schedule">
+                      Prochain défi dans {formatCountdown(getNextParisNoon(challengeClock) - challengeClock.getTime())}
+                    </p>
+                  )}
+                  {mode === 'weekly' && (
+                    <p className="game-challenge__schedule">{formatWeeklyReset(challengeClock)}</p>
+                  )}
                 </div>
               </div>
               <div className="game-endpoints">
@@ -886,17 +1532,22 @@ export default function GamePage({ students, links }) {
               </header>
               <GameGraph
                 graph={graph}
-                nodes={shownNodes}
+                nodes={graphNodes}
+                hintNodes={lost ? [] : hintedNodes}
                 startId={startId}
                 endId={endId}
+                requiredId={requiredStudentId}
                 shortestIds={shortestIds}
                 shortestEdgeKeys={shortestEdgeKeys}
-                possibleIds={possibleIds}
+                possibleIds={graphPossibleIds}
               />
             </section>
 
-            <form className="game-search" onSubmit={handleSubmit}>
-              <label htmlFor="game-student-search">Ajoute un étudiant pour compléter l'arbre</label>
+            <form className={'game-search' + (searchFocused ? ' is-focused' : '')} onSubmit={handleSubmit}>
+              <div className="game-search__label-row">
+                <label htmlFor="game-student-search">Ajoute un étudiant pour compléter l'arbre</label>
+                <span>({displayedAttemptCount === 1 ? 'Tentative' : 'Tentatives'} {displayedAttemptCount}/{attemptLimit})</span>
+              </div>
               <div className="game-search__controls">
                 <div className="game-search__input-wrap">
                   <input
@@ -904,48 +1555,60 @@ export default function GamePage({ students, links }) {
                     type="search"
                     autoComplete="off"
                     value={query}
+                    onFocus={() => setSearchFocused(true)}
+                    onBlur={() => setSearchFocused(false)}
                     onChange={(event) => {
                       setQuery(event.target.value);
                       setActiveSuggestion(0);
                     }}
                     onKeyDown={handleInputKeyDown}
                     placeholder="Rechercher un étudiant"
-                    disabled={won}
+                    disabled={won || lost}
                   />
-                  {suggestions.length > 0 && !won && (
+                  {suggestions.length > 0 && searchFocused && !won && !lost && (
                     <ul className="game-search__suggestions" role="listbox">
-                      {suggestions.map((student, index) => (
-                        <li key={student.id}>
-                          <button
-                            type="button"
-                            role="option"
-                            aria-selected={activeSuggestion === index}
-                            className={activeSuggestion === index ? 'is-active' : ''}
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => addStudent(student)}
-                          >
-                            <span>{student.name}</span>
-                            <small>{student.code || 'Promo'}{student.code ? String(student.promo).slice(-2) : ' ' + student.promo}</small>
-                          </button>
-                        </li>
-                      ))}
+                      {suggestions.map((student) => {
+                        const isForbidden = student.id === forbiddenStudentId;
+                        const isActive = !isForbidden
+                          && selectableSuggestions[activeSuggestion]?.id === student.id;
+                        return (
+                          <li key={student.id}>
+                            <button
+                              type="button"
+                              role="option"
+                              aria-selected={isActive}
+                              disabled={isForbidden}
+                              className={(isActive ? 'is-active' : '') + (isForbidden ? ' is-forbidden' : '')}
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => addStudent(student)}
+                            >
+                              <span>{student.name}</span>
+                              <small>{isForbidden
+                                ? 'Interdit'
+                                : (student.code || 'Promo') + (student.code ? String(student.promo).slice(-2) : ' ' + student.promo)}</small>
+                            </button>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </div>
-                <button className="btn btn--ghost game-search__submit" type="submit" disabled={won || !query.trim()}>
+                <button className="btn btn--ghost game-search__submit" type="submit" disabled={won || lost || !query.trim()}>
                   Ajouter
                 </button>
               </div>
             </form>
 
-            <div className={'game-feedback' + (won ? ' game-feedback--won' : '')} role="status" aria-live="polite">
+            <div className={'game-feedback' + (won ? ' game-feedback--won' : lost ? ' game-feedback--lost' : '')} role="status" aria-live="polite">
               {won
                 ? 'Bravo ! Tu as trouvé une chaîne de ' + Math.max(0, winningPath.length - 1) + ' liens.'
-                : feedback || (
-                  <span>
-                    Tu peux choisir parmi tous les étudiants <BrandDivider /> les liens montrent lesquels rejoignent la chaîne.
-                  </span>
-                )}
+                : lost
+                  ? 'Tu as épuisé tes tentatives. Le chemin optimal est révélé sur le graphe.'
+                  : feedback || (
+                    <span>
+                      Tu peux choisir parmi tous les étudiants <BrandDivider /> les liens montrent lesquels rejoignent la chaîne.
+                    </span>
+                  )}
             </div>
 
             <div className="game-round-actions">
@@ -957,11 +1620,27 @@ export default function GamePage({ students, links }) {
                       key={hintIndex}
                       type="button"
                       className={'btn btn--ghost game-hint' + (used ? ' is-used' : '')}
-                      disabled={hintIndex !== hintsUsed + 1}
+                      disabled={won || lost || hintIndex !== hintsUsed + 1}
                       aria-pressed={used}
-                      onClick={() => setHintsUsed(hintIndex)}
+                      aria-label={[
+                        'Initiales du prochain nœud',
+                        'Initiales du dernier nœud avant l’arrivée',
+                        'Chemin complet en initiales',
+                      ][hintIndex - 1]}
+                      onClick={() => {
+                        if (hintIndex === 1 && nextHintStudent) {
+                          setHintedStudentIds([nextHintStudent.id]);
+                        }
+                        if (hintIndex === 2) {
+                          const lastNodeId = shortestPath[shortestPath.length - 2];
+                          if (lastNodeId) {
+                            setHintedStudentIds((current) => [...new Set([...current, lastNodeId])]);
+                          }
+                        }
+                        setHintsUsed(hintIndex);
+                      }}
                     >
-                      Indice {hintIndex}
+                      {['Initiales prochain nœud', 'Initiales dernier nœud', 'Chemin en initiales'][hintIndex - 1]}
                     </button>
                   );
                 })}
@@ -969,6 +1648,11 @@ export default function GamePage({ students, links }) {
               {mode === 'practice' && (
                 <button type="button" className="btn btn--ghost" onClick={clearRound}>
                   Nouvelle partie
+                </button>
+              )}
+              {mode === 'weekly' && (
+                <button type="button" className="btn btn--ghost" onClick={generateWeeklyPreview}>
+                  Générer un autre défi hebdo
                 </button>
               )}
               <div className="game-round-actions__links">
@@ -1027,25 +1711,59 @@ export default function GamePage({ students, links }) {
                     <li>Choisis des noms dans la recherche pour compléter la chaîne.</li>
                     <li>Les traits montrent les liens directs entre les étudiants affichés.</li>
                     <li>Les symboles indiquent leur promotion. Le jaune marque le chemin le plus court, les nœuds grisés ne sont sur aucun chemin possible.</li>
+                    <li>La question indique si un étudiant est obligatoire ou interdit.</li>
                     <li>Tu gagnes dès qu’un chemin continu relie le départ à l’arrivée.</li>
                   </ol>
+                  <section className="game-help-example" aria-labelledby="game-help-example-title">
+                    <h3 id="game-help-example-title">Exemple de parcours</h3>
+                    <div className="game-help-example__scroll">
+                      <div className="game-help-example__diagram">
+                        <svg viewBox="0 0 1040 308" preserveAspectRatio="none" aria-hidden="true">
+                          <path className="game-help-example__path" d="M 236 58 L 284 58 M 496 58 L 544 58 M 756 58 L 804 58" />
+                          <path className="game-help-example__detour" d="M 390 116 L 390 172" />
+                        </svg>
+                        <div className="game-help-example__nodes">
+                          <div className="game-help-example__node game-help-example__node--endpoint">
+                            <small>Départ</small><strong>Maël QUILLAT</strong>
+                          </div>
+                          <div className="game-help-example__node"><strong>Tom CADARIO</strong></div>
+                          <div className="game-help-example__node"><strong>Louisa REMAUD</strong></div>
+                          <div className="game-help-example__node game-help-example__node--endpoint">
+                            <small>Arrivée</small><strong>Jules HOUSEZ</strong>
+                          </div>
+                          <div className="game-help-example__node game-help-example__node--dead-end">
+                            <strong>Mamadou CISSE</strong><small>Impasse</small>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <p>Le chemin jaune relie le départ à l’arrivée. La branche vers Mamadou CISSE est une impasse.</p>
+                  </section>
                 </>
               ) : (
                 <>
                   <p className="game-section-kicker">Solution</p>
-                  <h2 id="game-panel-title">Chemin le plus court</h2>
-                  <p className="game-solution__summary">{Math.max(0, shortestPath.length - 1)} liens entre le départ et l’arrivée</p>
-                  <p className="game-solution__note">Il peut exister d’autres chemins aussi courts.</p>
+                  <h2 id="game-panel-title">{challenge?.constraint ? 'Solution du défi' : 'Chemin le plus court'}</h2>
+                  <p className="game-solution__summary">
+                    {Math.max(0, shortestPath.length - 1)} liens
+                    {challenge?.constraint ? ' en respectant la consigne' : ' entre le départ et l’arrivée'}
+                  </p>
+                  <p className="game-solution__note">
+                    {challenge?.constraint
+                      ? 'Il peut exister d’autres chemins aussi courts qui respectent la consigne.'
+                      : 'Il peut exister d’autres chemins aussi courts.'}
+                  </p>
                   <GameGraph
                     graph={shortestGraph}
                     nodes={shortestNodes}
                     startId={startId}
                     endId={endId}
+                    requiredId={requiredStudentId}
                     shortestIds={shortestIds}
                     shortestEdgeKeys={shortestPathEdgeKeys}
-                    possibleIds={new Set(shortestPath)}
+                    possibleIds={solutionPossibleIds}
                     orderedIds={shortestPath}
-                    ariaLabel="Graphe du chemin le plus court"
+                    ariaLabel={challenge?.constraint ? 'Graphe de la solution du défi' : 'Graphe du chemin le plus court'}
                   />
                 </>
               )}
