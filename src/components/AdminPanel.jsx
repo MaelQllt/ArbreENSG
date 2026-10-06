@@ -980,7 +980,7 @@ export default function AdminPanel({
             <section className="admin-panel" role="dialog" aria-modal="true" aria-labelledby="admin-title">
               <header className="admin-panel__header">
                 <div>
-                  <p className="admin-panel__eyebrow">Superadmin · {session?.user?.email}</p>
+                  <p className="admin-panel__eyebrow">Superadmin <BrandDivider /> {session?.user?.email}</p>
                   <h2 id="admin-title">Gestion des familles</h2>
                 </div>
                 <div className="admin-panel__actions">

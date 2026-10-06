@@ -2290,3 +2290,167 @@ video {
     transform: translateY(-2px) rotate(45deg);
   }
 }
+
+/* Administration compacte et centrée sur téléphone uniquement. */
+@media (max-width: 767px) {
+  .admin-scrim {
+    inset: max(12px, env(safe-area-inset-top))
+      max(12px, env(safe-area-inset-right))
+      calc(max(12px, env(safe-area-inset-bottom)) + var(--keyboard-inset, 0px))
+      max(12px, env(safe-area-inset-left));
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    padding: 0;
+    overflow-x: clip;
+    overflow-y: auto;
+  }
+
+  .admin-panel {
+    width: 100%;
+    min-width: 0;
+    max-width: 600px;
+    max-height: 100%;
+    padding: 0.75rem;
+    overflow-x: clip;
+    border-width: 1px;
+    box-shadow: 4px 4px 0 var(--violet);
+  }
+
+  .admin-panel__header {
+    min-width: 0;
+    gap: 0.5rem;
+    margin-bottom: 0.8rem;
+    padding-bottom: 0.65rem;
+    border-bottom-width: 1px;
+  }
+
+  .admin-panel:not(.admin-panel--login) .admin-panel__header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .admin-panel:not(.admin-panel--login) .admin-panel__header > div:first-child {
+    display: contents;
+  }
+
+  .admin-panel:not(.admin-panel--login) .admin-panel__eyebrow {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    margin-bottom: 0;
+    overflow-wrap: anywhere;
+    font-size: 0.64rem;
+    line-height: 1.25;
+  }
+
+  .admin-panel:not(.admin-panel--login) .admin-panel__actions {
+    grid-column: 2;
+    grid-row: 1;
+    gap: 0.4rem;
+  }
+
+  .admin-panel:not(.admin-panel--login) .admin-panel__header h2 {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-top: 0.45rem;
+    font-size: clamp(1rem, 4.7vw, 1.2rem);
+    line-height: 1.15;
+    white-space: nowrap;
+  }
+
+  .admin-panel__header h2 {
+    font-size: 1.1rem;
+  }
+
+  .admin-panel__close {
+    position: relative;
+    width: 38px;
+    height: 38px;
+    min-height: 38px;
+    border-width: 1px;
+    font-size: 1rem;
+  }
+
+  .admin-panel__logout {
+    min-height: 38px;
+    padding: 0.3rem 0.55rem;
+    border-width: 1px;
+    font-size: 0.76rem;
+  }
+
+  .admin-form {
+    min-width: 0;
+    gap: 0.75rem;
+    font-size: 0.82rem;
+  }
+
+  .admin-form label,
+  .admin-field,
+  .admin-selection__title {
+    min-width: 0;
+    font-size: 0.82rem;
+    line-height: 1.2;
+  }
+
+  .admin-selection,
+  .admin-field,
+  .admin-form__new-person,
+  .admin-form__row,
+  .admin-form__footer,
+  .admin-tabs,
+  .admin-student-select {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .admin-form input:not([type="checkbox"]),
+  .admin-form select,
+  .admin-form textarea,
+  .admin-student-select__trigger {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .admin-student-select__option,
+  .admin-form label.admin-student-multi-select__option {
+    font-size: 0.8rem;
+  }
+
+  .admin-tabs button,
+  .admin-tabs--compact button {
+    min-width: 0;
+    padding: 0.35rem 0.45rem;
+    font-size: 0.76rem;
+    line-height: 1.15;
+  }
+
+  .admin-tabs--compact button {
+    font-size: 0.74rem;
+  }
+
+  .admin-form__hint,
+  .admin-message {
+    font-size: 0.78rem;
+  }
+
+  .admin-form__footer {
+    gap: 0.4rem;
+    margin-top: 0.15rem;
+  }
+
+  .admin-form__footer > button {
+    min-height: 40px;
+    height: 40px;
+    padding-inline: 0.55rem;
+    font-size: 0.76rem;
+  }
+
+  .admin-panel .admin-submit {
+    min-height: 40px;
+    padding: 0.35rem 0.7rem;
+    border-width: 1px;
+    font-size: 0.84rem;
+  }
+}
