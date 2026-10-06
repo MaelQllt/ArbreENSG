@@ -1705,15 +1705,20 @@ export default function GamePage({ students, links }) {
               </div>
             </form>
 
-            <div className={'game-feedback' + (won ? ' game-feedback--won' : lost ? ' game-feedback--lost' : '') + (!won && !lost && !feedback ? ' game-feedback--instruction' : '')} role="status" aria-live="polite">
+            <div className={'game-feedback' + (won ? ' game-feedback--won' : lost ? ' game-feedback--lost' : '')} role="status" aria-live="polite">
               {won
                 ? 'Bravo ! Tu as trouvé une chaîne de ' + Math.max(0, winningPath.length - 1) + ' liens.'
                 : lost
                   ? 'Tu as épuisé tes tentatives. Le chemin optimal est révélé sur le graphe.'
                   : feedback || (
-                    <span>
-                      Tu peux choisir parmi tous les étudiants <BrandDivider /> les liens montrent lesquels rejoignent la chaîne.
-                    </span>
+                    <>
+                      <span className="game-feedback__instruction--desktop">
+                        Tu peux choisir parmi tous les étudiants <BrandDivider /> les liens montrent lesquels rejoignent la chaîne.
+                      </span>
+                      <span className="game-feedback__instruction--mobile">
+                        Trouve parmi les étudiants <BrandDivider /> le chemin le plus court
+                      </span>
+                    </>
                   )}
             </div>
 

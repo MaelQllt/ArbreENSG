@@ -464,6 +464,10 @@
   color: var(--blue);
 }
 
+.game-feedback__instruction--mobile {
+  display: none;
+}
+
 .game-feedback--won {
   border-color: var(--yellow);
   background: var(--blue);
@@ -1959,8 +1963,23 @@
     font-size: 0.72rem;
   }
 
-  .game-feedback--instruction {
+  .game-feedback__instruction--desktop {
     display: none;
+  }
+
+  .game-feedback__instruction--mobile {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    font-size: clamp(0.52rem, 2.6vw, 0.68rem);
+    line-height: 1.1;
+  }
+
+  .game-feedback__instruction--mobile .brand-divider {
+    flex: none;
+    width: 14px;
+    height: 8px;
+    margin: 0 0.12rem;
   }
 
   .game-empty {
