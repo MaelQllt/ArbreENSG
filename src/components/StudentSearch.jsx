@@ -56,6 +56,17 @@ export default function StudentSearch({ students, onSelect, onActivate }) {
     inputRef.current?.blur();
   };
 
+  const handleFieldPointerDown = () => {
+    const isClosingCard = onActivate?.();
+    if (!isClosingCard) return;
+
+    // La fiche qui se ferme déplace la recherche : garde le focus du toucher,
+    // puis le restaure après la mise en page pour ouvrir le clavier mobile.
+    setOpen(true);
+    inputRef.current?.focus({ preventScroll: true });
+    requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }));
+  };
+
   const handleKeyDown = (event) => {
     if (event.key === 'ArrowDown' && results.length) {
       event.preventDefault();
@@ -75,7 +86,7 @@ export default function StudentSearch({ students, onSelect, onActivate }) {
 
   return (
     <div className="student-search" ref={rootRef}>
-      <div className="student-search__field" onPointerDown={onActivate}>
+      <div className="student-search__field" onPointerDown={handleFieldPointerDown}>
         <svg className="student-search__icon" viewBox="0 0 20 20" aria-hidden="true">
           <circle cx="8.5" cy="8.5" r="5.5" />
           <path d="m12.5 12.5 4 4" />
@@ -91,10 +102,7 @@ export default function StudentSearch({ students, onSelect, onActivate }) {
           aria-expanded={open && Boolean(normalizedQuery)}
           aria-controls={listId}
           aria-activedescendant={open && results[activeIndex] ? `${listId}-${results[activeIndex].id}` : undefined}
-          onFocus={() => {
-            onActivate?.();
-            if (normalizedQuery) setOpen(true);
-          }}
+          onFocus={() => setOpen(true)}
           onChange={(event) => {
             setQuery(event.target.value);
             setActiveIndex(0);

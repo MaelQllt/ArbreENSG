@@ -215,7 +215,9 @@ export default function App() {
   const closeCardFromMobileSearch = () => {
     if (selectedId && window.matchMedia('(max-width: 767px)').matches) {
       setSelectedId(null);
+      return true;
     }
+    return false;
   };
 
   if (!graph) {
