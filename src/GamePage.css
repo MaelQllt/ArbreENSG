@@ -1812,3 +1812,282 @@
     font-size: 0.68rem;
   }
 }
+
+.game-page__back-home-icon {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .game-page__content {
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
+  }
+
+  .game-page__identity h1 {
+    font-size: clamp(1.08rem, 5vw, 1.2rem);
+  }
+
+  .game-page__identity p {
+    font-size: 0.48rem;
+  }
+
+  .game-page__back {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    min-height: 32px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .game-page__back-label {
+    display: none;
+  }
+
+  .game-page__back-home-icon {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+    flex: none;
+    width: 22px;
+    height: 22px;
+    max-width: none;
+    object-fit: contain;
+  }
+
+  .game-menu__trigger {
+    width: 32px;
+    height: 32px;
+  }
+
+  .game-menu__panel button {
+    min-height: 32px;
+    padding: 0.3rem 0.55rem;
+    font-size: 0.68rem;
+  }
+
+  .game-modes button {
+    height: 28px;
+    min-height: 28px;
+    padding-inline: 0.1rem;
+    font-size: clamp(0.56rem, 2.3vw, 0.68rem);
+  }
+
+  .game-modes {
+    height: 32px;
+  }
+
+  .game-layout {
+    gap: 8px;
+    padding: 9px;
+  }
+
+  .game-challenge {
+    gap: 7px;
+  }
+
+  .game-challenge__heading h2 {
+    font-size: clamp(0.9rem, 3.8vw, 1.12rem);
+  }
+
+  .game-challenge__heading--constrained h2 {
+    font-size: clamp(0.78rem, 3.3vw, 0.92rem);
+  }
+
+  .game-challenge__heading .game-section-kicker,
+  .game-section-kicker {
+    font-size: 0.58rem;
+  }
+
+  .game-challenge__schedule {
+    font-size: 0.64rem;
+  }
+
+  .game-endpoints {
+    gap: 4px;
+  }
+
+  .game-endpoint {
+    min-height: 50px;
+    gap: 4px;
+    padding: 4px 5px;
+  }
+
+  .game-endpoint small {
+    font-size: 0.54rem;
+  }
+
+  .game-endpoint strong {
+    font-size: clamp(0.6rem, 2.6vw, 0.7rem);
+  }
+
+  .game-endpoint span {
+    font-size: 0.6rem;
+  }
+
+  .game-search label {
+    font-size: 0.74rem;
+  }
+
+  .game-search__label-row > span {
+    font-size: 0.66rem;
+  }
+
+  .game-search input {
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .game-search__submit {
+    height: 44px;
+    min-height: 44px;
+    font-size: 0.7rem;
+  }
+
+  .game-search__suggestions button {
+    gap: 8px;
+    padding: 0.5rem 0.6rem;
+    font-size: 0.76rem;
+  }
+
+  .game-search__suggestions small {
+    font-size: 0.64rem;
+  }
+
+  .game-feedback {
+    min-height: 34px;
+    padding: 0.38rem 0.5rem;
+    font-size: 0.72rem;
+  }
+
+  .game-empty {
+    padding: 18px;
+  }
+
+  .game-empty h2 {
+    font-size: 1rem;
+  }
+
+  .game-empty p {
+    font-size: 0.82rem;
+  }
+
+  .game-graph__header h2 {
+    font-size: clamp(0.96rem, 3.8vw, 1.12rem);
+  }
+
+  .game-graph__legend {
+    font-size: 0.64rem;
+  }
+
+  .game-graph__levels {
+    gap: 20px;
+  }
+
+  .game-graph__level {
+    gap: 3px;
+    padding: 7px 0;
+  }
+
+  .game-graph__level-title {
+    font-size: 0.64rem;
+  }
+
+  .game-graph__nodes--empty {
+    min-height: 42px;
+  }
+
+  .game-node {
+    height: 38px;
+    min-height: 38px;
+    max-height: 38px;
+    gap: 3px;
+    padding: 2px 3px;
+  }
+
+  .game-node__step {
+    width: 14px;
+    height: 14px;
+    font-size: 0.48rem;
+  }
+
+  .game-node__copy strong {
+    font-size: 0.57rem;
+  }
+
+  .game-node--long-name .game-node__copy strong {
+    font-size: 0.5rem;
+  }
+
+  .game-node--very-long-name .game-node__copy strong {
+    font-size: 0.43rem;
+  }
+
+  .game-node__copy small {
+    font-size: 0.46rem;
+  }
+
+  .game-round-actions > .game-round-actions__new-game {
+    min-height: 34px;
+    margin-inline: auto;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.68rem;
+  }
+
+  .game-round-actions {
+    gap: 6px 10px;
+  }
+
+  .game-hints {
+    gap: 5px;
+  }
+
+  .game-hint,
+  .game-round-actions > .btn {
+    padding-inline: 0.5rem;
+    font-size: clamp(0.66rem, 2.55vw, 0.74rem);
+  }
+
+  .game-round-actions__links {
+    justify-content: center;
+    font-size: 0.68rem;
+  }
+
+  .game-help-panel {
+    padding: 18px;
+  }
+
+  .game-help-panel h2 {
+    font-size: clamp(1.2rem, 5vw, 1.55rem);
+  }
+
+  .game-help-panel ol {
+    gap: 8px;
+    margin-top: 15px;
+    font-size: 0.88rem;
+  }
+
+  .game-help-example {
+    margin-top: 18px;
+    padding-top: 12px;
+  }
+
+  .game-help-example h3 {
+    font-size: 0.9rem;
+  }
+
+  .game-help-example > p {
+    font-size: 0.68rem;
+  }
+
+  .game-help-link-tooltip[data-tooltip]::after {
+    font-size: 0.7rem;
+  }
+
+  .game-solution__summary {
+    font-size: 0.82rem;
+  }
+
+  .game-solution__note {
+    font-size: 0.7rem;
+  }
+}

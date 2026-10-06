@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import houseIcon from './assets/house.svg';
 import BrandDivider from './components/BrandDivider';
 import ShapeSwatch from './components/ShapeSwatch';
 import TopoBackground, { TopoDivider } from './components/TopoBackground';
@@ -800,7 +801,7 @@ function GameGraph({ graph, nodes, hintNodes = [], startId, endId, requiredId, s
       const compact = availableWidth <= 560;
       const titleColumnWidth = compact ? 0 : 128;
       const edgeGutter = compact ? 40 : 72;
-      const nodeSlotWidth = compact ? 136 : 238;
+      const nodeSlotWidth = compact ? 112 : 238;
       plane.style.setProperty('--game-node-width', `${nodeSlotWidth}px`);
       const columnGap = compact ? 8 : 14;
       const nodeAreaWidth = widestPromoRow * nodeSlotWidth
@@ -1555,7 +1556,8 @@ export default function GamePage({ students, links }) {
           </nav>
           <div className="game-page__actions">
             <a className="btn btn--ghost game-page__back" href="#" aria-label="Retour à l’arbre">
-              <span aria-hidden="true">←</span> Retour à l’arbre
+              <img className="game-page__back-home-icon" src={houseIcon} alt="" aria-hidden="true" />
+              <span className="game-page__back-label"><span aria-hidden="true">←</span> Retour à l’arbre</span>
             </a>
             <div className="game-menu" ref={menuRef}>
               <button
@@ -1749,7 +1751,7 @@ export default function GamePage({ students, links }) {
                 })}
               </div>
               {mode === 'practice' && (
-                <button type="button" className="btn btn--ghost" onClick={clearRound}>
+                <button type="button" className="btn btn--ghost game-round-actions__new-game" onClick={clearRound}>
                   Nouvelle partie
                 </button>
               )}
