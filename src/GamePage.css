@@ -1848,8 +1848,8 @@
     visibility: visible;
     opacity: 1;
     flex: none;
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
     max-width: none;
     object-fit: contain;
   }
@@ -1933,13 +1933,13 @@
   }
 
   .game-search input {
-    height: 44px;
-    min-height: 44px;
+    height: 42px;
+    min-height: 42px;
   }
 
   .game-search__submit {
-    height: 44px;
-    min-height: 44px;
+    height: 42px;
+    min-height: 42px;
     font-size: 0.7rem;
   }
 
