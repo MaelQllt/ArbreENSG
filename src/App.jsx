@@ -19,12 +19,17 @@ export default function App() {
     typeof window === 'undefined' || !window.matchMedia('(max-width: 767px)').matches
   );
   const [showWarnings, setShowWarnings] = useState(false);
+  const [showContactInfo, setShowContactInfo] = useState(false);
   const [resetTick, setResetTick] = useState(0);
   const quickAddSequence = useRef(0);
   const deleteStudentSequence = useRef(0);
-  const globalViewButtonRef = useRef(null);
-  const globalViewRect = useRef(null);
-  const globalViewAnimation = useRef(null);
+  const contactInfoRef = useRef(null);
+  const contactInfoButtonRef = useRef(null);
+  const contactInfoModalRef = useRef(null);
+  const contactInfoStartX = useRef(null);
+  const dockActionsRef = useRef(null);
+  const dockActionsRect = useRef(null);
+  const dockActionsAnimation = useRef(null);
 
   useEffect(() => {
     const syncPage = () => setShowGame(window.location.hash.startsWith('#jeu'));
@@ -51,6 +56,46 @@ export default function App() {
       document.documentElement.style.removeProperty('--keyboard-inset');
     };
   }, []);
+
+  useEffect(() => {
+    if (!showContactInfo) return undefined;
+
+    contactInfoModalRef.current?.focus();
+    const handleModalKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setShowContactInfo(false);
+        contactInfoButtonRef.current?.focus();
+        return;
+      }
+
+      if (event.key !== 'Tab') return;
+      const focusable = Array.from(
+        contactInfoModalRef.current?.querySelectorAll('button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])') ?? []
+      );
+      if (focusable.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!contactInfoModalRef.current?.contains(document.activeElement)) {
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleModalKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleModalKeyDown);
+    };
+  }, [showContactInfo]);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,44 +127,90 @@ export default function App() {
   const graph = useMemo(() => (loaded ? prepareGraph(loaded.data) : null), [loaded]);
 
   useLayoutEffect(() => {
-    const button = globalViewButtonRef.current;
-    if (!button) return;
-
-    if (globalViewAnimation.current) {
-      cancelAnimationFrame(globalViewAnimation.current);
-      globalViewAnimation.current = null;
-      button.style.transition = '';
-      button.style.transform = '';
+    const actions = dockActionsRef.current;
+    if (!actions) {
+      contactInfoStartX.current = null;
+      dockActionsRect.current = null;
+      return;
     }
 
-    const nextRect = button.getBoundingClientRect();
-    const previousRect = globalViewRect.current;
-    globalViewRect.current = { top: nextRect.top };
-    if (!previousRect || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (dockActionsAnimation.current) {
+      cancelAnimationFrame(dockActionsAnimation.current);
+      dockActionsAnimation.current = null;
+      actions.style.transition = '';
+      actions.style.transform = '';
+    }
 
-    const dy = previousRect.top - nextRect.top;
-    if (Math.abs(dy) < 1) return;
+    const nextRect = actions.getBoundingClientRect();
+    const previousTop = dockActionsRect.current;
+    dockActionsRect.current = nextRect.top;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const info = contactInfoRef.current;
+    let animateInfo = false;
+    const startX = contactInfoStartX.current;
+    contactInfoStartX.current = null;
 
-    // Keep the button in its old vertical position for this frame, then slide
-    // it to the new row without introducing any horizontal movement.
-    button.style.transition = 'none';
-    button.style.transform = `translateY(${dy}px)`;
-    button.getBoundingClientRect();
-    globalViewAnimation.current = requestAnimationFrame(() => {
-      button.style.transition = '';
-      button.style.transform = '';
-      globalViewAnimation.current = null;
-    });
-  }, [graph, showLegend]);
+    if (info) {
+      const actionsLeft = actions.getBoundingClientRect().left;
+      const globalButton = actions.querySelector('.global-view-control');
+      const closedLegendButton = actions.parentElement?.querySelector(
+        '.legend-disclosure__target, .legend-disclosure__standalone'
+      );
+      const targetX = showLegend
+        ? (globalButton?.getBoundingClientRect().right ?? actionsLeft + 96) + 8
+        : (closedLegendButton?.getBoundingClientRect().right ?? actionsLeft + 96) - info.getBoundingClientRect().width;
+
+      info.style.transition = 'none';
+      info.style.transform = '';
+      info.style.left = `${targetX - actionsLeft}px`;
+      const dx = startX === null ? 0 : startX - info.getBoundingClientRect().left;
+      if (startX !== null && !reduceMotion && Math.abs(dx) >= 1) {
+        info.style.transform = `translate(${dx}px, -50%)`;
+        info.getBoundingClientRect();
+        animateInfo = true;
+      } else {
+        info.style.transition = '';
+      }
+    }
+
+    const dy = previousTop - nextRect.top;
+    const animateRow = previousTop !== null && !reduceMotion && Math.abs(dy) >= 1;
+
+    if (animateRow) {
+      actions.style.transition = 'none';
+      actions.style.transform = `translateY(${dy}px)`;
+    }
+
+    if (animateRow || animateInfo) {
+      actions.getBoundingClientRect();
+      dockActionsAnimation.current = requestAnimationFrame(() => {
+        if (animateRow) {
+          actions.style.transition = '';
+          actions.style.transform = '';
+        }
+        if (animateInfo && info) {
+          info.style.transition = '';
+          info.style.transform = '';
+        }
+        dockActionsAnimation.current = null;
+      });
+    }
+  }, [graph, showGame, showLegend]);
 
   const lineage = useMemo(
     () => (graph && selectedId ? getLineage(graph.index, selectedId) : null),
     [graph, selectedId]
   );
   const toggleLegend = () => {
-    const rect = globalViewButtonRef.current?.getBoundingClientRect();
-    if (rect) globalViewRect.current = { top: rect.top };
+    const rect = dockActionsRef.current?.getBoundingClientRect();
+    if (rect) dockActionsRect.current = rect.top;
+    const infoRect = contactInfoRef.current?.getBoundingClientRect();
+    if (infoRect) contactInfoStartX.current = infoRect.left;
     setShowLegend((visible) => !visible);
+  };
+  const closeContactInfo = () => {
+    setShowContactInfo(false);
+    contactInfoButtonRef.current?.focus();
   };
 
   if (!graph) {
@@ -179,17 +270,34 @@ export default function App() {
               )}
             </div>
           )}
-          <button
-            type="button"
-            ref={globalViewButtonRef}
-            className="btn btn--ghost global-view-control"
-            onClick={() => {
-              setSelectedId(null);
-              setResetTick((t) => t + 1);
-            }}
+          <div
+            ref={dockActionsRef}
+            className="dock__actions"
           >
-            Vue globale
-          </button>
+            <button
+              type="button"
+              className="btn btn--ghost global-view-control"
+              onClick={() => {
+                setSelectedId(null);
+                setResetTick((t) => t + 1);
+              }}
+            >
+              Vue globale
+            </button>
+            <div className="contact-info" ref={contactInfoRef}>
+              <button
+                type="button"
+                ref={contactInfoButtonRef}
+                className="contact-info__button"
+                aria-label={showContactInfo ? 'Fermer les informations' : 'Afficher les informations'}
+                aria-expanded={showContactInfo}
+                aria-controls="contact-info-panel"
+                onClick={() => setShowContactInfo((visible) => !visible)}
+              >
+                <span aria-hidden="true">i</span>
+              </button>
+            </div>
+          </div>
           <Legend promos={promos} visible={showLegend} onToggle={toggleLegend} />
         </div>
 
@@ -215,6 +323,28 @@ export default function App() {
           />
         </div>
       </div>
+
+      {showContactInfo && (
+        <div
+          className="contact-info__overlay"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) closeContactInfo();
+          }}
+        >
+          <section
+            ref={contactInfoModalRef}
+            className="contact-info__modal"
+            id="contact-info-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="contact-info-title"
+            tabIndex={-1}
+          >
+            <h2 id="contact-info-title">Vous avez repéré un problème&nbsp;?</h2>
+            <p>Un lien manque ou vous avez repéré une autre erreur&nbsp;? Vous pouvez contacter le BDE.</p>
+          </section>
+        </div>
+      )}
 
       <StudentCard
         student={student}

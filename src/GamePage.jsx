@@ -7,12 +7,14 @@ import './GamePage.css';
 
 const endpointId = (value) => (typeof value === 'object' ? value.id : value);
 
-function buildDistances(adjacency, startId) {
+function buildDistances(adjacency, startId, allowedIds) {
+  if (allowedIds && !allowedIds.has(startId)) return new Map();
   const distance = new Map([[startId, 0]]);
   const queue = [startId];
   for (let cursor = 0; cursor < queue.length; cursor += 1) {
     const current = queue[cursor];
     for (const next of [...(adjacency.get(current) ?? [])].sort(compareIds)) {
+      if (allowedIds && !allowedIds.has(next)) continue;
       if (!distance.has(next)) {
         distance.set(next, distance.get(current) + 1);
         queue.push(next);
@@ -73,6 +75,63 @@ function findChallengePath(adjacency, startId, endId, allowedIds, constraint) {
     return findPath(adjacency, startId, endId, permittedIds);
   }
   return findPath(adjacency, startId, endId, allowedIds);
+}
+
+function findShortestPathsThrough(adjacency, startId, viaId, endId, allowedIds, distanceLimit) {
+  const canUse = (id) => !allowedIds || allowedIds.has(id);
+  if (![startId, viaId, endId].every(canUse)) {
+    return { nodeIds: new Set(), edgeKeys: new Set() };
+  }
+
+  const toVia = buildDistances(adjacency, viaId, allowedIds);
+  const toEnd = buildDistances(adjacency, endId, allowedIds);
+  const viaToEnd = toEnd.get(viaId) ?? Infinity;
+  const queue = [{
+    id: startId,
+    path: [startId],
+    visited: new Set([startId]),
+    seenVia: startId === viaId,
+  }];
+  const nodeIds = new Set();
+  const edgeKeys = new Set();
+
+  for (let cursor = 0; cursor < queue.length; cursor += 1) {
+    const current = queue[cursor];
+    const usedEdges = current.path.length - 1;
+    if (current.id === endId) {
+      if (current.seenVia && usedEdges === distanceLimit) {
+        current.path.forEach((id) => nodeIds.add(id));
+        current.path.slice(1).forEach((id, index) => {
+          edgeKeys.add([current.path[index], id].sort(compareIds).join('|'));
+        });
+      }
+      continue;
+    }
+    if (usedEdges >= distanceLimit) continue;
+
+    const remaining = current.seenVia
+      ? toEnd.get(current.id) ?? Infinity
+      : (toVia.get(current.id) ?? Infinity) + viaToEnd;
+    if (usedEdges + remaining > distanceLimit) continue;
+
+    for (const next of [...(adjacency.get(current.id) ?? [])].sort(compareIds)) {
+      if (!canUse(next) || current.visited.has(next)) continue;
+      const seenVia = current.seenVia || next === viaId;
+      if (next === endId && !seenVia) continue;
+
+      const nextEdges = usedEdges + 1;
+      const nextRemaining = seenVia
+        ? toEnd.get(next) ?? Infinity
+        : (toVia.get(next) ?? Infinity) + viaToEnd;
+      if (nextEdges + nextRemaining > distanceLimit) continue;
+
+      const visited = new Set(current.visited);
+      visited.add(next);
+      queue.push({ id: next, path: [...current.path, next], visited, seenVia });
+    }
+  }
+
+  return { nodeIds, edgeKeys };
 }
 
 // Un étudiant appartient à un chemin simple entre les deux bornes si deux
@@ -384,6 +443,9 @@ function getChallenge(gameGraph, mode, practiceSeed, round, periodKey, weeklyVar
   }
 
   if (mode === 'weekly') {
+    // A weekly rule should force a visibly longer route, not merely a different
+    // equally short (or one-link-longer) path.
+    const minimumDetour = 2;
     const harder = sorted.filter((pair) => pair.distance >= 4 && pair.distance <= 7);
     const candidates = harder.length ? harder : sorted.filter((pair) => pair.distance >= 3);
     const startIndex = candidates.length ? hash % candidates.length : 0;
@@ -399,7 +461,9 @@ function getChallenge(gameGraph, mode, practiceSeed, round, periodKey, weeklyVar
           for (const blockedId of interior) {
             const permittedIds = new Set([...gameGraph.adjacency.keys()].filter((id) => id !== blockedId));
             const detour = findPath(gameGraph.adjacency, pair.startId, pair.endId, permittedIds);
-            if (!detour.length || detour.length <= shortest.length || detour.length > 10) continue;
+            if (!detour.length
+              || detour.length < shortest.length + minimumDetour
+              || detour.length > 10) continue;
             const extraStudents = detour.slice(1, -1).filter((id) => !shortest.includes(id));
             for (const studentId of extraStudents) {
               const routeThroughStudent = findPathThrough(
@@ -408,7 +472,8 @@ function getChallenge(gameGraph, mode, practiceSeed, round, periodKey, weeklyVar
                 studentId,
                 pair.endId
               );
-              if (routeThroughStudent.length > shortest.length && routeThroughStudent.length <= 10) {
+              if (routeThroughStudent.length >= shortest.length + minimumDetour
+                && routeThroughStudent.length <= 10) {
                 return {
                   pair,
                   constraint: { type: 'through', studentId },
@@ -417,20 +482,14 @@ function getChallenge(gameGraph, mode, practiceSeed, round, periodKey, weeklyVar
               }
             }
           }
-          const deeper = shortest.slice(2, -2);
-          const candidatesForVia = deeper.length ? deeper : interior;
-          if (!candidatesForVia.length) continue;
-          const studentId = candidatesForVia[hashString(seed + ':' + pair.startId + ':via') % candidatesForVia.length];
-          return {
-            pair,
-            constraint: { type: 'through', studentId },
-            solutionPath: shortest,
-          };
+          // Never fall back to requiring a node already on an optimal path:
+          // that rule would be satisfied without changing the route.
+          continue;
         }
         for (const studentId of interior) {
           const permittedIds = new Set([...gameGraph.adjacency.keys()].filter((id) => id !== studentId));
           const detour = findPath(gameGraph.adjacency, pair.startId, pair.endId, permittedIds);
-          if (detour.length <= shortest.length || detour.length > 10) continue;
+          if (detour.length < shortest.length + minimumDetour || detour.length > 10) continue;
           return {
             pair,
             constraint: { type: 'avoid', studentId },
@@ -488,9 +547,15 @@ function GameGraph({ graph, nodes, hintNodes = [], startId, endId, requiredId, s
   const viewportRef = useRef(null);
   const canvasRef = useRef(null);
   const planeRef = useRef(null);
-  const levelsRef = useRef(null);
   const nodeRefs = useRef(new Map());
-  const [layout, setLayout] = useState({ width: 0, height: 0, scale: 1, planeWidth: 0, lines: [] });
+  const [layout, setLayout] = useState({
+    width: 0,
+    height: 0,
+    scale: 1,
+    planeWidth: 0,
+    nodeWidth: 238,
+    lines: [],
+  });
   const scaleRef = useRef(1);
   scaleRef.current = layout.scale;
 
@@ -727,8 +792,7 @@ function GameGraph({ graph, nodes, hintNodes = [], startId, endId, requiredId, s
     const viewport = viewportRef.current;
     const canvas = canvasRef.current;
     const plane = planeRef.current;
-    const levels = levelsRef.current;
-    if (!viewport || !canvas || !plane || !levels) return undefined;
+    if (!viewport || !canvas || !plane) return undefined;
 
     const update = () => {
       const availableWidth = Math.max(1, viewport.clientWidth);
@@ -736,7 +800,8 @@ function GameGraph({ graph, nodes, hintNodes = [], startId, endId, requiredId, s
       const compact = availableWidth <= 560;
       const titleColumnWidth = compact ? 0 : 128;
       const edgeGutter = compact ? 40 : 72;
-      const nodeSlotWidth = widestPromoRow === 1 ? 330 : compact ? 136 : 176;
+      const nodeSlotWidth = compact ? 136 : 238;
+      plane.style.setProperty('--game-node-width', `${nodeSlotWidth}px`);
       const columnGap = compact ? 8 : 14;
       const nodeAreaWidth = widestPromoRow * nodeSlotWidth
         + Math.max(0, widestPromoRow - 1) * columnGap
@@ -965,17 +1030,31 @@ function GameGraph({ graph, nodes, hintNodes = [], startId, endId, requiredId, s
           && closeEnough(current.height, height)
           && closeEnough(current.scale, scale, 0.0001)
           && closeEnough(current.planeWidth, planeWidth)
+          && closeEnough(current.nodeWidth, nodeSlotWidth)
           && sameLines;
-        return unchanged ? current : { width, height, scale, planeWidth, lines };
+        return unchanged ? current : {
+          width,
+          height,
+          scale,
+          planeWidth,
+          nodeWidth: nodeSlotWidth,
+          lines,
+        };
       });
     };
 
     update();
-    const observer = new ResizeObserver(update);
+    let updateFrame = 0;
+    const scheduleUpdate = () => {
+      cancelAnimationFrame(updateFrame);
+      updateFrame = requestAnimationFrame(update);
+    };
+    const observer = new ResizeObserver(scheduleUpdate);
     observer.observe(viewport);
-    observer.observe(levels);
-    nodeRefs.current.forEach((element) => observer.observe(element));
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(updateFrame);
+    };
   }, [graph.edges, graph.byId, visibleIds, renderedIds, groups, shortestEdgeKeys, possibleIds, widestPromoRow]);
 
   return (
@@ -988,7 +1067,11 @@ function GameGraph({ graph, nodes, hintNodes = [], startId, endId, requiredId, s
         <div
           ref={planeRef}
           className="game-graph__plane"
-          style={{ '--graph-scale': layout.scale, width: layout.planeWidth ? `max(100%, ${layout.planeWidth}px)` : '100%' }}
+          style={{
+            '--graph-scale': layout.scale,
+            '--game-node-width': `${layout.nodeWidth}px`,
+            width: layout.planeWidth ? `max(100%, ${layout.planeWidth}px)` : '100%',
+          }}
         >
           <svg
             className="game-graph__links"
@@ -1007,7 +1090,7 @@ function GameGraph({ graph, nodes, hintNodes = [], startId, endId, requiredId, s
               />
             ))}
           </svg>
-          <div ref={levelsRef} className="game-graph__levels">
+          <div className="game-graph__levels">
             {groups.map(([promo, members]) => {
               const promoInfo = describePromo(promo);
               return (
@@ -1033,6 +1116,7 @@ function GameGraph({ graph, nodes, hintNodes = [], startId, endId, requiredId, s
                       const isShortest = shortestIds.has(student.id);
                       const isOffPath = !possibleIds.has(student.id);
                       const isHinted = ghostIds.has(student.id);
+                      const displayedName = isHinted ? getStudentInitials(student.name) : student.name;
                       const stepIndex = stepNumbers?.get(student.id) ?? 0;
                       return (
                         <div
@@ -1047,15 +1131,17 @@ function GameGraph({ graph, nodes, hintNodes = [], startId, endId, requiredId, s
                             + (isRequired ? ' game-node--required' : '')
                             + (isShortest ? ' game-node--shortest' : '')
                             + (isHinted ? ' game-node--hinted' : '')
-                            + (isOffPath ? ' game-node--off-path' : '')}
+                            + (isOffPath ? ' game-node--off-path' : '')
+                            + (displayedName.length >= 26 ? ' game-node--very-long-name'
+                              : displayedName.length >= 18 ? ' game-node--long-name' : '')}
                           aria-label={isHinted
                             ? 'Indice : ' + getStudentInitials(student.name)
                             : isRequired ? student.name + ', passage obligatoire' : undefined}
                         >
                           {stepIndex > 0 && <span className="game-node__step" aria-hidden="true">{stepIndex}</span>}
-                          <ShapeSwatch promo={student.promo} size={members.length >= 5 ? 16 : members.length >= 3 ? 18 : 20} />
+                          <ShapeSwatch promo={student.promo} size={20} />
                           <span className="game-node__copy">
-                            <strong>{isHinted ? getStudentInitials(student.name) : student.name}</strong>
+                            <strong>{displayedName}</strong>
                             {isRequired && <small>Passage obligatoire</small>}
                             {(isStart || isEnd) && <small>{isStart ? 'Départ' : 'Arrivée'}</small>}
                           </span>
@@ -1207,6 +1293,11 @@ export default function GamePage({ students, links }) {
     .slice(1, -1)
     .map((id) => graph.byId.get(id))
     .find((student) => student && !visibleIds.has(student.id));
+  const previousHintStudent = shortestPath
+    .slice(1, -1)
+    .reverse()
+    .map((id) => graph.byId.get(id))
+    .find((student) => student && !visibleIds.has(student.id));
   const shortestPathEdgeKeys = useMemo(
     () => new Set(shortestPath.slice(1).map((target, index) => [shortestPath[index], target].sort().join('|'))),
     [shortestPath]
@@ -1224,29 +1315,42 @@ export default function GamePage({ students, links }) {
     ? shortestNodes
     : hintedStudentIds.map((id) => graph.byId.get(id)).filter(Boolean),
   [hintsUsed, hintedStudentIds, shortestNodes, graph.byId]);
-  const shortestIds = useMemo(() => {
-    if (!challenge) return new Set();
-    if (challenge.constraint) return new Set(shortestPath);
-    const fromStart = buildDistances(graph.adjacency, startId);
-    const fromEnd = buildDistances(graph.adjacency, endId);
-    return new Set([...fromStart]
+  const shortestPathData = useMemo(() => {
+    if (!challenge) return { nodeIds: new Set(), edgeKeys: new Set() };
+
+    if (challenge.constraint?.type === 'through') {
+      return findShortestPathsThrough(
+        graph.adjacency,
+        startId,
+        challenge.constraint.studentId,
+        endId,
+        null,
+        challenge.distance
+      );
+    }
+
+    const avoidId = challenge.constraint?.type === 'avoid'
+      ? challenge.constraint.studentId
+      : null;
+    const permittedIds = avoidId
+      ? new Set([...graph.adjacency.keys()].filter((id) => id !== avoidId))
+      : null;
+    const fromStart = buildDistances(graph.adjacency, startId, permittedIds);
+    const fromEnd = buildDistances(graph.adjacency, endId, permittedIds);
+    const nodeIds = new Set([...fromStart]
       .filter(([id, distance]) => distance + (fromEnd.get(id) ?? Infinity) === challenge.distance)
       .map(([id]) => id));
-  }, [graph.adjacency, challenge, startId, endId, shortestPath]);
-  const shortestEdgeKeys = useMemo(() => {
-    if (!challenge) return new Set();
-    if (challenge.constraint) {
-      return new Set(shortestPath.slice(1).map((target, index) => [shortestPath[index], target].sort(compareIds).join('|')));
-    }
-    const fromStart = buildDistances(graph.adjacency, startId);
-    const fromEnd = buildDistances(graph.adjacency, endId);
-    return new Set(graph.edges
+    const edgeKeys = new Set(graph.edges
+      .filter((edge) => !permittedIds || (permittedIds.has(edge.source) && permittedIds.has(edge.target)))
       .filter((edge) => (
         fromStart.get(edge.source) + 1 + fromEnd.get(edge.target) === challenge.distance
         || fromStart.get(edge.target) + 1 + fromEnd.get(edge.source) === challenge.distance
       ))
-      .map((edge) => [edge.source, edge.target].sort().join('|')));
-  }, [graph.edges, graph.adjacency, challenge, startId, endId, shortestPath]);
+      .map((edge) => [edge.source, edge.target].sort(compareIds).join('|')));
+    return { nodeIds, edgeKeys };
+  }, [graph.adjacency, graph.edges, challenge, startId, endId]);
+  const shortestIds = shortestPathData.nodeIds;
+  const shortestEdgeKeys = shortestPathData.edgeKeys;
   const possibleIds = useMemo(() => {
     const ids = new Set([startId, endId, requiredStudentId].filter(Boolean));
     const avoidId = challenge?.constraint?.type === 'avoid'
@@ -1269,8 +1373,8 @@ export default function GamePage({ students, links }) {
     () => challenge ? findChallengePath(graph.adjacency, startId, endId, visibleIds, challenge.constraint) : [],
     [graph.adjacency, challenge, startId, endId, visibleIds]
   );
-  const shortestPathFound = shortestPath.length > 0 && shortestPath.every((id) => visibleIds.has(id));
-  const won = hintsUsed >= 3 ? shortestPathFound : winningPath.length > 0;
+  const won = winningPath.length > 0
+    && (hintsUsed < 3 || winningPath.length - 1 === challenge.distance);
   const attemptLimit = (challenge?.distance ?? 0) + 5;
   const lost = attemptCount > attemptLimit && !won;
   const displayedAttemptCount = Math.min(attemptCount, attemptLimit);
@@ -1632,9 +1736,8 @@ export default function GamePage({ students, links }) {
                           setHintedStudentIds([nextHintStudent.id]);
                         }
                         if (hintIndex === 2) {
-                          const lastNodeId = shortestPath[shortestPath.length - 2];
-                          if (lastNodeId) {
-                            setHintedStudentIds((current) => [...new Set([...current, lastNodeId])]);
+                          if (previousHintStudent) {
+                            setHintedStudentIds((current) => [...new Set([...current, previousHintStudent.id])]);
                           }
                         }
                         setHintsUsed(hintIndex);
@@ -1735,6 +1838,27 @@ export default function GamePage({ students, links }) {
                             <strong>Mamadou CISSE</strong><small>Impasse</small>
                           </div>
                         </div>
+                      </div>
+                    </div>
+                    <div className="game-help-example__mobile" aria-label="Parcours Maël QUILLAT, Tom CADARIO, Louisa REMAUD puis Jules HOUSEZ, avec Mamadou CISSE en impasse">
+                      <div className="game-help-example__mobile-node game-help-example__mobile-node--start">
+                        <small>Départ</small><strong>Maël QUILLAT</strong>
+                      </div>
+                      <span className="game-help-example__mobile-link game-help-example__mobile-link--first" aria-hidden="true" />
+                      <div className="game-help-example__mobile-branch">
+                        <div className="game-help-example__mobile-node"><strong>Tom CADARIO</strong></div>
+                        <div className="game-help-example__mobile-node game-help-example__mobile-node--dead-end">
+                          <strong>Mamadou CISSE</strong><small>Impasse</small>
+                        </div>
+                        <span className="game-help-example__mobile-branch-link" aria-hidden="true" />
+                      </div>
+                      <span className="game-help-example__mobile-link game-help-example__mobile-link--second" aria-hidden="true" />
+                      <div className="game-help-example__mobile-node game-help-example__mobile-node--louisa">
+                        <strong>Louisa REMAUD</strong>
+                      </div>
+                      <span className="game-help-example__mobile-link game-help-example__mobile-link--third" aria-hidden="true" />
+                      <div className="game-help-example__mobile-node game-help-example__mobile-node--end">
+                        <small>Arrivée</small><strong>Jules HOUSEZ</strong>
                       </div>
                     </div>
                     <p>Le chemin jaune relie le départ à l’arrivée. La branche vers Mamadou CISSE est une impasse.</p>

@@ -665,6 +665,10 @@
   height: 154px;
 }
 
+.game-help-example__mobile {
+  display: none;
+}
+
 .game-help-example__diagram > svg {
   position: absolute;
   inset: 0;
@@ -964,9 +968,12 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  width: min(100%, 238px);
-  min-width: 0;
-  min-height: 54px;
+  width: var(--game-node-width, 238px);
+  min-width: var(--game-node-width, 238px);
+  max-width: var(--game-node-width, 238px);
+  height: 72px;
+  min-height: 72px;
+  max-height: 72px;
   padding: 8px 11px;
   border: 1px solid #d5d1c2;
   background: var(--paper);
@@ -1038,29 +1045,12 @@
   line-height: 1.2;
 }
 
-.game-graph__nodes--single .game-node {
-  width: min(100%, 330px);
-  min-height: 58px;
-  padding: 9px 12px;
+.game-node--long-name .game-node__copy strong {
+  font-size: 0.68rem;
 }
 
-.game-graph__nodes--many .game-node {
-  min-height: 50px;
-  padding: 7px 9px;
-}
-
-.game-graph__nodes--many .game-node__copy strong {
-  font-size: 0.75rem;
-}
-
-.game-graph__nodes--dense .game-node {
-  min-height: 46px;
-  gap: 8px;
-  padding: 6px 8px;
-}
-
-.game-graph__nodes--dense .game-node__copy strong {
-  font-size: 0.7rem;
+.game-node--very-long-name .game-node__copy strong {
+  font-size: 0.62rem;
 }
 
 .game-node__copy small {
@@ -1344,13 +1334,29 @@
   }
 
   .game-node {
-    min-height: 46px;
+    height: 72px;
+    min-height: 72px;
+    max-height: 72px;
     gap: 8px;
     padding: 6px 8px;
   }
 
   .game-node__copy strong {
     font-size: 0.72rem;
+  }
+
+  .game-node--long-name .game-node__copy strong {
+    font-size: 0.62rem;
+  }
+
+  .game-node--very-long-name .game-node__copy strong {
+    font-size: 0.52rem;
+  }
+
+  .game-node__copy small {
+    font-size: 0.58rem;
+    line-height: 1.05;
+    letter-spacing: 0.03em;
   }
 
   .game-graph__legend {
@@ -1548,9 +1554,123 @@
   }
 
   .game-help-example__scroll {
-    max-width: 100%;
-    overscroll-behavior-x: contain;
-    -webkit-overflow-scrolling: touch;
+    display: none;
+  }
+
+  .game-help-example__mobile {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto 16px auto 16px auto 16px auto;
+    align-items: center;
+    column-gap: 10px;
+    width: 100%;
+    margin-top: 12px;
+  }
+
+  .game-help-example__mobile-node {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    min-width: 0;
+    min-height: 48px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    padding: 6px 8px;
+    border: 2px solid var(--yellow);
+    background: #f4f2bc;
+    color: var(--blue);
+  }
+
+  .game-help-example__mobile-node strong {
+    font-size: clamp(0.68rem, 3.2vw, 0.82rem);
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+
+  .game-help-example__mobile-node small {
+    color: #8e6f55;
+    font-size: 0.58rem;
+    font-weight: 700;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+
+  .game-help-example__mobile-node--start,
+  .game-help-example__mobile-node--louisa,
+  .game-help-example__mobile-node--end {
+    grid-column: 1;
+  }
+
+  .game-help-example__mobile-node--start {
+    grid-row: 1;
+    border-color: var(--sand);
+    background: var(--blue);
+    color: var(--paper);
+  }
+
+  .game-help-example__mobile-node--start small,
+  .game-help-example__mobile-node--end small {
+    color: var(--yellow);
+  }
+
+  .game-help-example__mobile-link {
+    grid-column: 1;
+    justify-self: center;
+    width: 2px;
+    height: 100%;
+    background: #969321;
+  }
+
+  .game-help-example__mobile-link--first {
+    grid-row: 2;
+  }
+
+  .game-help-example__mobile-branch {
+    position: relative;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: center;
+    gap: 10px;
+  }
+
+  .game-help-example__mobile-branch-link {
+    position: absolute;
+    z-index: 0;
+    top: 50%;
+    right: 25%;
+    left: 25%;
+    border-top: 2px dashed #aaa79f;
+  }
+
+  .game-help-example__mobile-node--dead-end {
+    grid-column: 2;
+    grid-row: 1;
+    border-color: #c8c6bc;
+    background: #e8e7e1;
+    color: #686868;
+    box-shadow: none;
+  }
+
+  .game-help-example__mobile-link--second {
+    grid-row: 4;
+  }
+
+  .game-help-example__mobile-node--louisa {
+    grid-row: 5;
+  }
+
+  .game-help-example__mobile-link--third {
+    grid-row: 6;
+  }
+
+  .game-help-example__mobile-node--end {
+    grid-row: 7;
+    border-color: var(--sand);
+    background: var(--blue);
+    color: var(--paper);
   }
 }
 
