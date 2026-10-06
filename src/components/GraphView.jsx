@@ -385,10 +385,8 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
           warmupTicks={size.width <= 767 ? 36 : 80}
           cooldownTicks={size.width <= 767 ? 150 : 250}
           onEngineStop={() => {
-            if (!hasFitted.current) {
-              hasFitted.current = true;
-              fitTo(undefined, false); // vue globale dézoomée à l'ouverture
-            }
+            // La caméra garde son cadrage initial quand la simulation s'arrête.
+            hasFitted.current = true;
             rowForce.current?.strength(ROW_PULL_FREE);
             colForce.current?.strength(X_PULL_FREE);
           }}
