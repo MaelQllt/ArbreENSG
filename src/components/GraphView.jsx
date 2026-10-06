@@ -7,6 +7,7 @@ import TopoBackground from './TopoBackground';
 
 const NODE_R = 5;
 const MOBILE_NODE_R = 6.5;
+const MOBILE_LINEAGE_NODE_R = 12;
 const PANEL_WIDTH = 380;  // doit rester synchrone avec --panel-width en CSS
 
 // Le noeud sélectionné grossit et reçoit un contour de la forme de sa promo.
@@ -63,6 +64,10 @@ function drawSelection(ctx, node, shape, color, r) {
   ctx.stroke();
 }
 
+function getNodeRadius(node, lineage, nodeRadius, isMobile) {
+  return isMobile && lineage?.nodeIds.has(node.id) ? MOBILE_LINEAGE_NODE_R : nodeRadius;
+}
+
 export default function GraphView({ graphData, selectedId, lineage, onSelect, isAdmin, onQuickAdd, resetTick }) {
   const containerRef = useRef(null);
   const fgRef = useRef(null);
@@ -78,7 +83,8 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
   const [reducedMotion, setReducedMotion] = useState(() => (
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   ));
-  const nodeRadius = size.width <= 767 ? MOBILE_NODE_R : NODE_R;
+  const isMobile = size.width <= 767;
+  const nodeRadius = isMobile ? MOBILE_NODE_R : NODE_R;
   const minZoom = size.width <= 767 ? MOBILE_MIN_ZOOM : MIN_ZOOM;
   const disableGraphAnimations = reducedMotion || size.width <= 767;
 
@@ -141,7 +147,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
 
   // Cadre un ensemble de noeuds dans la zone libre (la fiche latérale est prise en compte)
   const fitTo = useCallback(
-    (filter, withPanel) => {
+    (filter, withPanel, animateOnMobile = false) => {
       const fg = fgRef.current;
       const box = fg?.getGraphBbox(filter);
       if (!box) return;
@@ -161,16 +167,16 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
       );
       const cx = (box.x[0] + box.x[1]) / 2 + (pad.r - pad.l) / (2 * k);
       const cy = (box.y[0] + box.y[1]) / 2 + (pad.b - pad.t) / (2 * k);
-      const duration = disableGraphAnimations ? 0 : 700;
+      const duration = reducedMotion || (isMobile && !animateOnMobile) ? 0 : 700;
       fg.centerAt(cx, cy, duration);
       fg.zoom(k, duration);
     },
-    [minZoom, size, disableGraphAnimations]
+    [minZoom, size, reducedMotion, isMobile]
   );
 
   // Au clic : on cadre la lignée entière
   useEffect(() => {
-    if (lineage) fitTo((n) => lineage.nodeIds.has(n.id), true);
+    if (lineage) fitTo((n) => lineage.nodeIds.has(n.id), true, true);
   }, [lineage, fitTo]);
 
   // Bouton "Vue globale" (piloté par App)
@@ -193,7 +199,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
       const active = !lineage || lineage.nodeIds.has(node.id);
       const selected = node.id === selectedId;
       const { color, shape, stroke } = promoStyle(node.promo);
-      const r = selected ? nodeRadius * SELECTED_SCALE : nodeRadius;
+      const r = getNodeRadius(node, lineage, nodeRadius, isMobile) * (selected ? SELECTED_SCALE : 1);
 
       ctx.globalAlpha = active ? 1 : 0.12;
       ctx.lineJoin = 'miter';
@@ -208,13 +214,14 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
       ctx.stroke();
       ctx.globalAlpha = 1;
     },
-    [lineage, nodeRadius, selectedId]
+    [lineage, nodeRadius, isMobile, selectedId]
   );
 
   const paintPointerArea = useCallback((node, color, ctx) => {
+    const radius = getNodeRadius(node, lineage, nodeRadius, isMobile);
     ctx.fillStyle = color;
-    ctx.fillRect(node.x - nodeRadius - 5, node.y - nodeRadius - 5, (nodeRadius + 5) * 2, (nodeRadius + 5) * 2);
-  }, [nodeRadius]);
+    ctx.fillRect(node.x - radius - 5, node.y - radius - 5, (radius + 5) * 2, (radius + 5) * 2);
+  }, [lineage, nodeRadius, isMobile]);
 
   // Étiquettes dessinées après les noeuds, avec anti-chevauchement :
   // un nom n'est affiché que s'il ne recouvre pas un nom déjà placé.
@@ -239,19 +246,20 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
         const pad = 3 / k;
         const bw = w / k + pad * 2;
         const bh = (LABEL_FONT + 5) / k;
+        const radius = getNodeRadius(node, lineage, nodeRadius, isMobile);
         const centeredX = node.x - bw / 2;
-        const belowY = node.y + nodeRadius * 1.4 + 2 / k;
+        const belowY = node.y + radius * 1.4 + 2 / k;
 
         let box = { x0: centeredX, y0: belowY };
         if (!force) {
           if (placed.length >= labelLimit) return;
-          const aboveY = node.y - nodeRadius * 1.4 - bh - 2 / k;
+          const aboveY = node.y - radius * 1.4 - bh - 2 / k;
           const candidates = highZoom
             ? [
                 { x0: centeredX, y0: belowY },
                 { x0: centeredX, y0: aboveY },
-                { x0: node.x - nodeRadius - 4 / k - bw, y0: node.y - bh / 2 },
-                { x0: node.x + nodeRadius + 4 / k, y0: node.y - bh / 2 },
+                { x0: node.x - radius - 4 / k - bw, y0: node.y - bh / 2 },
+                { x0: node.x + radius + 4 / k, y0: node.y - bh / 2 },
                 ...Array.from({ length: 6 }, (_, i) => ({
                   x0: centeredX,
                   y0: belowY + (i + 1) * (bh + 2 / k),
@@ -287,7 +295,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
         if (lineage ? lineage.nodeIds.has(node.id) : showAll) place(node, false);
       }
     },
-    [lineage, selectedId, labelOrder, nodeById, nodeRadius]
+    [lineage, selectedId, labelOrder, nodeById, nodeRadius, isMobile]
   );
 
   const inLineage = (link) => lineage && isLinkInLineage(link, lineage);

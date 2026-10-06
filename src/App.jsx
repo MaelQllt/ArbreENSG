@@ -212,6 +212,11 @@ export default function App() {
     setShowContactInfo(false);
     contactInfoButtonRef.current?.focus();
   };
+  const closeCardFromMobileSearch = () => {
+    if (selectedId && window.matchMedia('(max-width: 767px)').matches) {
+      setSelectedId(null);
+    }
+  };
 
   if (!graph) {
     return (
@@ -251,7 +256,11 @@ export default function App() {
         <p className="masthead__hint">
           Cliquez sur un étudiant pour voir sa lignée.
         </p>
-        <StudentSearch students={loaded.data.nodes} onSelect={setSelectedId} />
+        <StudentSearch
+          students={loaded.data.nodes}
+          onSelect={setSelectedId}
+          onActivate={closeCardFromMobileSearch}
+        />
       </header>
 
       <div className="controls">
@@ -340,7 +349,10 @@ export default function App() {
             aria-labelledby="contact-info-title"
             tabIndex={-1}
           >
-            <h2 id="contact-info-title">Vous avez repéré un problème&nbsp;?</h2>
+            <h2 id="contact-info-title">
+              <span className="contact-info__title-desktop">Vous avez repéré un problème&nbsp;?</span>
+              <span className="contact-info__title-mobile">Une erreur&nbsp;?</span>
+            </h2>
             <p>Un lien manque ou vous avez repéré une autre erreur&nbsp;? Vous pouvez contacter le BDE.</p>
           </section>
         </div>

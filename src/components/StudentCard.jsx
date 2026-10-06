@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import BrandDivider from './BrandDivider';
 import { promoStyle } from '../theme';
 import { describePromo, formatStudentAffiliations } from '../lib/promo';
@@ -46,24 +46,78 @@ function RelationList({ title, people, onSelect }) {
 export default function StudentCard({ student, parrains, fillots, lineage, onSelect, onClose }) {
   // Le panneau reste monté : on garde le dernier contenu pour qu'il soit lisible pendant qu'il se referme
   const last = useRef(null);
+  const cardRef = useRef(null);
+  const previousStudentId = useRef(null);
+  const [canScrollDown, setCanScrollDown] = useState(false);
   if (student) last.current = { student, parrains, fillots, lineage };
   const data = last.current;
   const open = Boolean(student);
+  const s = data?.student;
+  const filiere = s ? s.filiere ?? s.parcours : null;
+  const codeYear = s ? formatStudentAffiliations(s) : '';
+  const familyCount = data ? data.parrains.length + data.fillots.length : 0;
+
+  useLayoutEffect(() => {
+    const isMobile = window.matchMedia('(max-width: 767px)').matches;
+    if (isMobile && student && previousStudentId.current !== student.id && cardRef.current) {
+      cardRef.current.scrollTop = 0;
+    }
+    previousStudentId.current = student?.id ?? null;
+  }, [student?.id]);
+
+  const updateCardScrollHint = () => {
+    const card = cardRef.current;
+    const families = card?.querySelector('.card__families');
+    if (!card || !families || !open || familyCount === 0) {
+      setCanScrollDown(false);
+      return;
+    }
+    const cardRect = card.getBoundingClientRect();
+    const familiesRect = families.getBoundingClientRect();
+    const next = card.scrollTop + card.clientHeight < card.scrollHeight - 1
+      && familiesRect.bottom > cardRect.bottom - 12;
+    setCanScrollDown((current) => current === next ? current : next);
+  };
+
+  useLayoutEffect(() => {
+    const card = cardRef.current;
+    const families = card?.querySelector('.card__families');
+    if (!data || !card || !families || !open || familyCount === 0) {
+      setCanScrollDown(false);
+      return undefined;
+    }
+
+    updateCardScrollHint();
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateCardScrollHint);
+    resizeObserver?.observe(card);
+    Array.from(card.children).forEach((child) => resizeObserver?.observe(child));
+
+    const mutationObserver = typeof MutationObserver === 'undefined' ? null : new MutationObserver(updateCardScrollHint);
+    mutationObserver?.observe(families, { childList: true, subtree: true, characterData: true });
+
+    return () => {
+      resizeObserver?.disconnect();
+      mutationObserver?.disconnect();
+    };
+  }, [open, s?.id, s?.name, codeYear, filiere, s?.bio, familyCount]);
 
   if (!data) return <aside className="card" aria-hidden="true" />;
 
-  const s = data.student;
   const promo = describePromo(s.promo);
   const { color, onColor } = promoStyle(s.promo);
-  const filiere = s.filiere ?? s.parcours;
-  const codeYear = formatStudentAffiliations(s);
+  const nameLength = Array.from(s.name.trim()).length;
+  const nameLengthClass = nameLength >= 32
+    ? ' card__name--very-long'
+    : nameLength >= 24 ? ' card__name--long' : '';
 
   return (
     <aside
+      ref={cardRef}
       className={`card${open ? ' card--open' : ''}`}
       style={{ '--promo-color': color, '--promo-ink': onColor }}
       aria-label={`Fiche de ${s.name}`}
       aria-hidden={!open}
+      onScroll={updateCardScrollHint}
     >
       <header className="card__header">
         <div className="card__promotion">
@@ -75,7 +129,7 @@ export default function StudentCard({ student, parrains, fillots, lineage, onSel
         </button>
       </header>
 
-      <h2 className="card__name">{s.name}</h2>
+      <h2 className={'card__name' + nameLengthClass}>{s.name}</h2>
       {(codeYear || filiere) && (
         <p className="card__meta">
           {codeYear && <strong>{codeYear}</strong>}
@@ -100,6 +154,7 @@ export default function StudentCard({ student, parrains, fillots, lineage, onSel
         <RelationList title="Parrains et marraines" people={data.parrains} onSelect={onSelect} />
         <RelationList title="Fillots et fillottes" people={data.fillots} onSelect={onSelect} />
       </div>
+      {canScrollDown && <span className="card__scroll-hint" aria-hidden="true" />}
     </aside>
   );
 }

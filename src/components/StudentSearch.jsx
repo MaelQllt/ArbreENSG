@@ -23,7 +23,7 @@ function SearchOption({ student }) {
   );
 }
 
-export default function StudentSearch({ students, onSelect }) {
+export default function StudentSearch({ students, onSelect, onActivate }) {
   const rootRef = useRef(null);
   const inputRef = useRef(null);
   const [query, setQuery] = useState('');
@@ -75,7 +75,7 @@ export default function StudentSearch({ students, onSelect }) {
 
   return (
     <div className="student-search" ref={rootRef}>
-      <div className="student-search__field">
+      <div className="student-search__field" onPointerDown={onActivate}>
         <svg className="student-search__icon" viewBox="0 0 20 20" aria-hidden="true">
           <circle cx="8.5" cy="8.5" r="5.5" />
           <path d="m12.5 12.5 4 4" />
@@ -91,7 +91,10 @@ export default function StudentSearch({ students, onSelect }) {
           aria-expanded={open && Boolean(normalizedQuery)}
           aria-controls={listId}
           aria-activedescendant={open && results[activeIndex] ? `${listId}-${results[activeIndex].id}` : undefined}
-          onFocus={() => normalizedQuery && setOpen(true)}
+          onFocus={() => {
+            onActivate?.();
+            if (normalizedQuery) setOpen(true);
+          }}
           onChange={(event) => {
             setQuery(event.target.value);
             setActiveIndex(0);
