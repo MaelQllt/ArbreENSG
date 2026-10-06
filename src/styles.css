@@ -151,11 +151,26 @@ video {
 }
 
 .masthead__title {
+  position: relative;
+  isolation: isolate;
   margin: 0;
   display: flex;
   flex-direction: column;
   font-family: var(--font-title);
   line-height: 1.05;
+}
+
+.masthead__title::before {
+  position: absolute;
+  z-index: -1;
+  inset: -6px -8px;
+  background: rgb(43 49 127 / 10%);
+  content: '';
+  pointer-events: none;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  mask-image: radial-gradient(ellipse, #000 45%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse, #000 45%, transparent 100%);
 }
 
 .masthead__light {
@@ -403,6 +418,15 @@ video {
 .contact-info__button:hover {
   background: var(--yellow);
   color: var(--blue);
+}
+
+.controls .global-view-control,
+.controls .legend-disclosure__standalone,
+.controls .legend-disclosure__target,
+.controls .contact-info__button,
+.controls__actions .game-launch,
+.controls__actions .admin-access__button {
+  background: var(--blue);
 }
 
 .contact-info__overlay {
@@ -2128,15 +2152,15 @@ video {
     width: 28px;
     height: 28px;
     border-width: 1px;
-    background: transparent;
+    background: var(--blue);
     color: var(--sand);
     font-size: 0.78rem;
-    opacity: 0.78;
+    opacity: 1;
   }
 
   .contact-info__button:hover,
   .contact-info__button:active {
-    background: transparent;
+    background: var(--blue);
     color: var(--yellow);
   }
 
