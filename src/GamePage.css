@@ -1959,6 +1959,10 @@
     font-size: 0.72rem;
   }
 
+  .game-feedback--instruction {
+    display: none;
+  }
+
   .game-empty {
     padding: 18px;
   }

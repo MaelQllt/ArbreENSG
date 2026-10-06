@@ -1705,7 +1705,7 @@ export default function GamePage({ students, links }) {
               </div>
             </form>
 
-            <div className={'game-feedback' + (won ? ' game-feedback--won' : lost ? ' game-feedback--lost' : '')} role="status" aria-live="polite">
+            <div className={'game-feedback' + (won ? ' game-feedback--won' : lost ? ' game-feedback--lost' : '') + (!won && !lost && !feedback ? ' game-feedback--instruction' : '')} role="status" aria-live="polite">
               {won
                 ? 'Bravo ! Tu as trouvé une chaîne de ' + Math.max(0, winningPath.length - 1) + ' liens.'
                 : lost
