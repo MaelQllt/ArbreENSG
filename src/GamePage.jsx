@@ -371,6 +371,11 @@ function dateKey(date) {
   return date.toISOString().slice(0, 10);
 }
 
+function parisDateKey(date) {
+  const { year, month, day } = parisDateParts(date);
+  return dateKey(new Date(Date.UTC(year, month - 1, day)));
+}
+
 function dailyPeriodKey(date) {
   return dateKey(parisEffectiveDate(date));
 }
@@ -380,6 +385,38 @@ function weeklyPeriodKey(date) {
   const daysSinceMonday = (effectiveDate.getUTCDay() + 6) % 7;
   effectiveDate.setUTCDate(effectiveDate.getUTCDate() - daysSinceMonday);
   return dateKey(effectiveDate);
+}
+
+function formatArchiveDate(periodKey) {
+  return new Intl.DateTimeFormat('fr-FR', {
+    timeZone: 'UTC',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(periodKey + 'T12:00:00Z'));
+}
+
+function formatArchiveMonth(date) {
+  return new Intl.DateTimeFormat('fr-FR', {
+    timeZone: 'UTC',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
+function getArchiveMonthCells(month) {
+  const year = month.getUTCFullYear();
+  const monthIndex = month.getUTCMonth();
+  const firstDay = new Date(Date.UTC(year, monthIndex, 1));
+  const leadingCells = (firstDay.getUTCDay() + 6) % 7;
+  const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+  return [
+    ...Array(leadingCells).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, index) => (
+      dateKey(new Date(Date.UTC(year, monthIndex, index + 1)))
+    )),
+  ];
 }
 
 function getNextParisNoon(date) {
@@ -561,18 +598,6 @@ function getChallenge(gameGraph, mode, practiceSeed, round, periodKey, weeklyVar
     null,
     findPath(gameGraph.adjacency, pair.startId, pair.endId)
   );
-}
-
-function challengeSignature(challenge) {
-  if (!challenge) return '';
-  const forwardPath = challenge.solutionPath.join('>');
-  const reversePath = [...challenge.solutionPath].reverse().join('>');
-  return [
-    [challenge.startId, challenge.endId].sort(compareIds).join('|'),
-    challenge.constraint?.type ?? '',
-    challenge.constraint?.studentId ?? '',
-    [forwardPath, reversePath].sort()[0],
-  ].join('::');
 }
 
 const normalizeName = (value) =>
@@ -1259,7 +1284,6 @@ export default function GamePage({ students, links }) {
   const [mode, setMode] = useState('daily');
   const [round, setRound] = useState(0);
   const [attemptCount, setAttemptCount] = useState(1);
-  const [weeklyPreviewIndex, setWeeklyPreviewIndex] = useState(0);
   const [challengeClock, setChallengeClock] = useState(() => new Date());
   const [practiceSeed] = useState(() => Math.floor(Math.random() * 0xffffffff));
   const [foundIds, setFoundIds] = useState([]);
@@ -1271,6 +1295,13 @@ export default function GamePage({ students, links }) {
   const [searchFocused, setSearchFocused] = useState(false);
   const [activePanel, setActivePanel] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [archiveMode, setArchiveMode] = useState('daily');
+  const [archiveMonth, setArchiveMonth] = useState(() => {
+    const currentDate = new Date(parisDateKey(new Date()) + 'T12:00:00Z');
+    return new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), 1));
+  });
+  const [archiveDate, setArchiveDate] = useState(null);
+  const [archiveSelection, setArchiveSelection] = useState(null);
   const menuRef = useRef(null);
   const helpButtonRef = useRef(null);
   const solutionButtonRef = useRef(null);
@@ -1302,15 +1333,30 @@ export default function GamePage({ students, links }) {
     const handlePanelKeyDown = (event) => {
       if (event.key === 'Escape') setActivePanel(null);
       if (event.key === 'Tab') {
-        event.preventDefault();
-        focusPanel();
+        const focusable = [...(panelRef.current?.querySelectorAll(
+          'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
+        ) ?? [])].filter((element) => element.getClientRects().length > 0);
+        if (!focusable.length) {
+          event.preventDefault();
+          panelRef.current?.focus();
+          return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && (document.activeElement === first || document.activeElement === panelRef.current)) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
       }
     };
     window.addEventListener('keydown', handlePanelKeyDown);
     focusPanel();
     return () => {
       window.removeEventListener('keydown', handlePanelKeyDown);
-      const trigger = activePanel === 'help' ? helpButtonRef : solutionButtonRef;
+      const trigger = activePanel === 'solution' ? solutionButtonRef : helpButtonRef;
       trigger.current?.focus();
     };
   }, [activePanel]);
@@ -1340,11 +1386,41 @@ export default function GamePage({ students, links }) {
   }, []);
 
   const graph = useMemo(() => buildGameGraph(students, links), [students, links]);
-  const challengePeriod = mode === 'daily'
-    ? dailyPeriodKey(challengeClock)
-    : mode === 'weekly'
-      ? weeklyPeriodKey(challengeClock)
-      : 'practice:' + practiceSeed + ':' + round;
+  const currentDailyPeriod = dailyPeriodKey(challengeClock);
+  const currentWeeklyPeriod = weeklyPeriodKey(challengeClock);
+  const todayKey = parisDateKey(challengeClock);
+  const firstArchiveDate = '2026-09-01';
+  const challengePeriod = archiveSelection?.mode === mode
+    ? archiveSelection.periodKey
+    : mode === 'daily'
+      ? currentDailyPeriod
+      : mode === 'weekly'
+        ? currentWeeklyPeriod
+        : 'practice:' + practiceSeed + ':' + round;
+  const archiveCalendarCells = getArchiveMonthCells(archiveMonth).map((periodKey) => {
+    if (!periodKey) return null;
+    const day = new Date(periodKey + 'T12:00:00Z');
+    const available = periodKey >= firstArchiveDate && (archiveMode === 'daily'
+      ? periodKey === todayKey || periodKey <= currentDailyPeriod
+      : day.getUTCDay() === 1 && periodKey <= currentWeeklyPeriod);
+    return { periodKey, day: day.getUTCDate(), available, isToday: periodKey === todayKey };
+  });
+  const currentArchiveMonth = new Date(todayKey + 'T12:00:00Z');
+  const firstArchiveMonth = new Date('2026-09-01T12:00:00Z');
+  const canGoToPreviousArchiveMonth = archiveMonth.getUTCFullYear() > firstArchiveMonth.getUTCFullYear()
+    || (archiveMonth.getUTCFullYear() === firstArchiveMonth.getUTCFullYear()
+      && archiveMonth.getUTCMonth() > firstArchiveMonth.getUTCMonth());
+  const canAdvanceArchiveMonth = archiveMonth.getUTCFullYear() < currentArchiveMonth.getUTCFullYear()
+    || (archiveMonth.getUTCFullYear() === currentArchiveMonth.getUTCFullYear()
+      && archiveMonth.getUTCMonth() < currentArchiveMonth.getUTCMonth());
+  const archiveChallenge = useMemo(
+    () => archiveDate
+      ? getChallenge(graph, archiveMode, 0, 0, archiveDate)
+      : null,
+    [graph, archiveMode, archiveDate]
+  );
+  const archiveStart = archiveChallenge ? graph.byId.get(archiveChallenge.startId) : null;
+  const archiveEnd = archiveChallenge ? graph.byId.get(archiveChallenge.endId) : null;
   const currentPeriodRef = useRef(challengePeriod);
   useEffect(() => {
     if (currentPeriodRef.current === challengePeriod) return;
@@ -1353,7 +1429,6 @@ export default function GamePage({ students, links }) {
     setHintsUsed(0);
     setHintedStudentIds([]);
     setAttemptCount(1);
-    setWeeklyPreviewIndex(0);
     setQuery('');
     setFeedback('');
     setActiveSuggestion(0);
@@ -1366,10 +1441,9 @@ export default function GamePage({ students, links }) {
       mode,
       practiceSeed,
       round,
-      challengePeriod,
-      weeklyPreviewIndex
+      challengePeriod
     ),
-    [graph, mode, practiceSeed, round, challengePeriod, weeklyPreviewIndex]
+    [graph, mode, practiceSeed, round, challengePeriod]
   );
   const startId = challenge?.startId;
   const endId = challenge?.endId;
@@ -1522,14 +1596,14 @@ export default function GamePage({ students, links }) {
     if (mode === 'practice') setRound((value) => value + 1);
   };
 
-  const selectMode = (nextMode) => {
-    if (nextMode === mode) return;
+  const selectMode = (nextMode, nextArchiveSelection = null) => {
+    if (nextMode === mode && !archiveSelection && !nextArchiveSelection) return;
     setMode(nextMode);
+    setArchiveSelection(nextArchiveSelection);
     setFoundIds([]);
     setHintsUsed(0);
     setHintedStudentIds([]);
     setAttemptCount(1);
-    setWeeklyPreviewIndex(0);
     setQuery('');
     setFeedback('');
     setActiveSuggestion(0);
@@ -1580,39 +1654,6 @@ export default function GamePage({ students, links }) {
       return;
     }
     addStudent(choice);
-  };
-
-  const generateWeeklyPreview = () => {
-    if (mode !== 'weekly' || !challenge) return;
-    const currentSignature = challengeSignature(challenge);
-    let variant = weeklyPreviewIndex;
-    for (let attempt = 0; attempt < 12; attempt += 1) {
-      variant += 1;
-      const candidate = getChallenge(
-        graph,
-        'weekly',
-        practiceSeed,
-        round,
-        challengePeriod,
-        variant
-      );
-      if (
-        candidate?.constraint
-        && challengeSignature(candidate) !== currentSignature
-      ) {
-        setWeeklyPreviewIndex(variant);
-        setFoundIds([]);
-        setHintsUsed(0);
-        setHintedStudentIds([]);
-        setAttemptCount(1);
-        setQuery('');
-        setFeedback('');
-        setActiveSuggestion(0);
-        setActivePanel(null);
-        return;
-      }
-    }
-    setFeedback('Aucun autre scénario hebdomadaire disponible pour cette base.');
   };
 
   const handleInputKeyDown = (event) => {
@@ -1685,6 +1726,25 @@ export default function GamePage({ students, links }) {
                   >
                     Comment jouer&nbsp;?
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setArchiveMode('daily');
+                      setArchiveDate(null);
+                      setArchiveMonth(new Date(Date.UTC(
+                        currentArchiveMonth.getUTCFullYear(),
+                        currentArchiveMonth.getUTCMonth(),
+                        1
+                      )));
+                      setActivePanel('archive');
+                    }}
+                  >
+                    Archives
+                  </button>
+                  <button type="button" disabled aria-disabled="true">
+                    Mode de jeu
+                  </button>
                 </div>
               )}
             </div>
@@ -1698,9 +1758,15 @@ export default function GamePage({ students, links }) {
                 + (challenge?.constraint && mode !== 'weekly' ? ' game-challenge__heading--constrained' : '')
                 + (mode === 'weekly' ? ' game-challenge__heading--weekly' : '')}>
                 <div>
-                  <p className={'game-section-kicker' + (mode === 'weekly' ? ' game-section-kicker--weekly' : '')}>{pairLabel}</p>
+                  {!(archiveSelection?.mode === 'weekly' && mode === 'weekly') && (
+                    <p className={'game-section-kicker' + (mode === 'weekly' ? ' game-section-kicker--weekly' : '')}>{pairLabel}</p>
+                  )}
                   {mode === 'weekly' && (
-                    <p className="game-challenge__schedule">{formatWeeklyReset(challengeClock)}</p>
+                    <p className="game-challenge__schedule">
+                      {archiveSelection?.mode === mode
+                        ? 'Semaine du ' + formatArchiveDate(challengePeriod)
+                        : formatWeeklyReset(challengeClock)}
+                    </p>
                   )}
                   <h2 id="game-challenge-title">{challengeQuestion}</h2>
                   {mode === 'weekly' && ruleStudent && (
@@ -1729,7 +1795,9 @@ export default function GamePage({ students, links }) {
                   )}
                   {mode === 'daily' && (
                     <p className="game-challenge__schedule">
-                      Prochain défi dans {formatCountdown(getNextParisNoon(challengeClock) - challengeClock.getTime())}
+                      {archiveSelection?.mode === mode
+                        ? formatArchiveDate(challengePeriod)
+                        : 'Prochain défi dans ' + formatCountdown(getNextParisNoon(challengeClock) - challengeClock.getTime())}
                     </p>
                   )}
                 </div>
@@ -1890,11 +1958,6 @@ export default function GamePage({ students, links }) {
                   Nouvelle partie
                 </button>
               )}
-              {mode === 'weekly' && (
-                <button type="button" className="btn btn--ghost" onClick={generateWeeklyPreview}>
-                  Générer un autre défi hebdo
-                </button>
-              )}
               <div className="game-round-actions__links">
                 <span
                   className="game-help-link-tooltip"
@@ -1932,7 +1995,8 @@ export default function GamePage({ students, links }) {
               ref={panelRef}
               className={'game-help-panel'
                 + (activePanel === 'solution' ? ' game-help-panel--solution' : '')
-                + (activePanel === 'help' ? ' game-help-panel--help' : '')}
+                + (activePanel === 'help' ? ' game-help-panel--help' : '')
+                + (activePanel === 'archive' ? ' game-help-panel--archive' : '')}
               role="dialog"
               aria-modal="true"
               aria-labelledby="game-panel-title"
@@ -1982,6 +2046,138 @@ export default function GamePage({ students, links }) {
                       ariaLabel="Graphe d'exemple"
                     />
                   </section>
+                </>
+              ) : activePanel === 'archive' ? (
+                <>
+                  <p className="game-section-kicker">Archives</p>
+                  <h2 id="game-panel-title">Anciens défis</h2>
+                  <p className="game-archive__intro">Choisis un défi quotidien ou hebdomadaire à rejouer.</p>
+
+                  <div className="game-archive__modes" role="group" aria-label="Type de défi archivé">
+                    <button
+                      type="button"
+                      className={archiveMode === 'daily' ? 'is-active' : ''}
+                      aria-pressed={archiveMode === 'daily'}
+                      onClick={() => {
+                        setArchiveMode('daily');
+                        setArchiveDate(null);
+                      }}
+                    >
+                      Journalier
+                    </button>
+                    <button
+                      type="button"
+                      className={archiveMode === 'weekly' ? 'is-active' : ''}
+                      aria-pressed={archiveMode === 'weekly'}
+                      onClick={() => {
+                        setArchiveMode('weekly');
+                        setArchiveDate(null);
+                      }}
+                    >
+                      Hebdomadaire
+                    </button>
+                  </div>
+
+                  <div className="game-archive__calendar">
+                    <div className="game-archive__month">
+                      <button
+                        type="button"
+                        aria-label="Mois précédent"
+                        disabled={!canGoToPreviousArchiveMonth}
+                        onClick={() => {
+                          setArchiveDate(null);
+                          setArchiveMonth((current) => new Date(Date.UTC(
+                            current.getUTCFullYear(),
+                            current.getUTCMonth() - 1,
+                            1
+                          )));
+                        }}
+                      >
+                        ‹
+                      </button>
+                      <h3 aria-live="polite">{formatArchiveMonth(archiveMonth)}</h3>
+                      <button
+                        type="button"
+                        aria-label="Mois suivant"
+                        disabled={!canAdvanceArchiveMonth}
+                        onClick={() => {
+                          setArchiveDate(null);
+                          setArchiveMonth((current) => new Date(Date.UTC(
+                            current.getUTCFullYear(),
+                            current.getUTCMonth() + 1,
+                            1
+                          )));
+                        }}
+                      >
+                        ›
+                      </button>
+                    </div>
+                    <div className="game-archive__weekdays" aria-hidden="true">
+                      {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((day) => (
+                        <span key={day}>{day}</span>
+                      ))}
+                    </div>
+                    <div className="game-archive__days">
+                      {archiveCalendarCells.map((cell, index) => {
+                        if (!cell) {
+                          return <span className="game-archive__empty-day" key={'empty-' + index} aria-hidden="true" />;
+                        }
+                        const selected = archiveDate === cell.periodKey;
+                        const archiveLabel = (archiveMode === 'weekly' ? 'Semaine du ' : 'Défi du ')
+                          + formatArchiveDate(cell.periodKey)
+                          + (cell.isToday ? ' (aujourd’hui)' : '');
+                        return (
+                          <button
+                            key={cell.periodKey}
+                            type="button"
+                            className={'game-archive__day'
+                              + (cell.available ? ' is-available' : '')
+                              + (cell.isToday ? ' is-today' : '')
+                              + (selected ? ' is-selected' : '')}
+                            disabled={!cell.available}
+                            aria-label={archiveLabel}
+                            aria-pressed={selected}
+                            onClick={() => {
+                              const selectedChallenge = getChallenge(graph, archiveMode, 0, 0, cell.periodKey);
+                              const selectedStart = selectedChallenge && graph.byId.get(selectedChallenge.startId);
+                              const selectedEnd = selectedChallenge && graph.byId.get(selectedChallenge.endId);
+                              if (selectedChallenge && selectedStart && selectedEnd) {
+                                const isCurrentChallenge = archiveMode === 'daily'
+                                  ? cell.isToday
+                                  : cell.periodKey === currentWeeklyPeriod;
+                                if (isCurrentChallenge && mode === archiveMode && !archiveSelection) {
+                                  setActivePanel(null);
+                                  setMenuOpen(false);
+                                } else {
+                                  selectMode(
+                                    archiveMode,
+                                    isCurrentChallenge
+                                      ? null
+                                      : { mode: archiveMode, periodKey: cell.periodKey }
+                                  );
+                                }
+                              } else {
+                                setArchiveDate(cell.periodKey);
+                              }
+                            }}
+                          >
+                            {cell.day}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="game-archive__hint">
+                      {archiveMode === 'daily'
+                        ? 'Défis quotidiens disponibles depuis le 1er septembre 2026.'
+                        : 'Défis hebdomadaires disponibles depuis le 1er septembre 2026.'}
+                    </p>
+                  </div>
+
+                  {archiveDate && (!archiveChallenge || !archiveStart || !archiveEnd) && (
+                    <p className="game-archive__hint" aria-live="polite">
+                      Ce défi n’est pas disponible avec les données actuelles.
+                    </p>
+                  )}
                 </>
               ) : (
                 <>
