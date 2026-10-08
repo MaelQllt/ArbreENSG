@@ -2073,11 +2073,31 @@
   }
 
   .game-graph__scroll-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     margin: 8px 0 0;
     color: #8e6f55;
     font-size: 0.68rem;
     line-height: 1.2;
     text-align: center;
+  }
+
+  .game-graph__scroll-arrow {
+    display: inline-block;
+    flex: none;
+    width: 14px;
+    height: 10px;
+    background: currentColor;
+  }
+
+  .game-graph__scroll-arrow--left {
+    clip-path: polygon(0 50%, 42% 0, 42% 30%, 100% 30%, 100% 70%, 42% 70%, 42% 100%);
+  }
+
+  .game-graph__scroll-arrow--right {
+    clip-path: polygon(100% 50%, 58% 0, 58% 30%, 0 30%, 0 70%, 58% 70%, 58% 100%);
   }
 
   .game-help-panel--solution .game-graph__viewport {
