@@ -272,6 +272,36 @@ function buildGameGraph(students, links) {
   return { adjacency, byId, edges, validPairs };
 }
 
+function hasPlayableChallenge(students, links) {
+  const studentIds = new Set(students.map((student) => student.id));
+  const adjacency = new Map([...studentIds].map((id) => [id, new Set()]));
+  links.forEach((link) => {
+    const source = endpointId(link.source);
+    const target = endpointId(link.target);
+    if (!studentIds.has(source) || !studentIds.has(target) || source === target) return;
+    adjacency.get(source).add(target);
+    adjacency.get(target).add(source);
+  });
+
+  for (const startId of studentIds) {
+    let frontier = [startId];
+    const visited = new Set(frontier);
+    for (let distance = 0; distance < 3; distance += 1) {
+      const next = [];
+      frontier.forEach((id) => {
+        adjacency.get(id).forEach((neighborId) => {
+          if (visited.has(neighborId)) return;
+          visited.add(neighborId);
+          next.push(neighborId);
+        });
+      });
+      if (distance === 2 && next.length) return true;
+      frontier = next;
+    }
+  }
+  return false;
+}
+
 function hashString(value) {
   let hash = 2166136261;
   for (let index = 0; index < value.length; index += 1) {
@@ -1295,6 +1325,19 @@ export default function GamePage({ students, links }) {
   const [searchFocused, setSearchFocused] = useState(false);
   const [activePanel, setActivePanel] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [selectedPromoYears, setSelectedPromoYears] = useState(() => {
+    try {
+      const saved = window.localStorage.getItem('ensgdle-playable-promos-v1');
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return null;
+      const years = [...new Set(parsed.map(Number).filter(Number.isFinite))];
+      return years.length >= 3 ? years : null;
+    } catch {
+      return null;
+    }
+  });
+  const [promoDraft, setPromoDraft] = useState(null);
   const [archiveMode, setArchiveMode] = useState('daily');
   const [archiveMonth, setArchiveMonth] = useState(() => {
     const currentDate = new Date(parisDateKey(new Date()) + 'T12:00:00Z');
@@ -1304,6 +1347,7 @@ export default function GamePage({ students, links }) {
   const [archiveSelection, setArchiveSelection] = useState(null);
   const menuRef = useRef(null);
   const helpButtonRef = useRef(null);
+  const promoModeButtonRef = useRef(null);
   const solutionButtonRef = useRef(null);
   const panelRef = useRef(null);
   const panelCloseRef = useRef(null);
@@ -1356,7 +1400,11 @@ export default function GamePage({ students, links }) {
     focusPanel();
     return () => {
       window.removeEventListener('keydown', handlePanelKeyDown);
-      const trigger = activePanel === 'solution' ? solutionButtonRef : helpButtonRef;
+      const trigger = activePanel === 'solution'
+        ? solutionButtonRef
+        : activePanel === 'game-mode'
+          ? promoModeButtonRef
+          : helpButtonRef;
       trigger.current?.focus();
     };
   }, [activePanel]);
@@ -1385,9 +1433,56 @@ export default function GamePage({ students, links }) {
     return () => { document.title = previousTitle; };
   }, []);
 
-  const graph = useMemo(() => buildGameGraph(students, links), [students, links]);
+  const availablePromoYears = useMemo(
+    () => [...new Set(students.map((student) => Number(student.promo)).filter(Number.isFinite))]
+      .sort((a, b) => b - a),
+    [students]
+  );
+  const playablePromoYears = useMemo(
+    () => selectedPromoYears === null
+      ? availablePromoYears
+      : availablePromoYears.filter((promo) => selectedPromoYears.includes(promo)),
+    [availablePromoYears, selectedPromoYears]
+  );
+  const playablePromoSet = useMemo(() => new Set(playablePromoYears), [playablePromoYears]);
+  const eligibleStudents = useMemo(
+    () => students.filter((student) => playablePromoSet.has(Number(student.promo))),
+    [students, playablePromoSet]
+  );
+  const draftPromoYears = promoDraft ?? playablePromoYears;
+  const draftPromoSet = useMemo(() => new Set(draftPromoYears), [draftPromoYears]);
+  const draftStudents = useMemo(
+    () => students.filter((student) => draftPromoSet.has(Number(student.promo))),
+    [students, draftPromoSet]
+  );
+  const promoDraftCanPlay = useMemo(
+    () => draftPromoYears.length >= 3 && hasPlayableChallenge(draftStudents, links),
+    [draftPromoYears, draftStudents, links]
+  );
+  const activePromoLabels = playablePromoYears.map((promo) => describePromo(promo, challengeClock).label);
+  const activePromoLevels = activePromoLabels.map((label) => Number(label.match(/^IT(\d+)$/)?.[1]));
+  const sortedPromoLevels = activePromoLevels.filter(Number.isFinite).sort((a, b) => a - b);
+  const hasContiguousLevels = sortedPromoLevels.length === activePromoLabels.length
+    && sortedPromoLevels.every((level, index) => index === 0 || level === sortedPromoLevels[index - 1] + 1);
+  const promoModeRange = hasContiguousLevels && sortedPromoLevels.length > 1
+    ? ['IT' + sortedPromoLevels[0], 'IT' + sortedPromoLevels[sortedPromoLevels.length - 1]]
+    : null;
+  const allPromosSelected = playablePromoYears.length === availablePromoYears.length;
+  const promoModeLabel = allPromosSelected
+    ? 'Toutes promos'
+    : promoModeRange
+      ? promoModeRange[0] + ' à ' + promoModeRange[1]
+      : activePromoLabels.length <= 3
+        ? activePromoLabels.join(' · ')
+        : activePromoLabels.length + ' promos';
+  const promoModeAccessibleLabel = 'Promos du jeu : ' + promoModeLabel + '. Modifier la sélection.';
+  const graph = useMemo(() => buildGameGraph(eligibleStudents, links), [eligibleStudents, links]);
   const currentDailyPeriod = dailyPeriodKey(challengeClock);
   const currentWeeklyPeriod = weeklyPeriodKey(challengeClock);
+  const weeklyChallengeAvailable = useMemo(
+    () => Boolean(getChallenge(graph, 'weekly', practiceSeed, round, currentWeeklyPeriod)?.constraint),
+    [graph, practiceSeed, round, currentWeeklyPeriod]
+  );
   const todayKey = parisDateKey(challengeClock);
   const firstArchiveDate = '2026-09-01';
   const challengePeriod = archiveSelection?.mode === mode
@@ -1421,6 +1516,15 @@ export default function GamePage({ students, links }) {
   );
   const archiveStart = archiveChallenge ? graph.byId.get(archiveChallenge.startId) : null;
   const archiveEnd = archiveChallenge ? graph.byId.get(archiveChallenge.endId) : null;
+  useEffect(() => {
+    if (selectedPromoYears === null || playablePromoYears.length >= 3) return;
+    setSelectedPromoYears(null);
+    try {
+      window.localStorage.removeItem('ensgdle-playable-promos-v1');
+    } catch {
+      // Fall back to all promos for this session when browser storage is unavailable.
+    }
+  }, [selectedPromoYears, playablePromoYears]);
   const currentPeriodRef = useRef(challengePeriod);
   useEffect(() => {
     if (currentPeriodRef.current === challengePeriod) return;
@@ -1570,14 +1674,14 @@ export default function GamePage({ students, links }) {
   const suggestions = useMemo(() => {
     const normalized = normalizeName(query);
     if (!normalized) return [];
-    return students
+    return eligibleStudents
       .filter((student) =>
         !visibleIds.has(student.id)
         && normalizeName(student.name).includes(normalized)
       )
       .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
       .slice(0, 8);
-  }, [students, query, visibleIds]);
+  }, [eligibleStudents, query, visibleIds]);
   const selectableSuggestions = useMemo(
     () => suggestions.filter((student) => student.id !== forbiddenStudentId),
     [suggestions, forbiddenStudentId]
@@ -1611,8 +1715,58 @@ export default function GamePage({ students, links }) {
     setMenuOpen(false);
   };
 
+  const openPromoSettings = () => {
+    setPromoDraft([...playablePromoYears]);
+    setMenuOpen(false);
+    setActivePanel('game-mode');
+  };
+
+  const toggleDraftPromo = (promo) => {
+    setPromoDraft((current) => {
+      const selected = current ?? playablePromoYears;
+      return selected.includes(promo)
+        ? selected.filter((year) => year !== promo)
+        : [...selected, promo].sort((a, b) => b - a);
+    });
+  };
+
+  const applyPromoSettings = () => {
+    const nextYears = availablePromoYears.filter((promo) => draftPromoSet.has(promo));
+    const nextStudents = students.filter((student) => nextYears.includes(Number(student.promo)));
+    if (nextYears.length < 3) return;
+    if (!hasPlayableChallenge(nextStudents, links)) return;
+
+    const nextGraph = buildGameGraph(nextStudents, links);
+    const nextWeeklyChallengeAvailable = Boolean(
+      getChallenge(nextGraph, 'weekly', practiceSeed, round, currentWeeklyPeriod)?.constraint
+    );
+    const includeAllPromos = nextYears.length === availablePromoYears.length;
+    const storedSelection = includeAllPromos ? null : nextYears;
+    setSelectedPromoYears(storedSelection);
+    if (mode === 'weekly' && !nextWeeklyChallengeAvailable) {
+      setMode('daily');
+      setArchiveSelection(null);
+    }
+    setPromoDraft(null);
+    setFoundIds([]);
+    setHintsUsed(0);
+    setHintedStudentIds([]);
+    setAttemptCount(1);
+    setQuery('');
+    setFeedback('');
+    setActiveSuggestion(0);
+    setActivePanel(null);
+
+    try {
+      if (includeAllPromos) window.localStorage.removeItem('ensgdle-playable-promos-v1');
+      else window.localStorage.setItem('ensgdle-playable-promos-v1', JSON.stringify(nextYears));
+    } catch {
+      // Settings still apply for this session when browser storage is unavailable.
+    }
+  };
+
   const addStudent = (student) => {
-    if (!student || won || lost || visibleIds.has(student.id)) return;
+    if (!student || !graph.byId.has(student.id) || won || lost || visibleIds.has(student.id)) return;
     if (student.id === forbiddenStudentId) {
       setFeedback(student.name + ' est interdit par la consigne de cette semaine.');
       return;
@@ -1637,7 +1791,7 @@ export default function GamePage({ students, links }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    const exact = students.find((student) =>
+    const exact = eligibleStudents.find((student) =>
       normalizeName(student.name) === normalizeName(query)
       && !visibleIds.has(student.id)
     );
@@ -1687,13 +1841,43 @@ export default function GamePage({ students, links }) {
       <TopoBackground />
       <div className="game-page__content">
         <header className="game-page__header">
-          <div className="game-page__identity">
-            <h1>ENSGdle</h1>
-            <p>Jeu de parrainage <BrandDivider /> {pairLabel}</p>
+          <div className="game-page__brand">
+            <div className="game-page__identity">
+              <h1>ENSGdle</h1>
+              <p>Jeu de parrainage <BrandDivider /> {pairLabel}</p>
+            </div>
+            <button
+              ref={promoModeButtonRef}
+              className="game-promo-mode"
+              type="button"
+              aria-haspopup="dialog"
+              aria-label={promoModeAccessibleLabel}
+              onClick={openPromoSettings}
+            >
+              <span>Promos</span>
+              {promoModeRange && !allPromosSelected ? (
+                <strong className="game-promo-mode__range">
+                  <span>{promoModeRange[0]}</span>
+                  <BrandDivider />
+                  <span>{promoModeRange[1]}</span>
+                </strong>
+              ) : (
+                <strong>{promoModeLabel}</strong>
+              )}
+            </button>
           </div>
           <nav className="game-modes" aria-label="Mode de jeu">
             <button type="button" className={mode === 'daily' ? 'is-active' : ''} onClick={() => selectMode('daily')}>Journalier</button>
-            <button type="button" className={mode === 'weekly' ? 'is-active' : ''} onClick={() => selectMode('weekly')}>Hebdomadaire</button>
+            <button
+              type="button"
+              className={mode === 'weekly' ? 'is-active' : ''}
+              onClick={() => selectMode('weekly')}
+              disabled={!weeklyChallengeAvailable}
+              aria-disabled={!weeklyChallengeAvailable}
+              title={weeklyChallengeAvailable ? undefined : 'Pas assez de promos sélectionnées pour un défi hebdomadaire'}
+            >
+              Hebdomadaire
+            </button>
             <button type="button" className={mode === 'practice' ? 'is-active' : ''} onClick={() => selectMode('practice')}>Entraînement</button>
           </nav>
           <div className="game-page__actions">
@@ -1742,7 +1926,7 @@ export default function GamePage({ students, links }) {
                   >
                     Archives
                   </button>
-                  <button type="button" disabled aria-disabled="true">
+                  <button type="button" onClick={openPromoSettings}>
                     Mode de jeu
                   </button>
                 </div>
@@ -1911,10 +2095,10 @@ export default function GamePage({ students, links }) {
                   : feedback || (
                     <>
                       <span className="game-feedback__instruction--desktop">
-                        Tu peux choisir parmi tous les étudiants <BrandDivider /> les liens montrent lesquels rejoignent la chaîne.
+                        Tu peux choisir parmi les promos sélectionnées <BrandDivider /> les liens montrent lesquels rejoignent la chaîne.
                       </span>
                       <span className="game-feedback__instruction--mobile">
-                        Trouve parmi les étudiants <BrandDivider /> le chemin le plus court
+                        Cherche parmi les promos choisies <BrandDivider /> le chemin le plus court
                       </span>
                     </>
                   )}
@@ -1996,6 +2180,7 @@ export default function GamePage({ students, links }) {
               className={'game-help-panel'
                 + (activePanel === 'solution' ? ' game-help-panel--solution' : '')
                 + (activePanel === 'help' ? ' game-help-panel--help' : '')
+                + (activePanel === 'game-mode' ? ' game-help-panel--game-mode' : '')
                 + (activePanel === 'archive' ? ' game-help-panel--archive' : '')}
               role="dialog"
               aria-modal="true"
@@ -2046,6 +2231,75 @@ export default function GamePage({ students, links }) {
                       ariaLabel="Graphe d'exemple"
                     />
                   </section>
+                </>
+              ) : activePanel === 'game-mode' ? (
+                <>
+                  <p className="game-section-kicker">Mode de jeu</p>
+                  <h2 id="game-panel-title">Promos jouables</h2>
+                  <p className="game-promo-settings__intro">
+                    Seuls les étudiants et les liens des promos sélectionnées pourront apparaître dans les défis.
+                  </p>
+                  <div className="game-promo-settings__select-actions">
+                    <button type="button" onClick={() => setPromoDraft([...availablePromoYears])}>
+                      Tout sélectionner
+                    </button>
+                    <button type="button" onClick={() => setPromoDraft([])}>
+                      Tout désélectionner
+                    </button>
+                  </div>
+                  <div
+                    className="game-promo-settings__list"
+                    role="group"
+                    aria-label="Promos utilisables dans le jeu"
+                    style={{ '--promo-column-count': Math.max(1, Math.ceil(availablePromoYears.length / 4)) }}
+                  >
+                    {availablePromoYears.map((promo) => {
+                      const selected = draftPromoSet.has(promo);
+                      return (
+                        <label
+                          key={promo}
+                          className={'game-promo-settings__option' + (selected ? ' is-selected' : '')}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => toggleDraftPromo(promo)}
+                          />
+                          <span>
+                            <strong>{describePromo(promo, challengeClock).label}</strong>
+                            <small>Promo {promo}</small>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="game-promo-settings__status" role="status" aria-live="polite">
+                    {draftPromoYears.length < 3
+                      ? 'Sélectionne au moins trois promos pour jouer.'
+                      : promoDraftCanPlay
+                        ? 'Le jeu sera limité aux promos sélectionnées.'
+                        : 'Cette sélection ne permet pas de relier deux étudiants par un chemin de jeu.'}
+                  </p>
+                  <div className="game-promo-settings__footer">
+                    <button
+                      type="button"
+                      className="btn btn--ghost"
+                      onClick={() => {
+                        setPromoDraft(null);
+                        setActivePanel(null);
+                      }}
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--ghost"
+                      onClick={applyPromoSettings}
+                      disabled={!promoDraftCanPlay}
+                    >
+                      Appliquer
+                    </button>
+                  </div>
                 </>
               ) : activePanel === 'archive' ? (
                 <>
