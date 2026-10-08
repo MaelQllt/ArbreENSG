@@ -597,6 +597,7 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
     scale: 1,
     planeWidth: 0,
     nodeWidth: 238,
+    horizontalScroll: false,
     lines: [],
   });
   const scaleRef = useRef(1);
@@ -848,10 +849,16 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
       const mobileSolution = compactSolution && compact;
       const titleColumnWidth = mobileSolution ? 0 : compactSolution ? 84 : compact ? 0 : 128;
       const titleGap = mobileSolution ? 0 : compactSolution ? 6 : compact ? 0 : 12;
-      const edgeGutter = mobileSolution ? 24 : compact ? 40 : 72;
-      const nodeSlotWidth = mobileSolution ? 120 : compactSolution ? 150 : compact ? 112 : 238;
-      plane.style.setProperty('--game-node-width', `${nodeSlotWidth}px`);
+      const edgeGutter = mobileSolution ? 16 : compact ? 40 : 72;
       const columnGap = compact || compactSolution ? 8 : 14;
+      const mobileNodeMinWidth = 96;
+      const mobileNodeMaxWidth = 120;
+      const mobileFitNodeWidth = (availableWidth - edgeGutter - Math.max(0, widestPromoRow - 1) * columnGap) / widestPromoRow;
+      const horizontalScroll = mobileSolution && mobileFitNodeWidth < mobileNodeMinWidth;
+      const nodeSlotWidth = mobileSolution
+        ? horizontalScroll ? mobileNodeMaxWidth : Math.min(mobileNodeMaxWidth, mobileFitNodeWidth)
+        : compactSolution ? 150 : compact ? 112 : 238;
+      plane.style.setProperty('--game-node-width', `${nodeSlotWidth}px`);
       const nodeAreaWidth = widestPromoRow * nodeSlotWidth
         + Math.max(0, widestPromoRow - 1) * columnGap
         + edgeGutter;
@@ -1080,6 +1087,7 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
           && closeEnough(current.scale, scale, 0.0001)
           && closeEnough(current.planeWidth, planeWidth)
           && closeEnough(current.nodeWidth, nodeSlotWidth)
+          && current.horizontalScroll === horizontalScroll
           && sameLines;
         return unchanged ? current : {
           width,
@@ -1087,6 +1095,7 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
           scale,
           planeWidth,
           nodeWidth: nodeSlotWidth,
+          horizontalScroll,
           lines,
         };
       });
@@ -1110,9 +1119,11 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
     <>
       <div
         ref={viewportRef}
-        className={'game-graph__viewport' + (solutionLayout ? ' game-graph__viewport--solution' : '')}
+        className={'game-graph__viewport'
+          + (solutionLayout ? ' game-graph__viewport--solution' : '')
+          + (layout.horizontalScroll ? ' game-graph__viewport--scrollable' : '')}
         role="region"
-        aria-label={ariaLabel + (mobileSolutionLayout && widestPromoRow > 2 ? ', faites défiler horizontalement pour voir tout le graphe' : '')}
+        aria-label={ariaLabel + (mobileSolutionLayout && layout.horizontalScroll ? ', faites défiler horizontalement pour voir tout le graphe' : '')}
       >
       <div
         ref={canvasRef}
@@ -1211,8 +1222,8 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
         </div>
       </div>
       </div>
-      {mobileSolutionLayout && widestPromoRow > 2 && (
-        <p className="game-graph__scroll-hint">Fais glisser pour voir tout le graphe&nbsp;↔</p>
+      {mobileSolutionLayout && layout.horizontalScroll && (
+        <p className="game-graph__scroll-hint">↔ glisser pour voir tout le graphe ↔</p>
       )}
     </>
   );

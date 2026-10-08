@@ -2055,24 +2055,42 @@
 
 @media (max-width: 767px) {
   .game-help-panel__close--solution {
-    display: none;
+    top: clamp(24px, 5vw, 38px);
+    right: 10px;
+    width: 34px;
+    height: 34px;
+    border-color: rgb(142 111 85 / 38%);
+    background: transparent;
+    color: #8e6f55;
+    font-size: 1.15rem;
+    opacity: 0.8;
+  }
+
+  .game-help-panel__close--solution:hover {
+    background: var(--blue);
+    color: var(--yellow);
+    opacity: 1;
   }
 
   .game-graph__scroll-hint {
-    margin: 0 0 5px;
+    margin: 8px 0 0;
     color: #8e6f55;
     font-size: 0.68rem;
     line-height: 1.2;
-    text-align: right;
+    text-align: center;
   }
 
   .game-help-panel--solution .game-graph__viewport {
     height: auto;
     min-height: 0;
-    overflow-x: auto;
+    overflow-x: hidden;
     overflow-y: hidden;
     align-items: flex-start;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .game-graph__viewport--solution.game-graph__viewport--scrollable {
+    overflow-x: auto;
   }
 
   .game-graph__viewport--solution .game-graph__levels {
