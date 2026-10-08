@@ -1229,7 +1229,9 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
           </svg>
           <span>Faites glisser pour voir tout le graphe</span>
           <svg className="game-graph__scroll-arrow" viewBox="0 0 16 10" aria-hidden="true">
-            <path d="M1 5h14m-2.5-2.5L15 5l-2.5 2.5" />
+            <g transform="translate(16 0) scale(-1 1)">
+              <path d="M15 5H1M3.5 2.5 1 5l2.5 2.5" />
+            </g>
           </svg>
         </p>
       )}
