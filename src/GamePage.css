@@ -250,6 +250,7 @@
 .game-challenge__heading {
   grid-column: 1;
   grid-row: 1;
+  min-height: 58px;
 }
 
 .game-challenge__heading--constrained h2 {
@@ -854,6 +855,12 @@
   stroke-opacity: 0.16;
 }
 
+.game-graph__edge--forbidden {
+  stroke: #bd5140;
+  stroke-width: 2.2;
+  stroke-opacity: 1;
+}
+
 .game-graph__levels {
   position: relative;
   z-index: 1;
@@ -956,6 +963,42 @@
 .game-node--off-path {
   filter: grayscale(0.7);
   opacity: 0.44;
+}
+
+.game-graph__viewport--weekly .game-node--off-path:not(.game-node--hinted) {
+  opacity: 1;
+}
+
+.game-node--required:not(.game-node--start):not(.game-node--end) {
+  border: 2px solid var(--sand);
+  outline: 2px solid var(--yellow);
+  background: #fff5c7;
+}
+
+.game-node--required .game-node__copy small {
+  width: max-content;
+  padding: 2px 5px;
+  background: var(--yellow);
+  color: var(--blue);
+}
+
+.game-node--forbidden {
+  border: 2px dashed #bd5140;
+  background: #fff0eb;
+  color: var(--blue);
+  filter: none;
+  opacity: 1;
+  box-shadow: none;
+}
+
+.game-node--forbidden .game-node__copy strong {
+  text-decoration: line-through;
+  text-decoration-color: #bd5140;
+  text-decoration-thickness: 2px;
+}
+
+.game-node--forbidden .game-node__copy small {
+  color: #a44232;
 }
 
 .game-node__copy {
@@ -2188,5 +2231,232 @@
 
   .game-graph__viewport--solution .game-node__copy small {
     font-size: 0.52rem;
+  }
+}
+
+.game-challenge__heading--weekly {
+  align-self: stretch;
+  padding: 1px 5px;
+  border-left: 3px solid var(--yellow);
+  background: linear-gradient(120deg, rgb(222 212 31 / 17%), rgb(250 193 138 / 16%));
+}
+
+.game-challenge__heading--weekly > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 6px;
+  row-gap: 0;
+  width: 100%;
+}
+
+.game-challenge__heading--weekly h2 {
+  flex: 0 0 100%;
+  order: 1;
+  font-size: clamp(0.7rem, 1.1vw, 1.05rem);
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.game-section-kicker--weekly {
+  display: inline-flex;
+  flex: 0 0 auto;
+  order: 0;
+  margin-right: auto;
+  margin-bottom: 4px;
+  padding: 1px 4px;
+  background: var(--yellow);
+  color: var(--blue);
+  font-weight: 700;
+  font-size: clamp(0.44rem, 0.7vw, 0.54rem);
+}
+
+.game-challenge__heading--weekly .game-challenge__schedule {
+  flex: 0 0 auto;
+  order: 0;
+  align-self: center;
+  margin: 0 0 4px;
+  font-size: clamp(0.44rem, 0.7vw, 0.54rem);
+  line-height: 1.05;
+  text-align: right;
+}
+
+.game-weekly-rule-row {
+  display: flex;
+  flex: 0 0 100%;
+  order: 2;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.game-weekly-rule__prompt {
+  flex: 0 0 auto;
+  min-width: 0;
+  margin: 0;
+  color: #8e6f55;
+  font-size: clamp(0.42rem, 1.7vw, 0.54rem);
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.game-weekly-rule__prompt strong {
+  color: var(--violet);
+  font-weight: 700;
+}
+
+.game-weekly-rule {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  order: 3;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 0;
+  padding: 2px 7px 2px 10px;
+  border: 1px solid var(--sand);
+  border-left: 0;
+  background: #fff8d9;
+  color: var(--blue);
+  white-space: nowrap;
+}
+
+.game-weekly-rule::before {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  left: -1px;
+  width: 5px;
+  background: var(--yellow);
+  content: "";
+}
+
+.game-weekly-rule > * {
+  position: relative;
+  z-index: 1;
+}
+
+.game-weekly-rule__label {
+  flex: none;
+  padding: 2px 5px;
+  background: var(--yellow);
+  color: var(--blue);
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.game-weekly-rule__copy {
+  display: flex;
+  flex: none;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 0;
+  flex-direction: column;
+  white-space: nowrap;
+}
+
+.game-weekly-rule__copy strong {
+  flex: none;
+  font-size: 0.53rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.game-weekly-rule__copy small {
+  flex: none;
+  color: #8e6f55;
+  font-size: 0.43rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.game-weekly-rule--avoid {
+  border-color: #d89078;
+  border-left: 0;
+  background: #fff0eb;
+}
+
+.game-weekly-rule--avoid::before {
+  background: #bd5140;
+}
+
+.game-weekly-rule--avoid .game-weekly-rule__label {
+  background: #bd5140;
+  color: #fff;
+}
+
+.game-weekly-rule--avoid .game-weekly-rule__copy strong {
+  text-decoration: line-through;
+  text-decoration-color: #bd5140;
+  text-decoration-thickness: 2px;
+}
+
+@media (min-width: 768px) {
+  .game-challenge__heading--weekly {
+    align-items: flex-start;
+    padding-top: 5px;
+  }
+
+  .game-section-kicker--weekly,
+  .game-challenge__heading--weekly .game-challenge__schedule {
+    margin-bottom: 7px;
+  }
+}
+
+@media (max-width: 767px) {
+  .game-challenge__heading--weekly {
+    padding: 2px 4px;
+  }
+
+  .game-challenge__heading--weekly h2 {
+    font-size: 0.78rem;
+  }
+
+  .game-section-kicker--weekly,
+  .game-challenge__heading--weekly .game-challenge__schedule {
+    margin-bottom: 6px;
+  }
+
+  .game-challenge__heading--weekly > div {
+    column-gap: 4px;
+    row-gap: 0;
+  }
+
+  .game-weekly-rule {
+    gap: 4px;
+    margin-top: 0;
+    padding: 2px 5px 2px 8px;
+  }
+
+  .game-weekly-rule-row {
+    gap: 4px;
+  }
+
+  .game-weekly-rule__label {
+    padding: 1px 3px;
+    font-size: 0.46rem;
+  }
+
+  .game-weekly-rule__copy strong {
+    font-size: 0.44rem;
+  }
+
+  .game-weekly-rule__copy small {
+    font-size: 0.36rem;
+  }
+
+  .game-weekly-rule__prompt {
+    font-size: 0.43rem;
+  }
+
+  .game-challenge__heading--weekly .game-challenge__schedule {
+    font-size: 0.5rem;
   }
 }

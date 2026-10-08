@@ -586,7 +586,7 @@ function getStudentInitials(name) {
     .join(' ');
 }
 
-function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId, requiredId, shortestIds, shortestEdgeKeys, possibleIds, orderedIds, solutionLayout = false, ariaLabel = 'Graphe des personnes trouvées' }) {
+function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId, requiredId, forbiddenId = null, weeklyMode = false, shortestIds, shortestEdgeKeys, possibleIds, orderedIds, solutionLayout = false, ariaLabel = 'Graphe des personnes trouvées' }) {
   const viewportRef = useRef(null);
   const canvasRef = useRef(null);
   const planeRef = useRef(null);
@@ -1058,9 +1058,12 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
           d: chosenPath.d,
           shortest: shortestEdgeKeys.has(edgeKey),
           possible: possibleIds.has(edge.source) && possibleIds.has(edge.target),
+          forbiddenConnection: Boolean(forbiddenId && (
+            edge.source === forbiddenId || edge.target === forbiddenId
+          )),
         };
       });
-      const priority = (line) => (line.shortest ? 2 : line.possible ? 1 : 0);
+      const priority = (line) => (line.forbiddenConnection ? 3 : line.shortest ? 2 : line.possible ? 1 : 0);
       lines.sort((a, b) => priority(a) - priority(b) || a.key.localeCompare(b.key));
       setLayout((current) => {
         const closeEnough = (left, right, tolerance = 0.01) => Math.abs(left - right) < tolerance;
@@ -1080,6 +1083,7 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
             return previous.key === line.key
               && previous.shortest === line.shortest
               && previous.possible === line.possible
+              && previous.forbiddenConnection === line.forbiddenConnection
               && pathsCloseEnough(previous.d, line.d);
           });
         const unchanged = closeEnough(current.width, width)
@@ -1113,7 +1117,7 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
       observer.disconnect();
       cancelAnimationFrame(updateFrame);
     };
-  }, [graph.edges, graph.byId, visibleIds, renderedIds, groups, shortestEdgeKeys, possibleIds, widestPromoRow, solutionLayout]);
+  }, [graph.edges, graph.byId, visibleIds, renderedIds, groups, shortestEdgeKeys, possibleIds, widestPromoRow, solutionLayout, forbiddenId, startId, endId]);
 
   return (
     <>
@@ -1121,6 +1125,7 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
         ref={viewportRef}
         className={'game-graph__viewport'
           + (solutionLayout ? ' game-graph__viewport--solution' : '')
+          + (weeklyMode ? ' game-graph__viewport--weekly' : '')
           + (layout.horizontalScroll ? ' game-graph__viewport--scrollable' : '')}
         role="region"
         aria-label={ariaLabel + (mobileSolutionLayout && layout.horizontalScroll ? ', faites défiler horizontalement pour voir tout le graphe' : '')}
@@ -1152,7 +1157,8 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
                 d={line.d}
                 className={'game-graph__edge'
                   + (line.shortest ? ' game-graph__edge--shortest' : '')
-                  + (!line.possible ? ' game-graph__edge--off-path' : '')}
+                  + (!line.possible ? ' game-graph__edge--off-path' : '')
+                  + (line.forbiddenConnection ? ' game-graph__edge--forbidden' : '')}
               />
             ))}
           </svg>
@@ -1179,6 +1185,7 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
                       const isStart = student.id === startId;
                       const isEnd = student.id === endId;
                       const isRequired = student.id === requiredId;
+                      const isForbidden = student.id === forbiddenId;
                       const isShortest = shortestIds.has(student.id);
                       const isOffPath = !possibleIds.has(student.id);
                       const isHinted = ghostIds.has(student.id);
@@ -1195,6 +1202,7 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
                             + (isStart ? ' game-node--start' : '')
                             + (isEnd ? ' game-node--end' : '')
                             + (isRequired ? ' game-node--required' : '')
+                            + (isForbidden ? ' game-node--forbidden' : '')
                             + (isShortest ? ' game-node--shortest' : '')
                             + (isHinted ? ' game-node--hinted' : '')
                             + (isOffPath ? ' game-node--off-path' : '')
@@ -1202,13 +1210,15 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
                               : displayedName.length >= 18 ? ' game-node--long-name' : '')}
                           aria-label={isHinted
                             ? 'Indice : ' + getStudentInitials(student.name)
-                            : isRequired ? student.name + ', passage obligatoire' : undefined}
+                            : isForbidden ? student.name + ', interdit par la règle hebdomadaire'
+                              : isRequired ? student.name + ', passage obligatoire' : undefined}
                         >
                           {stepIndex > 0 && <span className="game-node__step" aria-hidden="true">{stepIndex}</span>}
                           <ShapeSwatch promo={student.promo} size={20} />
                           <span className="game-node__copy">
                             <strong>{displayedName}</strong>
                             {isRequired && <small>Passage obligatoire</small>}
+                            {isForbidden && <small>Interdit</small>}
                             {(isStart || isEnd) && <small>{isStart ? 'Départ' : 'Arrivée'}</small>}
                           </span>
                         </div>
@@ -1360,12 +1370,15 @@ export default function GamePage({ students, links }) {
   const requiredStudentId = challenge?.constraint?.type === 'through'
     ? challenge.constraint.studentId
     : null;
+  const forbiddenStudentId = challenge?.constraint?.type === 'avoid'
+    ? challenge.constraint.studentId
+    : null;
   const start = graph.byId.get(startId);
   const end = graph.byId.get(endId);
 
   const visibleIds = useMemo(
-    () => new Set([startId, endId, requiredStudentId, ...foundIds].filter(Boolean)),
-    [startId, endId, requiredStudentId, foundIds]
+    () => new Set([startId, endId, requiredStudentId, forbiddenStudentId, ...foundIds].filter(Boolean)),
+    [startId, endId, requiredStudentId, forbiddenStudentId, foundIds]
   );
   const shownNodes = useMemo(
     () => [...visibleIds].map((id) => graph.byId.get(id)).filter(Boolean),
@@ -1485,9 +1498,6 @@ export default function GamePage({ students, links }) {
       .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
       .slice(0, 8);
   }, [students, query, visibleIds]);
-  const forbiddenStudentId = challenge?.constraint?.type === 'avoid'
-    ? challenge.constraint.studentId
-    : null;
   const selectableSuggestions = useMemo(
     () => suggestions.filter((student) => student.id !== forbiddenStudentId),
     [suggestions, forbiddenStudentId]
@@ -1616,7 +1626,7 @@ export default function GamePage({ students, links }) {
   const ruleStudent = challenge?.constraint
     ? graph.byId.get(challenge.constraint.studentId)
     : null;
-  const challengeQuestion = ruleStudent
+  const challengeQuestion = ruleStudent && mode !== 'weekly'
     ? 'Peux-tu relier ces deux étudiants '
       + (challenge.constraint.type === 'through'
         ? 'en passant obligatoirement par '
@@ -1678,17 +1688,43 @@ export default function GamePage({ students, links }) {
         {challenge && start && end ? (
           <div className="game-layout">
             <section className="game-challenge" aria-labelledby="game-challenge-title">
-              <div className={'game-challenge__heading' + (challenge?.constraint ? ' game-challenge__heading--constrained' : '')}>
+              <div className={'game-challenge__heading'
+                + (challenge?.constraint && mode !== 'weekly' ? ' game-challenge__heading--constrained' : '')
+                + (mode === 'weekly' ? ' game-challenge__heading--weekly' : '')}>
                 <div>
-                  <p className="game-section-kicker">{pairLabel}</p>
+                  <p className={'game-section-kicker' + (mode === 'weekly' ? ' game-section-kicker--weekly' : '')}>{pairLabel}</p>
+                  {mode === 'weekly' && (
+                    <p className="game-challenge__schedule">{formatWeeklyReset(challengeClock)}</p>
+                  )}
                   <h2 id="game-challenge-title">{challengeQuestion}</h2>
+                  {mode === 'weekly' && ruleStudent && (
+                    <div className="game-weekly-rule-row">
+                      <p className="game-weekly-rule__prompt">
+                        {challenge.constraint.type === 'through' ? 'En passant par ' : 'Sans passer par '}
+                        <strong>{ruleStudent.name}</strong>
+                      </p>
+                      <div
+                        className={'game-weekly-rule'
+                          + (challenge.constraint.type === 'avoid' ? ' game-weekly-rule--avoid' : '')}
+                        role="note"
+                      >
+                        <span className="game-weekly-rule__label">
+                          {challenge.constraint.type === 'through' ? 'Obligatoire' : 'Interdit'}
+                        </span>
+                        <ShapeSwatch promo={ruleStudent.promo} size={14} />
+                        <span className="game-weekly-rule__copy">
+                          <strong>{ruleStudent.name}</strong>
+                          <small>{challenge.constraint.type === 'through'
+                            ? 'À inclure dans la chaîne'
+                            : 'À ne pas ajouter à la chaîne'}</small>
+                        </span>
+                      </div>
+                    </div>
+                  )}
                   {mode === 'daily' && (
                     <p className="game-challenge__schedule">
                       Prochain défi dans {formatCountdown(getNextParisNoon(challengeClock) - challengeClock.getTime())}
                     </p>
-                  )}
-                  {mode === 'weekly' && (
-                    <p className="game-challenge__schedule">{formatWeeklyReset(challengeClock)}</p>
                   )}
                 </div>
               </div>
@@ -1728,6 +1764,8 @@ export default function GamePage({ students, links }) {
                 startId={startId}
                 endId={endId}
                 requiredId={requiredStudentId}
+                forbiddenId={forbiddenStudentId}
+                weeklyMode={mode === 'weekly'}
                 shortestIds={shortestIds}
                 shortestEdgeKeys={shortestEdgeKeys}
                 possibleIds={graphPossibleIds}
@@ -1846,7 +1884,7 @@ export default function GamePage({ students, links }) {
                 </button>
               )}
               {mode === 'weekly' && (
-                <button type="button" className="btn btn--ghost" onClick={generateWeeklyPreview} hidden>
+                <button type="button" className="btn btn--ghost" onClick={generateWeeklyPreview}>
                   Générer un autre défi hebdo
                 </button>
               )}
