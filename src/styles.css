@@ -427,6 +427,24 @@ video {
 .controls__actions .game-launch,
 .controls__actions .admin-access__button {
   background: var(--blue);
+  color: var(--yellow);
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.controls .global-view-control:is(:hover, :focus-visible, :active),
+.controls .legend-disclosure__standalone:is(:hover, :focus-visible, :active),
+.controls .legend-disclosure__target:is(:hover, :focus-visible, :active),
+.controls .contact-info__button:is(:hover, :focus-visible, :active),
+.controls__actions .game-launch:is(:hover, :focus-visible, :active),
+.controls__actions .admin-access__button:not(:disabled):is(:hover, :focus-visible, :active) {
+  background: var(--yellow);
+  color: var(--blue);
+}
+
+.controls .contact-info__button:is(:hover, :focus-visible, :active) {
+  border-color: var(--sand);
+  background: var(--sand);
+  color: var(--blue);
 }
 
 .contact-info__overlay {

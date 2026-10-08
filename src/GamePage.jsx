@@ -7,6 +7,40 @@ import { describePromo, formatStudentAffiliations } from './lib/promo';
 import './GamePage.css';
 
 const endpointId = (value) => (typeof value === 'object' ? value.id : value);
+const EMPTY_GRAPH_HINTS = Object.freeze([]);
+// Années d'entrée fixes ; describePromo recalcule automatiquement les niveaux IT chaque année.
+const HELP_EXAMPLE_NODES = Object.freeze([
+  Object.freeze({ id: 'help-mael', name: 'Maël QUILLAT', promo: 2023 }),
+  Object.freeze({ id: 'help-tom', name: 'Tom CADARIO', promo: 2024 }),
+  Object.freeze({ id: 'help-louisa', name: 'Louisa REMAUD', promo: 2025 }),
+  Object.freeze({ id: 'help-mamadou', name: 'Mamadou CISSE', promo: 2025 }),
+  Object.freeze({ id: 'help-jules', name: 'Jules HOUSEZ', promo: 2026 }),
+]);
+const HELP_EXAMPLE_EDGES = Object.freeze([
+  Object.freeze({ source: 'help-mael', target: 'help-tom' }),
+  Object.freeze({ source: 'help-tom', target: 'help-louisa' }),
+  Object.freeze({ source: 'help-tom', target: 'help-mamadou' }),
+  Object.freeze({ source: 'help-louisa', target: 'help-jules' }),
+]);
+const HELP_EXAMPLE_GRAPH = (() => {
+  const byId = new Map(HELP_EXAMPLE_NODES.map((node) => [node.id, node]));
+  const adjacency = new Map(HELP_EXAMPLE_NODES.map(({ id }) => [id, new Set()]));
+  HELP_EXAMPLE_EDGES.forEach(({ source, target }) => {
+    adjacency.get(source).add(target);
+    adjacency.get(target).add(source);
+  });
+  return { byId, adjacency, edges: HELP_EXAMPLE_EDGES };
+})();
+const HELP_EXAMPLE_START_ID = 'help-mael';
+const HELP_EXAMPLE_END_ID = 'help-jules';
+const HELP_EXAMPLE_SHORTEST_IDS = new Set(['help-mael', 'help-tom', 'help-louisa', 'help-jules']);
+const HELP_EXAMPLE_SHORTEST_EDGE_KEYS = new Set([
+  ['help-mael', 'help-tom'].sort().join('|'),
+  ['help-tom', 'help-louisa'].sort().join('|'),
+  ['help-louisa', 'help-jules'].sort().join('|'),
+]);
+const HELP_EXAMPLE_POSSIBLE_IDS = HELP_EXAMPLE_SHORTEST_IDS;
+const HELP_EXAMPLE_ORDERED_IDS = Object.freeze(['help-mael', 'help-tom', 'help-louisa', 'help-mamadou', 'help-jules']);
 const endpointNameClass = (name) => {
   const length = String(name ?? '').length;
   return length >= 26
@@ -552,7 +586,7 @@ function getStudentInitials(name) {
     .join(' ');
 }
 
-function GameGraph({ graph, nodes, hintNodes = [], startId, endId, requiredId, shortestIds, shortestEdgeKeys, possibleIds, orderedIds, solutionLayout = false, ariaLabel = 'Graphe des personnes trouvées' }) {
+function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId, requiredId, shortestIds, shortestEdgeKeys, possibleIds, orderedIds, solutionLayout = false, ariaLabel = 'Graphe des personnes trouvées' }) {
   const viewportRef = useRef(null);
   const canvasRef = useRef(null);
   const planeRef = useRef(null);
@@ -581,8 +615,8 @@ function GameGraph({ graph, nodes, hintNodes = [], startId, endId, requiredId, s
     .filter((node) => !visibleIds.has(node.id))
     .map((node) => node.id)), [hintNodes, visibleIds]);
   const stepNumbers = useMemo(
-    () => orderedIds ? new Map(orderedIds.map((id, index) => [id, index + 1])) : null,
-    [orderedIds]
+    () => (solutionLayout && orderedIds) ? new Map(orderedIds.map((id, index) => [id, index + 1])) : null,
+    [orderedIds, solutionLayout]
   );
   const groups = useMemo(() => {
     const orderIndex = orderedIds ? new Map(orderedIds.map((id, index) => [id, index])) : null;
@@ -796,6 +830,9 @@ function GameGraph({ graph, nodes, hintNodes = [], startId, endId, requiredId, s
   }, [nodes, renderedNodes, graph.edges, graph.adjacency, graph.byId, orderedIds]);
 
   const widestPromoRow = Math.max(1, ...groups.map(([, members]) => members.length));
+  const mobileSolutionLayout = solutionLayout
+    && typeof window !== 'undefined'
+    && window.innerWidth <= 767;
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
@@ -806,21 +843,22 @@ function GameGraph({ graph, nodes, hintNodes = [], startId, endId, requiredId, s
     const update = () => {
       const availableWidth = Math.max(1, viewport.clientWidth);
       const availableHeight = Math.max(1, viewport.clientHeight);
-      const compact = availableWidth <= 560;
-      const compactSolution = solutionLayout && availableWidth <= 767;
-      const titleColumnWidth = compactSolution ? 84 : compact ? 0 : 128;
-      const titleGap = compactSolution ? 6 : compact ? 0 : 12;
-      const edgeGutter = compact ? 40 : 72;
-      const nodeSlotWidth = compact ? 112 : compactSolution ? 150 : 238;
+      const compact = window.innerWidth <= 767;
+      const compactSolution = solutionLayout && window.innerWidth <= 767;
+      const mobileSolution = compactSolution && compact;
+      const titleColumnWidth = mobileSolution ? 0 : compactSolution ? 84 : compact ? 0 : 128;
+      const titleGap = mobileSolution ? 0 : compactSolution ? 6 : compact ? 0 : 12;
+      const edgeGutter = mobileSolution ? 24 : compact ? 40 : 72;
+      const nodeSlotWidth = mobileSolution ? 120 : compactSolution ? 150 : compact ? 112 : 238;
       plane.style.setProperty('--game-node-width', `${nodeSlotWidth}px`);
       const columnGap = compact || compactSolution ? 8 : 14;
       const nodeAreaWidth = widestPromoRow * nodeSlotWidth
         + Math.max(0, widestPromoRow - 1) * columnGap
         + edgeGutter;
       const planeWidth = Math.max(availableWidth, titleColumnWidth + titleGap + nodeAreaWidth);
-      const width = Math.max(1, plane.offsetWidth, planeWidth);
+      const width = Math.max(1, mobileSolution ? availableWidth : plane.offsetWidth, planeWidth);
       const height = Math.max(1, plane.offsetHeight);
-      const scale = Math.min(1, availableWidth / width, availableHeight / height);
+      const scale = mobileSolution ? 1 : Math.min(1, availableWidth / width, availableHeight / height);
       const planeRect = plane.getBoundingClientRect();
       const renderedScale = scaleRef.current || 1;
       const obstacles = Array.from(nodeRefs.current.entries())
@@ -1069,7 +1107,13 @@ function GameGraph({ graph, nodes, hintNodes = [], startId, endId, requiredId, s
   }, [graph.edges, graph.byId, visibleIds, renderedIds, groups, shortestEdgeKeys, possibleIds, widestPromoRow, solutionLayout]);
 
   return (
-    <div ref={viewportRef} className={'game-graph__viewport' + (solutionLayout ? ' game-graph__viewport--solution' : '')} role="region" aria-label={ariaLabel}>
+    <>
+      <div
+        ref={viewportRef}
+        className={'game-graph__viewport' + (solutionLayout ? ' game-graph__viewport--solution' : '')}
+        role="region"
+        aria-label={ariaLabel + (mobileSolutionLayout && widestPromoRow > 2 ? ', faites défiler horizontalement pour voir tout le graphe' : '')}
+      >
       <div
         ref={canvasRef}
         className="game-graph__canvas"
@@ -1166,7 +1210,11 @@ function GameGraph({ graph, nodes, hintNodes = [], startId, endId, requiredId, s
           </div>
         </div>
       </div>
-    </div>
+      </div>
+      {mobileSolutionLayout && widestPromoRow > 2 && (
+        <p className="game-graph__scroll-hint">Fais glisser pour voir tout le graphe&nbsp;↔</p>
+      )}
+    </>
   );
 }
 
@@ -1210,9 +1258,8 @@ export default function GamePage({ students, links }) {
   useEffect(() => {
     if (!activePanel) return undefined;
     const focusPanel = () => {
-      const compactHelpPanel = activePanel === 'help'
-        && window.matchMedia('(max-width: 767px)').matches;
-      if (compactHelpPanel) panelRef.current?.focus();
+      const compactPanel = window.matchMedia('(max-width: 767px)').matches;
+      if (compactPanel) panelRef.current?.focus();
       else panelCloseRef.current?.focus();
     };
     const handlePanelKeyDown = (event) => {
@@ -1817,7 +1864,9 @@ export default function GamePage({ students, links }) {
           >
             <section
               ref={panelRef}
-              className={'game-help-panel' + (activePanel === 'solution' ? ' game-help-panel--solution' : '')}
+              className={'game-help-panel'
+                + (activePanel === 'solution' ? ' game-help-panel--solution' : '')
+                + (activePanel === 'help' ? ' game-help-panel--help' : '')}
               role="dialog"
               aria-modal="true"
               aria-labelledby="game-panel-title"
@@ -1826,7 +1875,9 @@ export default function GamePage({ students, links }) {
               <button
                 ref={panelCloseRef}
                 type="button"
-                className={'game-help-panel__close' + (activePanel === 'help' ? ' game-help-panel__close--help' : '')}
+                className={'game-help-panel__close'
+                  + (activePanel === 'help' ? ' game-help-panel__close--help' : '')
+                  + (activePanel === 'solution' ? ' game-help-panel__close--solution' : '')}
                 onClick={() => setActivePanel(null)}
                 aria-label="Fermer le panneau"
               >
@@ -1837,61 +1888,33 @@ export default function GamePage({ students, links }) {
                   <p className="game-section-kicker">Règles</p>
                   <h2 id="game-panel-title">Comment jouer&nbsp;?</h2>
                   <ol>
-                    <li>Choisis des noms dans la recherche pour compléter la chaîne.</li>
-                    <li>Les traits montrent les liens directs entre les étudiants affichés.</li>
-                    <li>Les symboles indiquent leur promotion. Le jaune marque le chemin le plus court, les nœuds grisés ne sont sur aucun chemin possible.</li>
-                    <li>La question indique si un étudiant est obligatoire ou interdit.</li>
-                    <li>Tu gagnes dès qu’un chemin continu relie le départ à l’arrivée.</li>
+                    <li>Relie l'étudiant de départ et d'arrivée.</li>
+                    <li>Trouve des liens parmi les familles de l'école.</li>
+                    <li>Le lien est jaune si c'est le chemin le plus court.</li>
+                    <li>Plusieurs chemins peuvent exister.</li>
+                    <li>Tu gagnes dès qu'un chemin continu relie le départ et l'arrivée.</li>
                   </ol>
-                  <section className="game-help-example" aria-labelledby="game-help-example-title">
-                    <h3 id="game-help-example-title">Exemple de parcours</h3>
-                    <div className="game-help-example__scroll">
-                      <div className="game-help-example__diagram">
-                        <svg viewBox="0 0 1040 308" preserveAspectRatio="none" aria-hidden="true">
-                          <path className="game-help-example__path" d="M 236 58 L 284 58 M 496 58 L 544 58 M 756 58 L 804 58" />
-                          <path className="game-help-example__detour" d="M 390 116 L 390 172" />
-                        </svg>
-                        <div className="game-help-example__nodes">
-                          <div className="game-help-example__node game-help-example__node--endpoint">
-                            <small>Départ</small><strong>Maël QUILLAT</strong>
-                          </div>
-                          <div className="game-help-example__node"><strong>Tom CADARIO</strong></div>
-                          <div className="game-help-example__node"><strong>Louisa REMAUD</strong></div>
-                          <div className="game-help-example__node game-help-example__node--endpoint">
-                            <small>Arrivée</small><strong>Jules HOUSEZ</strong>
-                          </div>
-                          <div className="game-help-example__node game-help-example__node--dead-end">
-                            <strong>Mamadou CISSE</strong><small>Impasse</small>
-                          </div>
-                        </div>
+                  <section className="game-help-example game-graph" aria-labelledby="game-help-example-title">
+                    <header className="game-graph__header game-help-example__header">
+                      <div><h3 id="game-help-example-title">Exemple de parcours</h3></div>
+                      <div className="game-graph__legend" aria-label="Légende de l'exemple">
+                        <span className="game-graph__legend-item"><i aria-hidden="true" /> Lien de famille</span>
+                        <span className="game-graph__legend-item"><i className="game-graph__legend-shortest" aria-hidden="true" /> Chemin le plus court</span>
+                        <span className="game-graph__legend-item"><i className="game-graph__legend-off-path" aria-hidden="true" /> Hors chemin</span>
                       </div>
-                    </div>
-                    <div className="game-help-example__mobile" aria-label="Parcours Maël QUILLAT, Tom CADARIO, puis Louisa REMAUD et Mamadou CISSE au même niveau, avant Jules HOUSEZ">
-                      <div className="game-help-example__mobile-node game-help-example__mobile-node--start">
-                        <small>Départ</small><strong>Maël QUILLAT</strong>
-                      </div>
-                      <span className="game-help-example__mobile-link game-help-example__mobile-link--first" aria-hidden="true" />
-                      <div className="game-help-example__mobile-node game-help-example__mobile-node--tom">
-                        <strong>Tom CADARIO</strong>
-                      </div>
-                      <span className="game-help-example__mobile-link game-help-example__mobile-link--second" aria-hidden="true" />
-                      <svg className="game-help-example__mobile-branch-link" viewBox="0 0 100 12" preserveAspectRatio="none" aria-hidden="true">
-                        <path d="M25 0 L75 12" />
-                      </svg>
-                      <div className="game-help-example__mobile-branch">
-                        <div className="game-help-example__mobile-node game-help-example__mobile-node--louisa">
-                          <strong>Louisa REMAUD</strong>
-                        </div>
-                        <div className="game-help-example__mobile-node game-help-example__mobile-node--dead-end">
-                          <strong>Mamadou CISSE</strong><small>Impasse</small>
-                        </div>
-                      </div>
-                      <span className="game-help-example__mobile-link game-help-example__mobile-link--third" aria-hidden="true" />
-                      <div className="game-help-example__mobile-node game-help-example__mobile-node--end">
-                        <small>Arrivée</small><strong>Jules HOUSEZ</strong>
-                      </div>
-                    </div>
-                    <p>Le chemin jaune relie le départ à l’arrivée. La branche vers Mamadou CISSE est une impasse.</p>
+                    </header>
+                    <GameGraph
+                      graph={HELP_EXAMPLE_GRAPH}
+                      nodes={HELP_EXAMPLE_NODES}
+                      startId={HELP_EXAMPLE_START_ID}
+                      endId={HELP_EXAMPLE_END_ID}
+                      requiredId={null}
+                      shortestIds={HELP_EXAMPLE_SHORTEST_IDS}
+                      shortestEdgeKeys={HELP_EXAMPLE_SHORTEST_EDGE_KEYS}
+                      possibleIds={HELP_EXAMPLE_POSSIBLE_IDS}
+                      orderedIds={HELP_EXAMPLE_ORDERED_IDS}
+                      ariaLabel="Graphe d'exemple"
+                    />
                   </section>
                 </>
               ) : (
