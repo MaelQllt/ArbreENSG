@@ -882,7 +882,7 @@
 .game-graph__level + .game-graph__level::before {
   position: absolute;
   top: 0;
-  right: 0;
+  right: calc(0px - var(--graph-title-align-offset, 0px));
   left: 0;
   height: 2px;
   background: radial-gradient(circle at 1px 1px, rgb(142 111 85 / 45%) 0 0.65px, transparent 0.8px) 0 0 / 7px 2px repeat-x;
@@ -892,12 +892,15 @@
 .game-graph__level-title {
   display: flex;
   align-items: center;
+  justify-self: start;
+  justify-content: flex-start;
   gap: 6px;
   width: auto;
   max-width: 100%;
   color: #8e6f55;
   font-size: 0.74rem;
   font-weight: 700;
+  text-align: left;
 }
 
 .game-graph__level-title .brand-divider {
@@ -967,6 +970,15 @@
 
 .game-graph__viewport--weekly .game-node--off-path:not(.game-node--hinted) {
   opacity: 1;
+}
+
+.game-graph__viewport--practice .game-node--off-path:not(.game-node--hinted) {
+  opacity: 1;
+}
+
+.game-graph__viewport--weekly .game-graph__edge--off-path,
+.game-graph__viewport--practice .game-graph__edge--off-path {
+  stroke-opacity: 0.75;
 }
 
 .game-node--required:not(.game-node--start):not(.game-node--end) {
@@ -2458,5 +2470,46 @@
 
   .game-challenge__heading--weekly .game-challenge__schedule {
     font-size: 0.5rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .game-graph__viewport:not(.game-graph__viewport--solution) .game-graph__level {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: start;
+    row-gap: 8px;
+  }
+
+  .game-graph__viewport:not(.game-graph__viewport--solution) .game-graph__level-title {
+    position: relative;
+    z-index: 2;
+    grid-column: 1;
+    grid-row: 1;
+    width: fit-content;
+    max-width: 100%;
+    padding: 1px 8px 1px 0;
+    background: var(--paper);
+    font-size: clamp(0.5rem, 2.4vw, 0.64rem);
+    gap: clamp(3px, 0.8vw, 6px);
+  }
+
+  .game-graph__viewport:not(.game-graph__viewport--solution) .game-graph__level-title .brand-divider {
+    width: clamp(14px, 4vw, 18px);
+  }
+
+  .game-graph__viewport:not(.game-graph__viewport--solution) .game-graph__nodes {
+    position: relative;
+    z-index: 1;
+    grid-column: 1;
+    grid-row: 2;
+    min-width: 0;
+  }
+}
+
+@media (min-width: 768px) {
+  .game-graph__viewport:not(.game-graph__viewport--solution) .game-graph__level-title {
+    transform: translateX(calc(-1 * var(--graph-title-align-offset, 0px)));
   }
 }

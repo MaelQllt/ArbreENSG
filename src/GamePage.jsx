@@ -586,7 +586,7 @@ function getStudentInitials(name) {
     .join(' ');
 }
 
-function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId, requiredId, forbiddenId = null, weeklyMode = false, shortestIds, shortestEdgeKeys, possibleIds, orderedIds, solutionLayout = false, ariaLabel = 'Graphe des personnes trouvées' }) {
+function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId, requiredId, forbiddenId = null, weeklyMode = false, practiceMode = false, shortestIds, shortestEdgeKeys, possibleIds, orderedIds, solutionLayout = false, ariaLabel = 'Graphe des personnes trouvées' }) {
   const viewportRef = useRef(null);
   const canvasRef = useRef(null);
   const planeRef = useRef(null);
@@ -866,6 +866,11 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
       const width = Math.max(1, mobileSolution ? availableWidth : plane.offsetWidth, planeWidth);
       const height = Math.max(1, plane.offsetHeight);
       const scale = mobileSolution ? 1 : Math.min(1, availableWidth / width, availableHeight / height);
+      const centeredInset = Math.max(0, (availableWidth - width * scale) / 2);
+      plane.style.setProperty(
+        '--graph-title-align-offset',
+        `${scale ? centeredInset / scale : 0}px`
+      );
       const planeRect = plane.getBoundingClientRect();
       const renderedScale = scaleRef.current || 1;
       const obstacles = Array.from(nodeRefs.current.entries())
@@ -1126,6 +1131,7 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
         className={'game-graph__viewport'
           + (solutionLayout ? ' game-graph__viewport--solution' : '')
           + (weeklyMode ? ' game-graph__viewport--weekly' : '')
+          + (practiceMode ? ' game-graph__viewport--practice' : '')
           + (layout.horizontalScroll ? ' game-graph__viewport--scrollable' : '')}
         role="region"
         aria-label={ariaLabel + (mobileSolutionLayout && layout.horizontalScroll ? ', faites défiler horizontalement pour voir tout le graphe' : '')}
@@ -1766,6 +1772,7 @@ export default function GamePage({ students, links }) {
                 requiredId={requiredStudentId}
                 forbiddenId={forbiddenStudentId}
                 weeklyMode={mode === 'weekly'}
+                practiceMode={mode === 'practice'}
                 shortestIds={shortestIds}
                 shortestEdgeKeys={shortestEdgeKeys}
                 possibleIds={graphPossibleIds}
