@@ -4,6 +4,7 @@ import BrandDivider from './components/BrandDivider';
 import ShapeSwatch from './components/ShapeSwatch';
 import TopoBackground, { TopoDivider } from './components/TopoBackground';
 import { describePromo, formatStudentAffiliations } from './lib/promo';
+import { normalizeStudentSearch as normalizeName, searchStudentsByName } from './lib/studentSearch';
 import './GamePage.css';
 
 const endpointId = (value) => (typeof value === 'object' ? value.id : value);
@@ -629,9 +630,6 @@ function getChallenge(gameGraph, mode, practiceSeed, round, periodKey, weeklyVar
     findPath(gameGraph.adjacency, pair.startId, pair.endId)
   );
 }
-
-const normalizeName = (value) =>
-  value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr').trim();
 
 function getStudentInitials(name) {
   const [firstName, ...surnameParts] = name.trim().split(/\s+/);
@@ -1672,15 +1670,9 @@ export default function GamePage({ students, links }) {
   ), [lost, possibleIds, shortestPath]);
 
   const suggestions = useMemo(() => {
-    const normalized = normalizeName(query);
-    if (!normalized) return [];
-    return eligibleStudents
-      .filter((student) =>
-        !visibleIds.has(student.id)
-        && normalizeName(student.name).includes(normalized)
-      )
-      .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
-      .slice(0, 8);
+    if (!normalizeName(query)) return [];
+    const candidates = eligibleStudents.filter((student) => !visibleIds.has(student.id));
+    return searchStudentsByName(candidates, query).slice(0, 8);
   }, [eligibleStudents, query, visibleIds]);
   const selectableSuggestions = useMemo(
     () => suggestions.filter((student) => student.id !== forbiddenStudentId),
@@ -1928,6 +1920,15 @@ export default function GamePage({ students, links }) {
                   </button>
                   <button type="button" onClick={openPromoSettings}>
                     Mode de jeu
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setActivePanel('account');
+                    }}
+                  >
+                    Compte
                   </button>
                 </div>
               )}
@@ -2300,6 +2301,12 @@ export default function GamePage({ students, links }) {
                       Appliquer
                     </button>
                   </div>
+                </>
+              ) : activePanel === 'account' ? (
+                <>
+                  <p className="game-section-kicker">Compte</p>
+                  <h2 id="game-panel-title">Compte</h2>
+                  <p className="game-promo-settings__intro">Le contenu de cette section sera défini prochainement.</p>
                 </>
               ) : activePanel === 'archive' ? (
                 <>

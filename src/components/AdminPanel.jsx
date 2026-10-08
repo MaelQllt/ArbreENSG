@@ -7,6 +7,7 @@ import {
 } from '../lib/promo';
 import { buildFamilyWorkbook } from '../lib/xlsxWorkbook';
 import { importFamilyWorkbook } from '../lib/xlsxImport';
+import { searchStudentsByName } from '../lib/studentSearch';
 import BrandDivider from './BrandDivider';
 import {
   createFamilyDataVersion,
@@ -79,11 +80,7 @@ function StudentSelect({ id, label, students, value, onChange, disabled = false,
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const selected = students.find((student) => student.id === value);
-  const normalizedQuery = query.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr').trim();
-  const filteredStudents = students.filter((student) => {
-    const searchable = student.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr');
-    return searchable.includes(normalizedQuery);
-  });
+  const filteredStudents = searchStudentsByName(students, query);
   const activeStudent = filteredStudents[activeIndex] ?? filteredStudents[0];
 
   useEffect(() => {
@@ -215,8 +212,7 @@ function StudentMultiSelect({ id, label, students, selectedIds, onChange, emptyL
   const [query, setQuery] = useState('');
   const selectedSet = new Set(selectedIds);
   const selectedStudents = students.filter((student) => selectedSet.has(student.id));
-  const normalizedQuery = normalizeOptionText(query);
-  const filteredStudents = students.filter((student) => normalizeOptionText(student.name).includes(normalizedQuery));
+  const filteredStudents = searchStudentsByName(students, query);
 
   useEffect(() => {
     if (!open) return undefined;

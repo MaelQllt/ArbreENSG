@@ -1,13 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatStudentAffiliations } from '../lib/promo';
+import { normalizeStudentSearch, searchStudentsByName } from '../lib/studentSearch';
 import { promoStyle } from '../theme';
 import BrandDivider from './BrandDivider';
-
-const normalize = (value) => value
-  .normalize('NFD')
-  .replace(/[\u0300-\u036f]/g, '')
-  .toLocaleLowerCase('fr')
-  .trim();
 
 function SearchOption({ student }) {
   const { color } = promoStyle(student.promo);
@@ -30,14 +25,13 @@ export default function StudentSearch({ students, onSelect, onActivate }) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const listId = 'student-search-options';
-  const normalizedQuery = normalize(query);
+  const normalizedQuery = normalizeStudentSearch(query);
 
   const results = useMemo(() => {
     if (!normalizedQuery) return [];
-    return [...students]
-      .filter((student) => normalize(`${student.name} ${formatStudentAffiliations(student)} ${student.filiere ?? student.parcours ?? ''}`).includes(normalizedQuery))
-      .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
-      .slice(0, 8);
+    return searchStudentsByName(students, normalizedQuery, (student) =>
+      `${formatStudentAffiliations(student)} ${student.filiere ?? student.parcours ?? ''}`
+    ).slice(0, 8);
   }, [students, normalizedQuery]);
 
   useEffect(() => {
