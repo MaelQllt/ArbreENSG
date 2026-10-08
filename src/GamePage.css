@@ -2091,6 +2091,11 @@
 
   .game-graph__viewport--solution.game-graph__viewport--scrollable {
     overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  .game-graph__viewport--solution.game-graph__viewport--scrollable .game-graph__canvas {
+    justify-content: flex-start;
   }
 
   .game-graph__viewport--solution .game-graph__levels {

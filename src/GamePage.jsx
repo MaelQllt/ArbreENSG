@@ -1223,7 +1223,7 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
       </div>
       </div>
       {mobileSolutionLayout && layout.horizontalScroll && (
-        <p className="game-graph__scroll-hint">↔ glisser pour voir tout le graphe ↔</p>
+        <p className="game-graph__scroll-hint">Faites glisser pour voir tout le graphe</p>
       )}
     </>
   );
