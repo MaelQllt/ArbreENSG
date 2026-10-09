@@ -16,9 +16,7 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [deleteStudentRequest, setDeleteStudentRequest] = useState(null);
   const [quickAddRequest, setQuickAddRequest] = useState(null);
-  const [showLegend, setShowLegend] = useState(() =>
-    typeof window === 'undefined' || !window.matchMedia('(max-width: 767px)').matches
-  );
+  const [showLegend, setShowLegend] = useState(false);
   const [showWarnings, setShowWarnings] = useState(false);
   const [showContactInfo, setShowContactInfo] = useState(false);
   const [resetTick, setResetTick] = useState(0);
@@ -355,10 +353,10 @@ export default function App() {
             tabIndex={-1}
           >
             <h2 id="contact-info-title">
-              <span className="contact-info__title-desktop">Vous avez repéré un problème&nbsp;?</span>
+              <span className="contact-info__title-desktop">Un problème&nbsp;?</span>
               <span className="contact-info__title-mobile">Une erreur&nbsp;?</span>
             </h2>
-            <p>Un lien manque ou vous avez repéré une autre erreur&nbsp;? Vous pouvez contacter le BDE.</p>
+            <p>Un lien manque ou vous avez repéré une autre erreur&nbsp;?<br />Vous pouvez contacter le BDE.</p>
           </section>
         </div>
       )}

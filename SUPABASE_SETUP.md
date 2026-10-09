@@ -15,7 +15,10 @@ les données sans ce rôle.
 4. Dans le même SQL Editor, exécute la dernière commande du fichier après avoir
    remplacé `REMPLACER_PAR_UUID` par l'UUID copié à l'étape 2.
    Pour un projet qui avait déjà reçu l'ancien `schema.sql`, exécute aussi
-   `supabase/versioned_exports.sql` une seule fois afin d'activer les exports versionnés.
+   `supabase/versioned_exports.sql` une seule fois afin d'activer les exports versionnés,
+   puis `supabase/game_challenge_archives.sql` une seule fois pour figer les défis
+   archivés. Sans ce dernier script, l'application fonctionne mais les anciens défis
+   sont recalculés à partir du graphe courant au lieu d'être conservés.
 5. Depuis **Project Settings > API Keys** (ou le bouton **Connect** du projet),
    copie l'URL du projet et sa clé `publishable`.
 6. Dans le dossier du projet, copie `.env.example` en `.env.local`, décommente

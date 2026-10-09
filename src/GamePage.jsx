@@ -5,6 +5,7 @@ import ShapeSwatch from './components/ShapeSwatch';
 import TopoBackground, { TopoDivider } from './components/TopoBackground';
 import { describePromo, formatStudentAffiliations } from './lib/promo';
 import { normalizeStudentSearch as normalizeName, searchStudentsByName } from './lib/studentSearch';
+import { getGameChallengeArchive, saveGameChallengeArchive } from './lib/supabase';
 import './GamePage.css';
 
 const endpointId = (value) => (typeof value === 'object' ? value.id : value);
@@ -629,6 +630,18 @@ function getChallenge(gameGraph, mode, practiceSeed, round, periodKey, weeklyVar
     null,
     findPath(gameGraph.adjacency, pair.startId, pair.endId)
   );
+}
+
+function challengeArchiveKey(mode, periodKey, promoYears) {
+  return mode + ':' + periodKey + ':' + [...promoYears].map(Number).sort((a, b) => a - b).join(',');
+}
+
+async function getOrFreezeChallengeArchive(mode, periodKey, promoYears, challenge, graph) {
+  const scope = [...promoYears].map(Number).sort((a, b) => a - b).join(',');
+  const existing = await getGameChallengeArchive(mode, periodKey, scope);
+  if (existing) return existing;
+  if (!challenge) return null;
+  return saveGameChallengeArchive(mode, periodKey, promoYears, challenge, graph);
 }
 
 function getStudentInitials(name) {
@@ -1343,6 +1356,7 @@ export default function GamePage({ students, links }) {
   });
   const [archiveDate, setArchiveDate] = useState(null);
   const [archiveSelection, setArchiveSelection] = useState(null);
+  const [frozenChallengeArchives, setFrozenChallengeArchives] = useState({});
   const menuRef = useRef(null);
   const helpButtonRef = useRef(null);
   const promoModeButtonRef = useRef(null);
@@ -1443,7 +1457,7 @@ export default function GamePage({ students, links }) {
     [availablePromoYears, selectedPromoYears]
   );
   const playablePromoSet = useMemo(() => new Set(playablePromoYears), [playablePromoYears]);
-  const eligibleStudents = useMemo(
+  const currentEligibleStudents = useMemo(
     () => students.filter((student) => playablePromoSet.has(Number(student.promo))),
     [students, playablePromoSet]
   );
@@ -1457,7 +1471,33 @@ export default function GamePage({ students, links }) {
     () => draftPromoYears.length >= 3 && hasPlayableChallenge(draftStudents, links),
     [draftPromoYears, draftStudents, links]
   );
-  const activePromoLabels = playablePromoYears.map((promo) => describePromo(promo, challengeClock).label);
+  const currentGraph = useMemo(() => buildGameGraph(currentEligibleStudents, links), [currentEligibleStudents, links]);
+  const currentDailyPeriod = dailyPeriodKey(challengeClock);
+  const currentWeeklyPeriod = weeklyPeriodKey(challengeClock);
+  const challengePeriod = archiveSelection?.mode === mode
+    ? archiveSelection.periodKey
+    : mode === 'daily'
+      ? currentDailyPeriod
+      : mode === 'weekly'
+        ? currentWeeklyPeriod
+        : 'practice:' + practiceSeed + ':' + round;
+  const challengePromoYears = archiveSelection?.mode === mode && Array.isArray(archiveSelection.promoYears)
+    ? archiveSelection.promoYears
+    : playablePromoYears;
+  const challengePromoSet = useMemo(() => new Set(challengePromoYears.map(Number)), [challengePromoYears]);
+  const archiveKey = mode === 'practice' ? null : challengeArchiveKey(mode, challengePeriod, challengePromoYears);
+  const frozenArchive = archiveKey ? frozenChallengeArchives[archiveKey] ?? null : null;
+  const archiveGraphSnapshot = useMemo(() => ({
+    nodes: students.map((student) => ({ ...student })),
+    links: links.map((link) => ({ source: endpointId(link.source), target: endpointId(link.target) })),
+  }), [students, links]);
+  const graphSource = frozenArchive?.graph ?? archiveGraphSnapshot;
+  const eligibleStudents = useMemo(
+    () => graphSource.nodes.filter((student) => challengePromoSet.has(Number(student.promo))),
+    [graphSource, challengePromoSet]
+  );
+  const challengeLinks = graphSource.links;
+  const activePromoLabels = challengePromoYears.map((promo) => describePromo(promo, challengeClock).label);
   const activePromoLevels = activePromoLabels.map((label) => Number(label.match(/^IT(\d+)$/)?.[1]));
   const sortedPromoLevels = activePromoLevels.filter(Number.isFinite).sort((a, b) => a - b);
   const hasContiguousLevels = sortedPromoLevels.length === activePromoLabels.length
@@ -1465,7 +1505,7 @@ export default function GamePage({ students, links }) {
   const promoModeRange = hasContiguousLevels && sortedPromoLevels.length > 1
     ? ['IT' + sortedPromoLevels[0], 'IT' + sortedPromoLevels[sortedPromoLevels.length - 1]]
     : null;
-  const allPromosSelected = playablePromoYears.length === availablePromoYears.length;
+  const allPromosSelected = challengePromoYears.length === availablePromoYears.length;
   const promoModeLabel = allPromosSelected
     ? 'Toutes promos'
     : promoModeRange
@@ -1474,22 +1514,13 @@ export default function GamePage({ students, links }) {
         ? activePromoLabels.join(' · ')
         : activePromoLabels.length + ' promos';
   const promoModeAccessibleLabel = 'Promos du jeu : ' + promoModeLabel + '. Modifier la sélection.';
-  const graph = useMemo(() => buildGameGraph(eligibleStudents, links), [eligibleStudents, links]);
-  const currentDailyPeriod = dailyPeriodKey(challengeClock);
-  const currentWeeklyPeriod = weeklyPeriodKey(challengeClock);
+  const graph = useMemo(() => buildGameGraph(eligibleStudents, challengeLinks), [eligibleStudents, challengeLinks]);
   const weeklyChallengeAvailable = useMemo(
     () => Boolean(getChallenge(graph, 'weekly', practiceSeed, round, currentWeeklyPeriod)?.constraint),
     [graph, practiceSeed, round, currentWeeklyPeriod]
   );
   const todayKey = parisDateKey(challengeClock);
   const firstArchiveDate = '2026-09-01';
-  const challengePeriod = archiveSelection?.mode === mode
-    ? archiveSelection.periodKey
-    : mode === 'daily'
-      ? currentDailyPeriod
-      : mode === 'weekly'
-        ? currentWeeklyPeriod
-        : 'practice:' + practiceSeed + ':' + round;
   const archiveCalendarCells = getArchiveMonthCells(archiveMonth).map((periodKey) => {
     if (!periodKey) return null;
     const day = new Date(periodKey + 'T12:00:00Z');
@@ -1506,14 +1537,21 @@ export default function GamePage({ students, links }) {
   const canAdvanceArchiveMonth = archiveMonth.getUTCFullYear() < currentArchiveMonth.getUTCFullYear()
     || (archiveMonth.getUTCFullYear() === currentArchiveMonth.getUTCFullYear()
       && archiveMonth.getUTCMonth() < currentArchiveMonth.getUTCMonth());
-  const archiveChallenge = useMemo(
-    () => archiveDate
-      ? getChallenge(graph, archiveMode, 0, 0, archiveDate)
-      : null,
-    [graph, archiveMode, archiveDate]
-  );
-  const archiveStart = archiveChallenge ? graph.byId.get(archiveChallenge.startId) : null;
-  const archiveEnd = archiveChallenge ? graph.byId.get(archiveChallenge.endId) : null;
+  const archivePreviewKey = archiveDate
+    ? challengeArchiveKey(archiveMode, archiveDate, playablePromoYears)
+    : null;
+  const archivePreview = archivePreviewKey ? frozenChallengeArchives[archivePreviewKey] ?? null : null;
+  const archiveChallenge = archivePreview?.challenge ?? (archiveDate
+    ? getChallenge(currentGraph, archiveMode, 0, 0, archiveDate)
+    : null);
+  const archivePreviewGraph = useMemo(() => archivePreview
+    ? buildGameGraph(
+      archivePreview.graph.nodes.filter((student) => playablePromoYears.includes(Number(student.promo))),
+      archivePreview.graph.links
+    )
+    : currentGraph, [archivePreview, playablePromoYears, currentGraph]);
+  const archiveStart = archiveChallenge ? archivePreviewGraph.byId.get(archiveChallenge.startId) : null;
+  const archiveEnd = archiveChallenge ? archivePreviewGraph.byId.get(archiveChallenge.endId) : null;
   useEffect(() => {
     if (selectedPromoYears === null || playablePromoYears.length >= 3) return;
     setSelectedPromoYears(null);
@@ -1537,7 +1575,7 @@ export default function GamePage({ students, links }) {
     setActivePanel(null);
   }, [challengePeriod]);
 
-  const challenge = useMemo(
+  const generatedChallenge = useMemo(
     () => getChallenge(
       graph,
       mode,
@@ -1547,6 +1585,42 @@ export default function GamePage({ students, links }) {
     ),
     [graph, mode, practiceSeed, round, challengePeriod]
   );
+  const challenge = frozenArchive?.challenge ?? generatedChallenge;
+  useEffect(() => {
+    let cancelled = false;
+    const persistChallenge = async (snapshotMode, periodKey) => {
+      const candidate = getChallenge(currentGraph, snapshotMode, 0, 0, periodKey);
+      if (!candidate) return;
+      const key = challengeArchiveKey(snapshotMode, periodKey, playablePromoYears);
+      if (frozenChallengeArchives[key]) return;
+      try {
+        const record = await getOrFreezeChallengeArchive(
+          snapshotMode,
+          periodKey,
+          playablePromoYears,
+          candidate,
+          archiveGraphSnapshot
+        );
+        if (!cancelled && record) {
+          setFrozenChallengeArchives((current) => ({ ...current, [key]: record }));
+        }
+      } catch (error) {
+        console.warn('[défis] Impossible de charger ou figer l’archive :', error.message);
+      }
+    };
+    void Promise.all([
+      persistChallenge('daily', currentDailyPeriod),
+      persistChallenge('weekly', currentWeeklyPeriod),
+    ]);
+    return () => { cancelled = true; };
+  }, [
+    currentGraph,
+    currentDailyPeriod,
+    currentWeeklyPeriod,
+    playablePromoYears,
+    frozenChallengeArchives,
+    archiveGraphSnapshot,
+  ]);
   const startId = challenge?.startId;
   const endId = challenge?.endId;
   const requiredStudentId = challenge?.constraint?.type === 'through'
@@ -1707,15 +1781,50 @@ export default function GamePage({ students, links }) {
     setMenuOpen(false);
   };
 
+  const rememberChallengeArchive = (record) => {
+    if (!record?.mode || !record.period_key || !record.promo_years) return;
+    const key = challengeArchiveKey(record.mode, record.period_key, record.promo_years);
+    setFrozenChallengeArchives((current) => ({ ...current, [key]: record }));
+  };
+
+  const archiveChallengeForPeriod = async (archiveModeToLoad, periodKey, promoYears) => {
+    const key = challengeArchiveKey(archiveModeToLoad, periodKey, promoYears);
+    if (frozenChallengeArchives[key]) return frozenChallengeArchives[key];
+    const candidate = getChallenge(currentGraph, archiveModeToLoad, 0, 0, periodKey);
+    let record = null;
+    try {
+      record = await getOrFreezeChallengeArchive(
+        archiveModeToLoad,
+        periodKey,
+        promoYears,
+        candidate,
+        archiveGraphSnapshot
+      );
+    } catch (error) {
+      console.warn('[défis] Impossible de sauvegarder cette archive :', error.message);
+    }
+    if (!record && candidate) {
+      record = {
+        mode: archiveModeToLoad,
+        period_key: periodKey,
+        promo_years: [...promoYears],
+        challenge: candidate,
+        graph: archiveGraphSnapshot,
+      };
+    }
+    rememberChallengeArchive(record);
+    return record;
+  };
+
   const openPromoSettings = () => {
-    setPromoDraft([...playablePromoYears]);
+    setPromoDraft([...challengePromoYears]);
     setMenuOpen(false);
     setActivePanel('game-mode');
   };
 
   const toggleDraftPromo = (promo) => {
     setPromoDraft((current) => {
-      const selected = current ?? playablePromoYears;
+      const selected = current ?? challengePromoYears;
       return selected.includes(promo)
         ? selected.filter((year) => year !== promo)
         : [...selected, promo].sort((a, b) => b - a);
@@ -1735,6 +1844,7 @@ export default function GamePage({ students, links }) {
     const includeAllPromos = nextYears.length === availablePromoYears.length;
     const storedSelection = includeAllPromos ? null : nextYears;
     setSelectedPromoYears(storedSelection);
+    setArchiveSelection(null);
     if (mode === 'weekly' && !nextWeeklyChallengeAvailable) {
       setMode('daily');
       setArchiveSelection(null);
@@ -2398,27 +2508,39 @@ export default function GamePage({ students, links }) {
                             disabled={!cell.available}
                             aria-label={archiveLabel}
                             aria-pressed={selected}
-                            onClick={() => {
-                              const selectedChallenge = getChallenge(graph, archiveMode, 0, 0, cell.periodKey);
-                              const selectedStart = selectedChallenge && graph.byId.get(selectedChallenge.startId);
-                              const selectedEnd = selectedChallenge && graph.byId.get(selectedChallenge.endId);
-                              if (selectedChallenge && selectedStart && selectedEnd) {
-                                const isCurrentChallenge = archiveMode === 'daily'
-                                  ? cell.isToday
-                                  : cell.periodKey === currentWeeklyPeriod;
+                            onClick={async () => {
+                              const isCurrentChallenge = archiveMode === 'daily'
+                                ? cell.isToday
+                                : cell.periodKey === currentWeeklyPeriod;
+                              const selectedPeriod = isCurrentChallenge
+                                ? archiveMode === 'daily' ? currentDailyPeriod : currentWeeklyPeriod
+                                : cell.periodKey;
+                              setArchiveDate(selectedPeriod);
+                              try {
+                                const scope = [...playablePromoYears].sort((a, b) => a - b);
+                                const record = await archiveChallengeForPeriod(archiveMode, selectedPeriod, scope);
+                                const recordGraph = record?.graph;
+                                const selectedChallenge = record?.challenge;
+                                const recordStudents = recordGraph?.nodes?.filter((student) => (
+                                  scope.includes(Number(student.promo))
+                                )) ?? [];
+                                const recordGameGraph = recordGraph
+                                  ? buildGameGraph(recordStudents, recordGraph.links)
+                                  : null;
+                                const selectedStart = selectedChallenge && recordGameGraph?.byId.get(selectedChallenge.startId);
+                                const selectedEnd = selectedChallenge && recordGameGraph?.byId.get(selectedChallenge.endId);
+                                if (!selectedChallenge || !selectedStart || !selectedEnd) return;
+                                setArchiveDate(null);
                                 if (isCurrentChallenge && mode === archiveMode && !archiveSelection) {
                                   setActivePanel(null);
                                   setMenuOpen(false);
                                 } else {
-                                  selectMode(
-                                    archiveMode,
-                                    isCurrentChallenge
-                                      ? null
-                                      : { mode: archiveMode, periodKey: cell.periodKey }
-                                  );
+                                  selectMode(archiveMode, isCurrentChallenge
+                                    ? null
+                                    : { mode: archiveMode, periodKey: selectedPeriod, promoYears: scope });
                                 }
-                              } else {
-                                setArchiveDate(cell.periodKey);
+                              } catch (error) {
+                                console.warn('[défis] Impossible de charger cette archive :', error.message);
                               }
                             }}
                           >

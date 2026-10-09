@@ -165,3 +165,29 @@ export async function createFamilyDataVersion(csv, session) {
   }
   return { session: activeSession, version: versionNumber };
 }
+
+export async function getGameChallengeArchive(mode, periodKey, promoScope) {
+  if (!isSupabaseConfigured()) return null;
+  return request('/rest/v1/rpc/get_game_challenge_archive', {
+    method: 'POST',
+    body: {
+      p_mode: mode,
+      p_period_key: periodKey,
+      p_promo_scope: promoScope,
+    },
+  });
+}
+
+export async function saveGameChallengeArchive(mode, periodKey, promoYears, challenge, graph) {
+  if (!isSupabaseConfigured()) return null;
+  return request('/rest/v1/rpc/freeze_game_challenge_archive', {
+    method: 'POST',
+    body: {
+      p_mode: mode,
+      p_period_key: periodKey,
+      p_promo_years: promoYears,
+      p_challenge: challenge,
+      p_graph: graph,
+    },
+  });
+}
