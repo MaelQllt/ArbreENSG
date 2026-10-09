@@ -623,6 +623,11 @@ export default function PlayerAccountPanel({
       const client = await ensureAccountClient();
       const { error: updateError } = await client.auth.updateUser({ password });
       if (updateError) throw updateError;
+      clearPendingPasswordRecovery();
+      // Clean URL param that may persist after password reset
+      const url = new URL(window.location.href);
+      url.searchParams.delete('account');
+      window.history.replaceState(window.history.state, '', url.toString());
       setPassword('');
       setPasswordConfirmation('');
       setMode('profile');
