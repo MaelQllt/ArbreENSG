@@ -1133,21 +1133,19 @@
   cursor: pointer;
 }
 
-.game-help-panel--solution .game-help-panel__close,
-.game-help-panel--game-mode .game-help-panel__close {
+.game-help-panel__close {
   transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
-.game-help-panel--solution .game-help-panel__close:hover,
-.game-help-panel--game-mode .game-help-panel__close:hover {
+.game-help-panel__close:hover,
+.game-help-panel__close:focus-visible {
   border-color: var(--yellow);
   background: var(--yellow);
   color: var(--blue);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .game-help-panel--solution .game-help-panel__close,
-  .game-help-panel--game-mode .game-help-panel__close {
+  .game-help-panel__close {
     transition: none;
   }
 }

@@ -24,7 +24,10 @@ export default function Legend({ promos, visible, onToggle }) {
       if (!mounted) {
         setMounted(true);
         setOpening(true);
-        openFrame.current = window.requestAnimationFrame(() => setOpening(false));
+        openFrame.current = window.requestAnimationFrame(() => {
+          if (panelRef.current) setPanelHeight(panelRef.current.offsetHeight);
+          openFrame.current = window.requestAnimationFrame(() => setOpening(false));
+        });
       } else {
         setOpening(false);
       }

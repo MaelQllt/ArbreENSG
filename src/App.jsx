@@ -227,15 +227,17 @@ export default function App() {
     );
   }
 
-  if (showGame) return <GamePage students={loaded.data.nodes} links={loaded.data.links} />;
-
   const { index, promos, graphData } = graph;
   const student = selectedId ? index.byId.get(selectedId) : null;
   const resolve = (ids) => (ids ?? []).map((id) => index.byId.get(id));
   const warnings = loaded.warnings;
 
   return (
-    <div className={`app${student ? ' app--card-open' : ''}${isAdmin ? ' app--admin' : ''}`}>
+    <>
+    <div
+      className={`app${student ? ' app--card-open' : ''}${isAdmin ? ' app--admin' : ''}${showGame ? ' app--game-hidden' : ''}`}
+      aria-hidden={showGame}
+    >
       <GraphView
         graphData={graphData}
         selectedId={selectedId}
@@ -371,5 +373,7 @@ export default function App() {
       />
 
     </div>
+    {showGame && <GamePage students={loaded.data.nodes} links={loaded.data.links} />}
+    </>
   );
 }

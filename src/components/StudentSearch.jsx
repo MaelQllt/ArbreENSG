@@ -21,6 +21,7 @@ function SearchOption({ student }) {
 export default function StudentSearch({ students, onSelect, onActivate }) {
   const rootRef = useRef(null);
   const inputRef = useRef(null);
+  const focusAfterTouchRef = useRef(false);
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -50,15 +51,24 @@ export default function StudentSearch({ students, onSelect, onActivate }) {
     inputRef.current?.blur();
   };
 
-  const handleFieldPointerDown = () => {
+  const handleFieldPointerDown = (event) => {
     const isClosingCard = onActivate?.();
     if (!isClosingCard) return;
 
-    // La fiche qui se ferme déplace la recherche : garde le focus du toucher,
-    // puis le restaure après la mise en page pour ouvrir le clavier mobile.
     setOpen(true);
+    if (event.pointerType === 'touch') {
+      // Sur iOS, attendre la fin du toucher évite que le déplacement de la
+      // barre pendant la fermeture de la fiche annule l’ouverture du clavier.
+      focusAfterTouchRef.current = true;
+      return;
+    }
     inputRef.current?.focus({ preventScroll: true });
-    requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }));
+  };
+
+  const focusAfterTouch = () => {
+    if (!focusAfterTouchRef.current) return;
+    focusAfterTouchRef.current = false;
+    inputRef.current?.focus({ preventScroll: true });
   };
 
   const handleKeyDown = (event) => {
@@ -80,7 +90,12 @@ export default function StudentSearch({ students, onSelect, onActivate }) {
 
   return (
     <div className="student-search" ref={rootRef}>
-      <div className="student-search__field" onPointerDown={handleFieldPointerDown}>
+      <div
+        className="student-search__field"
+        onPointerDown={handleFieldPointerDown}
+        onTouchEnd={focusAfterTouch}
+        onTouchCancel={() => { focusAfterTouchRef.current = false; }}
+      >
         <svg className="student-search__icon" viewBox="0 0 20 20" aria-hidden="true">
           <circle cx="8.5" cy="8.5" r="5.5" />
           <path d="m12.5 12.5 4 4" />

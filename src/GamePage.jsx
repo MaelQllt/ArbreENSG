@@ -2508,40 +2508,25 @@ export default function GamePage({ students, links }) {
                             disabled={!cell.available}
                             aria-label={archiveLabel}
                             aria-pressed={selected}
-                            onClick={async () => {
+                            onClick={() => {
                               const isCurrentChallenge = archiveMode === 'daily'
                                 ? cell.isToday
                                 : cell.periodKey === currentWeeklyPeriod;
                               const selectedPeriod = isCurrentChallenge
                                 ? archiveMode === 'daily' ? currentDailyPeriod : currentWeeklyPeriod
                                 : cell.periodKey;
-                              setArchiveDate(selectedPeriod);
-                              try {
-                                const scope = [...playablePromoYears].sort((a, b) => a - b);
-                                const record = await archiveChallengeForPeriod(archiveMode, selectedPeriod, scope);
-                                const recordGraph = record?.graph;
-                                const selectedChallenge = record?.challenge;
-                                const recordStudents = recordGraph?.nodes?.filter((student) => (
-                                  scope.includes(Number(student.promo))
-                                )) ?? [];
-                                const recordGameGraph = recordGraph
-                                  ? buildGameGraph(recordStudents, recordGraph.links)
-                                  : null;
-                                const selectedStart = selectedChallenge && recordGameGraph?.byId.get(selectedChallenge.startId);
-                                const selectedEnd = selectedChallenge && recordGameGraph?.byId.get(selectedChallenge.endId);
-                                if (!selectedChallenge || !selectedStart || !selectedEnd) return;
-                                setArchiveDate(null);
-                                if (isCurrentChallenge && mode === archiveMode && !archiveSelection) {
-                                  setActivePanel(null);
-                                  setMenuOpen(false);
-                                } else {
-                                  selectMode(archiveMode, isCurrentChallenge
-                                    ? null
-                                    : { mode: archiveMode, periodKey: selectedPeriod, promoYears: scope });
-                                }
-                              } catch (error) {
-                                console.warn('[défis] Impossible de charger cette archive :', error.message);
+                              const scope = [...playablePromoYears].sort((a, b) => a - b);
+                              if (isCurrentChallenge && mode === archiveMode && !archiveSelection) {
+                                setActivePanel(null);
+                                setMenuOpen(false);
+                              } else {
+                                selectMode(archiveMode, isCurrentChallenge
+                                  ? null
+                                  : { mode: archiveMode, periodKey: selectedPeriod, promoYears: scope });
                               }
+                              archiveChallengeForPeriod(archiveMode, selectedPeriod, scope).catch((error) => {
+                                console.warn('[défis] Impossible de charger cette archive :', error.message);
+                              });
                             }}
                           >
                             {cell.day}

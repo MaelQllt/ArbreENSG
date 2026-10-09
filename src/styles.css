@@ -85,6 +85,11 @@ video {
   height: 100%;
 }
 
+.app--game-hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .loading {
   margin: 0;
   padding: 2rem;
@@ -122,7 +127,7 @@ video {
 }
 
 .global-view-control {
-  transition: transform 0.44s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.44s var(--slide);
 }
 
 .controls .global-view-control,
@@ -339,6 +344,7 @@ video {
     right: 28px;
     width: min(360px, calc(100vw - 56px));
     margin: 0;
+    transition: right 0.45s var(--slide), width 0.45s var(--slide);
   }
 
   .app--card-open .student-search {
@@ -381,7 +387,7 @@ video {
   display: flex;
   align-items: center;
   align-self: stretch;
-  transition: transform 0.44s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.44s var(--slide);
 }
 
 .dock__actions .global-view-control {
@@ -398,7 +404,7 @@ video {
   top: 50%;
   left: 0;
   transform: translateY(-50%);
-  transition: transform 0.44s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.44s var(--slide);
 }
 
 .contact-info__button {
@@ -714,9 +720,11 @@ video {
   color: var(--sand);
   font-size: 1.1rem;
   line-height: 1;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
 .admin-panel__close:hover,
+.admin-panel__close:focus-visible,
 .admin-panel__logout:hover {
   background: var(--sand);
   color: var(--blue);
@@ -917,6 +925,13 @@ video {
   color: inherit;
   font-size: 1.15rem;
   line-height: 1;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.admin-student-multi-select__chip button:hover,
+.admin-student-multi-select__chip button:focus-visible {
+  background: var(--sand);
+  color: var(--blue);
 }
 
 .admin-student-multi-select__clear {
@@ -1413,9 +1428,11 @@ video {
   color: var(--blue);
   font-size: 1.4rem;
   line-height: 1;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
-.card__close:hover {
+.card__close:hover,
+.card__close:focus-visible {
   background: var(--blue);
   color: var(--paper);
 }
@@ -1591,7 +1608,10 @@ video {
     transition: none;
   }
   .btn,
-  .card__link {
+  .card__link,
+  .admin-panel__close,
+  .admin-student-multi-select__chip button,
+  .card__close {
     transition: none;
   }
   .global-view-control {
@@ -1637,6 +1657,7 @@ video {
     left: max(12px, env(safe-area-inset-left));
     width: auto;
     margin: 0;
+    transition: bottom 0.45s var(--slide);
   }
 
   .student-search__field {
@@ -2541,5 +2562,11 @@ video {
     padding: 0.35rem 0.7rem;
     border-width: 1px;
     font-size: 0.84rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-search {
+    transition: none;
   }
 }
