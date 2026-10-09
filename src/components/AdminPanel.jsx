@@ -9,6 +9,7 @@ import { buildFamilyWorkbook } from '../lib/xlsxWorkbook';
 import { importFamilyWorkbook } from '../lib/xlsxImport';
 import { searchStudentsByName } from '../lib/studentSearch';
 import BrandDivider from './BrandDivider';
+import FamilyLinkRequestInbox from './FamilyLinkRequestInbox';
 import {
   createFamilyDataVersion,
   getSuperadminSession,
@@ -31,6 +32,26 @@ const normalizeName = (value) =>
     .join(' ');
 
 const endpointId = (value) => (typeof value === 'object' ? value.id : value);
+const wouldCreateFamilyCycle = (links, parentId, childId) => {
+  const childrenByParent = new Map();
+  links.forEach((link) => {
+    const sourceId = endpointId(link.source);
+    const targetId = endpointId(link.target);
+    if (!childrenByParent.has(sourceId)) childrenByParent.set(sourceId, []);
+    childrenByParent.get(sourceId).push(targetId);
+  });
+
+  const pending = [childId];
+  const visited = new Set();
+  while (pending.length) {
+    const currentId = pending.pop();
+    if (currentId === parentId) return true;
+    if (visited.has(currentId)) continue;
+    visited.add(currentId);
+    pending.push(...(childrenByParent.get(currentId) ?? []));
+  }
+  return false;
+};
 const normalizeOptionText = (value) => value
   .normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '')
@@ -458,6 +479,7 @@ export default function AdminPanel({
   const [session, setSession] = useState(null);
   const [restoring, setRestoring] = useState(true);
   const [dialog, setDialog] = useState(null);
+  const [adminSection, setAdminSection] = useState('families');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -628,6 +650,7 @@ export default function AdminPanel({
 
   const closeDialog = () => {
     setDialog(null);
+    setAdminSection('families');
     setError('');
     setMessage('');
   };
@@ -640,6 +663,7 @@ export default function AdminPanel({
       const signedIn = await signInSuperadmin(email.trim(), password);
       setSession(signedIn);
       setPassword('');
+      setAdminSection('families');
       setDialog('admin');
     } catch (loginError) {
       setError(loginError.message);
@@ -927,6 +951,42 @@ export default function AdminPanel({
     }
   };
 
+  const handleValidateFamilyLinkRequest = async (request, activeSession) => {
+    const child = data.nodes.find((node) => node.id === request.child_id);
+    const parent = data.nodes.find((node) => node.id === request.parent_id);
+    if (!child || !parent) {
+      throw new Error('Un des étudiants de cette proposition n’existe plus dans le graphe.');
+    }
+    if (child.id === parent.id) {
+      throw new Error('Un étudiant ne peut pas être son propre parrain ou sa propre marraine.');
+    }
+
+    const linkAlreadyExists = data.links.some((link) =>
+      endpointId(link.source) === parent.id && endpointId(link.target) === child.id
+    );
+    if (linkAlreadyExists) return { session: activeSession };
+
+    if (wouldCreateFamilyCycle(data.links, parent.id, child.id)) {
+      throw new Error('Ce lien créerait une boucle dans le graphe ; la proposition reste à traiter.');
+    }
+
+    const nextData = {
+      nodes: data.nodes,
+      links: [...data.links, { source: parent.id, target: child.id }],
+    };
+    const csv = serializeStudentsCsv(nextData);
+    const parsed = parseStudentsCsv(csv);
+    setBusy(true);
+    try {
+      const updatedSession = await saveSharedCsv(csv, activeSession);
+      setSession(updatedSession);
+      onSaved(nextData, parsed.warnings);
+      return { session: updatedSession };
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <>
       <div className="admin-access">
@@ -977,14 +1037,30 @@ export default function AdminPanel({
               <header className="admin-panel__header">
                 <div>
                   <p className="admin-panel__eyebrow">Superadmin <BrandDivider /> {session?.user?.email}</p>
-                  <h2 id="admin-title">Gestion des familles</h2>
+                  <h2 id="admin-title">{adminSection === 'requests' ? 'Propositions de liens' : 'Gestion des familles'}</h2>
                 </div>
                 <div className="admin-panel__actions">
+                  <button
+                    type="button"
+                    className="admin-panel__logout"
+                    aria-pressed={adminSection === 'requests'}
+                    onClick={() => setAdminSection((section) => section === 'requests' ? 'families' : 'requests')}
+                    disabled={busy}
+                  >
+                    {adminSection === 'requests' ? 'Familles' : 'Requêtes'}
+                  </button>
                   <button type="button" className="admin-panel__logout" onClick={handleLogout} disabled={busy}>Déconnexion</button>
                   <button type="button" className="admin-panel__close" onClick={closeDialog} aria-label="Fermer">×</button>
                 </div>
               </header>
 
+              {adminSection === 'requests' ? (
+                <FamilyLinkRequestInbox
+                  session={session}
+                  onSession={setSession}
+                  onValidate={handleValidateFamilyLinkRequest}
+                />
+              ) : (
               <form className="admin-form" onSubmit={handleSave}>
                 {relationAction !== 'create' && (
                   <div className="admin-selection">
@@ -1225,6 +1301,7 @@ export default function AdminPanel({
                   </button>
                 </footer>
               </form>
+              )}
             </section>
           )}
         </div>

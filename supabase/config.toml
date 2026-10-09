@@ -1,0 +1,2 @@
+[functions.notify-family-link-request]
+verify_jwt = false

@@ -4,6 +4,7 @@ import Legend from './components/Legend';
 import StudentCard from './components/StudentCard';
 import StudentSearch from './components/StudentSearch';
 import AdminPanel from './components/AdminPanel';
+import FamilyLinkRequestForm from './components/FamilyLinkRequestForm';
 import GamePage from './GamePage';
 import { loadData } from './lib/loadData';
 import { getLineage, prepareGraph } from './lib/lineage';
@@ -19,6 +20,7 @@ export default function App() {
   const [showLegend, setShowLegend] = useState(false);
   const [showWarnings, setShowWarnings] = useState(false);
   const [showContactInfo, setShowContactInfo] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [resetTick, setResetTick] = useState(0);
   const quickAddSequence = useRef(0);
   const deleteStudentSequence = useRef(0);
@@ -44,6 +46,7 @@ export default function App() {
       const obscuredHeight = Math.max(0, window.innerHeight - visualViewport.height - visualViewport.offsetTop);
       const keyboardInset = obscuredHeight > 120 ? obscuredHeight : 0;
       document.documentElement.style.setProperty('--keyboard-inset', keyboardInset + 'px');
+      setKeyboardOpen(keyboardInset > 0);
     };
 
     updateKeyboardInset();
@@ -235,7 +238,7 @@ export default function App() {
   return (
     <>
     <div
-      className={`app${student ? ' app--card-open' : ''}${isAdmin ? ' app--admin' : ''}${showGame ? ' app--game-hidden' : ''}`}
+      className={`app${student ? ' app--card-open' : ''}${keyboardOpen ? ' app--keyboard-open' : ''}${isAdmin ? ' app--admin' : ''}${showGame ? ' app--game-hidden' : ''}`}
       aria-hidden={showGame}
     >
       <GraphView
@@ -356,9 +359,10 @@ export default function App() {
           >
             <h2 id="contact-info-title">
               <span className="contact-info__title-desktop">Un problème&nbsp;?</span>
-              <span className="contact-info__title-mobile">Une erreur&nbsp;?</span>
+              <span className="contact-info__title-mobile">Un problème&nbsp;?</span>
             </h2>
-            <p>Un lien manque ou vous avez repéré une autre erreur&nbsp;?<br />Vous pouvez contacter le BDE.</p>
+            <p>Un lien manque ou tu as repéré une autre erreur&nbsp;?<br />Envoie une proposition au BDE.</p>
+            <FamilyLinkRequestForm students={loaded.data.nodes} />
           </section>
         </div>
       )}

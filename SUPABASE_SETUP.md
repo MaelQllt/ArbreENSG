@@ -52,3 +52,30 @@ conservés. Les onglets doivent garder les colonnes Étudiant·e, Promo, Code,
 Filière, Parrains / marraines et Fillots / fillottes du classeur exporté. La
 colonne « Appartenances secondaires » est facultative et accepte des codes tels
 que `LG23 ; LG21`.
+
+## Notifications e-mail des propositions
+
+Les demandes sont d'abord enregistrées dans la boîte **Requêtes** de l'admin.
+Une fonction Supabase envoie ensuite une notification à l'adresse du BDE ; la
+demande reste enregistrée même si le fournisseur e-mail est indisponible.
+
+1. Dans **SQL Editor**, exécute `supabase/family_link_requests.sql`. Tu peux
+   réexécuter le script après une évolution : ses ajouts sont idempotents.
+2. Dans **Edge Functions > Secrets**, configure `RESEND_API_KEY` et
+   `REQUESTS_TO_EMAIL` avec l'adresse de réception. Cette adresse pourra être
+   changée plus tard en modifiant le secret. `REQUESTS_FROM_EMAIL` est facultatif
+   et vaut par défaut `Familles ENSG <onboarding@resend.dev>` pour les essais.
+3. Dans **Edge Functions**, déploie une fonction nommée
+   `notify-family-link-request` avec le code de
+   `supabase/functions/notify-family-link-request/index.ts`. Désactive la
+   vérification JWT de cette fonction : le formulaire est public ; la fonction
+   n'accepte qu'un identifiant de demande et utilise la clé serveur uniquement
+   pour réclamer une notification déjà enregistrée. Le garde-fou limite les
+   notifications à 10 par heure.
+4. Une fois le site poussé sur GitHub Pages, envoie une demande d'essai. Tu dois
+   recevoir un e-mail à l'adresse de réception configurée.
+
+Pour les essais, Resend autorise `onboarding@resend.dev` uniquement vers
+l'adresse e-mail associée au compte Resend. Pour envoyer depuis une adresse
+personnalisée en production, vérifie un domaine que tu contrôles dans Resend et
+configure `REQUESTS_FROM_EMAIL` avec ce domaine.

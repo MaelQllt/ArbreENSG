@@ -191,3 +191,47 @@ export async function saveGameChallengeArchive(mode, periodKey, promoYears, chal
     },
   });
 }
+
+export async function submitFamilyLinkRequest({ child, parent, message = '' }) {
+  if (!isSupabaseConfigured()) throw new Error('L’envoi des demandes n’est pas configuré.');
+  return request('/rest/v1/rpc/submit_family_link_request', {
+    method: 'POST',
+    body: {
+      p_child_id: child.id,
+      p_child_name: child.name,
+      p_parent_id: parent.id,
+      p_parent_name: parent.name,
+      p_message: message,
+    },
+  });
+}
+
+export async function notifyFamilyLinkRequestByEmail(requestId) {
+  if (!isSupabaseConfigured()) throw new Error('L’envoi des demandes n’est pas configuré.');
+  return request('/functions/v1/notify-family-link-request', {
+    method: 'POST',
+    body: { requestId },
+  });
+}
+
+export async function fetchFamilyLinkRequests(session) {
+  if (!isSupabaseConfigured()) throw new Error('La sauvegarde Supabase n’est pas configurée.');
+  const activeSession = await ensureFreshSession(session);
+  const rows = await request('/rest/v1/rpc/list_family_link_requests', {
+    method: 'POST',
+    token: activeSession.access_token,
+    body: {},
+  });
+  return { session: activeSession, requests: Array.isArray(rows) ? rows : [] };
+}
+
+export async function updateFamilyLinkRequest(requestId, status, session) {
+  if (!isSupabaseConfigured()) throw new Error('La sauvegarde Supabase n’est pas configurée.');
+  const activeSession = await ensureFreshSession(session);
+  const result = await request('/rest/v1/rpc/update_family_link_request', {
+    method: 'POST',
+    token: activeSession.access_token,
+    body: { p_request_id: requestId, p_status: status },
+  });
+  return { session: activeSession, request: Array.isArray(result) ? result[0] : result };
+}
