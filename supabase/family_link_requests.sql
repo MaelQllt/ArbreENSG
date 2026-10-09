@@ -145,6 +145,33 @@ begin
 end;
 $$;
 
+create or replace function public.delete_family_link_request(p_request_id bigint)
+returns bigint
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  deleted_request_id bigint;
+begin
+  if auth.uid() is null or not exists (
+    select 1 from public.superadmins s where s.user_id = auth.uid()
+  ) then
+    raise exception 'Accès réservé au superadmin.' using errcode = '42501';
+  end if;
+
+  delete from public.family_link_requests r
+    where r.id = p_request_id
+    returning r.id into deleted_request_id;
+
+  if not found then
+    raise exception 'Cette demande n’existe plus.' using errcode = 'P0002';
+  end if;
+
+  return deleted_request_id;
+end;
+$$;
+
 -- Réservé à la fonction Edge qui envoie l'e-mail : une seule notification
 -- peut être en cours pour une proposition donnée.
 create or replace function public.claim_family_link_request_email(p_request_id bigint)
@@ -241,11 +268,13 @@ $$;
 revoke all on function public.submit_family_link_request(text, text, text, text, text) from public;
 revoke all on function public.list_family_link_requests() from public;
 revoke all on function public.update_family_link_request(bigint, text) from public;
+revoke all on function public.delete_family_link_request(bigint) from public;
 revoke all on function public.claim_family_link_request_email(bigint) from public;
 revoke all on function public.mark_family_link_request_email_sent(bigint) from public;
 revoke all on function public.release_family_link_request_email(bigint) from public;
 revoke all on function public.list_family_link_requests() from anon;
 revoke all on function public.update_family_link_request(bigint, text) from anon;
+revoke all on function public.delete_family_link_request(bigint) from anon;
 revoke all on function public.claim_family_link_request_email(bigint) from anon, authenticated;
 revoke all on function public.mark_family_link_request_email_sent(bigint) from anon, authenticated;
 revoke all on function public.release_family_link_request_email(bigint) from anon, authenticated;
@@ -253,6 +282,7 @@ revoke all on function public.release_family_link_request_email(bigint) from ano
 grant execute on function public.submit_family_link_request(text, text, text, text, text) to anon, authenticated;
 grant execute on function public.list_family_link_requests() to authenticated;
 grant execute on function public.update_family_link_request(bigint, text) to authenticated;
+grant execute on function public.delete_family_link_request(bigint) to authenticated;
 grant execute on function public.claim_family_link_request_email(bigint) to service_role;
 grant execute on function public.mark_family_link_request_email_sent(bigint) to service_role;
 grant execute on function public.release_family_link_request_email(bigint) to service_role;

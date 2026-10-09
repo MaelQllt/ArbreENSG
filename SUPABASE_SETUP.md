@@ -7,8 +7,7 @@ les données sans ce rôle.
 
 ## Mise en service
 
-1. Crée un projet Supabase et active la connexion par e-mail et mot de passe.
-   La création de comptes reste désactivée dans l'application.
+1. Crée un projet Supabase et active le fournisseur **Email** avec mot de passe.
 2. Dans **Authentication > Users**, ajoute ton utilisateur avec ton e-mail et un
    mot de passe, puis copie son UUID.
 3. Dans **SQL Editor**, exécute le contenu de `supabase/schema.sql`.
@@ -34,6 +33,44 @@ les données sans ce rôle.
 
 N'utilise pas une clé `secret` ou `service_role` dans `.env.local` : elle
 contournerait les règles d'accès de la base.
+
+## Comptes joueurs
+
+Le menu **Compte** permet à chaque personne de créer son compte avec son adresse
+e-mail, son mot de passe, son nom, son prénom, son pseudo, son année d'arrivée et
+son code (`ING`, `LG` ou `M`). La bio est facultative. Le pseudo est unique.
+La table des profils reste privée ; le classement public ne renvoie que le pseudo,
+le prénom, le nom, la promo, la filière et les statistiques affichées dans le profil.
+L'adresse e-mail et la bio ne sont jamais exposées dans le classement.
+Créer un compte joueur ne donne aucun accès à l'administration ; les droits
+superadmin restent attribués séparément dans `public.superadmins`.
+
+Pour activer les comptes sur le projet Supabase :
+
+1. Dans **SQL Editor**, exécute la dernière version de `supabase/player_accounts.sql`.
+   Tu peux le relancer après une mise à jour : il crée les tables privées, le
+   contrôle d'unicité des pseudos et la fonction sécurisée du classement.
+   Si le compte renvoie `permission denied for table player_profiles`, exécute
+   aussi `supabase/player_profiles_permissions.sql` dans le SQL Editor.
+2. Dans **Authentication > Sign In / Providers > Email**, autorise les nouvelles
+   inscriptions. Laisse la confirmation par e-mail activée pour vérifier les
+   adresses et réduire les comptes indésirables.
+3. Dans **Authentication > URL Configuration > Redirect URLs**, autorise l'URL
+   de production du site et `http://localhost:5173/**` pour le développement.
+   Ajoute le chemin du site avec `/**` si GitHub Pages le sert dans un sous-dossier.
+   Les liens de confirmation et de mot de passe oublié reviennent ensuite dans
+   le jeu automatiquement.
+4. Les e-mails transactionnels de l'authentification sont distincts des
+   notifications des propositions. Pour une livraison fiable en production,
+   configure le SMTP dans **Authentication > SMTP Settings**. Avec Resend, le
+   serveur est `smtp.resend.com`, l'utilisateur `resend`, et le mot de passe est
+   une clé API Resend. Utilise une adresse d'expédition dont le domaine est
+   vérifié dans Resend. Le secret `RESEND_API_KEY` déjà configuré pour la fonction
+   de notifications n'active pas à lui seul le SMTP d'authentification.
+
+Sans réseau, les inscriptions, connexions, confirmations et changements de mot
+de passe ne peuvent pas être effectués. Le compte et son profil restent stockés
+dans Supabase et sont retrouvés quand la personne se reconnecte.
 
 Les modifications de l'admin mettent à jour la base active conservée dans
 Supabase. Le bouton **Créer et télécharger la base (.xlsx)** archive une nouvelle
@@ -61,6 +98,9 @@ demande reste enregistrée même si le fournisseur e-mail est indisponible.
 
 1. Dans **SQL Editor**, exécute `supabase/family_link_requests.sql`. Tu peux
    réexécuter le script après une évolution : ses ajouts sont idempotents.
+   Pour une base où ce script a déjà été exécuté, lance aussi
+   `supabase/delete_family_link_request.sql` afin d'activer la suppression depuis
+   l'admin.
 2. Dans **Edge Functions > Secrets**, configure `RESEND_API_KEY` et
    `REQUESTS_TO_EMAIL` avec l'adresse de réception. Cette adresse pourra être
    changée plus tard en modifiant le secret. `REQUESTS_FROM_EMAIL` est facultatif

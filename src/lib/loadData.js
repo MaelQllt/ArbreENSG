@@ -6,6 +6,7 @@ const fallbackData = (warning) => ({
   data: workbookFallback,
   warnings: warning ? [warning] : [],
   source: 'workbook',
+  maintenance: false,
 });
 
 // Supabase est la source active. Le classeur fourni sert de secours si le service
@@ -24,6 +25,12 @@ export async function loadData() {
       source: 'shared',
     };
   } catch (error) {
+    if (error.status === 540 || error.code === '540') {
+      return {
+        ...fallbackData(),
+        maintenance: true,
+      };
+    }
     return fallbackData(`Base Supabase indisponible : ${error.message}. La base Excel intégrée est utilisée.`);
   }
 }

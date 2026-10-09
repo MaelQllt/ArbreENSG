@@ -98,6 +98,71 @@ video {
   font-size: 1.6rem;
 }
 
+.maintenance-screen {
+  display: grid;
+  min-height: 100vh;
+  min-height: 100dvh;
+  place-items: center;
+  padding: 24px;
+  background: var(--blue);
+  color: var(--paper);
+  text-align: center;
+}
+
+.maintenance-screen__panel {
+  width: min(560px, 100%);
+  padding: clamp(1.5rem, 5vw, 3rem);
+  border: 2px solid var(--sand);
+  background: var(--blue);
+  box-shadow: 8px 8px 0 var(--violet);
+}
+
+.maintenance-screen__eyebrow {
+  margin: 0 0 0.8rem;
+  color: var(--yellow);
+  font-family: var(--font-title);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.maintenance-screen__panel h1 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: clamp(1.5rem, 5vw, 2.25rem);
+  line-height: 1.15;
+}
+
+.maintenance-screen__panel > p:not(.maintenance-screen__eyebrow) {
+  margin: 1rem 0 0;
+  color: var(--sand);
+  line-height: 1.5;
+}
+
+.maintenance-screen__retry {
+  min-height: 44px;
+  margin-top: 1.5rem;
+  padding: 0.6rem 1rem;
+  border: 2px solid var(--yellow);
+  background: var(--yellow);
+  color: var(--blue);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.maintenance-screen__retry:hover:not(:disabled),
+.maintenance-screen__retry:focus-visible {
+  border-color: var(--sand);
+  background: var(--sand);
+}
+
+.maintenance-screen__retry:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 /* ========== Scène et fond en lignes brisées (inspiré du logo) ========== */
 .stage {
   position: absolute;
@@ -943,6 +1008,77 @@ video {
   color: var(--blue);
   font: inherit;
   font-weight: 400;
+}
+
+.password-input {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid var(--sand);
+  background: var(--paper);
+  color: var(--blue);
+}
+
+.password-input__toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  transform: translateY(-50%);
+  padding: 0;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #8e6f55;
+  cursor: pointer;
+  transition: color 140ms ease;
+}
+
+.password-input__toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.password-input__toggle:hover,
+.password-input__toggle:focus-visible {
+  color: var(--blue);
+}
+
+.password-input__toggle:focus-visible {
+  outline: 0;
+  filter: drop-shadow(0 0 2px var(--sand));
+}
+
+.password-input:focus-within {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+.admin-form .password-input > input {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 0.55rem 2.5rem 0.55rem 0.65rem;
+  border: 0;
+  background: transparent;
+  color: var(--blue);
+  font: inherit;
+  font-weight: 400;
+}
+
+.admin-form .password-input > input:focus {
+  outline: 0;
 }
 
 .admin-form textarea {
@@ -2943,6 +3079,30 @@ video {
   border-color: var(--sand);
   background: rgb(250 193 138 / 10%);
   color: var(--paper);
+}
+
+.family-request-inbox__actions .family-request-inbox__delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 32px;
+  margin-left: auto;
+  padding: 0.25rem 0.4rem;
+  border-color: rgb(242 147 139 / 45%);
+  color: #f2938b;
+  font-size: 0.74rem;
+}
+
+.family-request-inbox__actions .family-request-inbox__delete:hover:not(:disabled),
+.family-request-inbox__actions .family-request-inbox__delete:focus-visible {
+  border-color: #f2938b;
+  background: rgb(189 81 64 / 16%);
+  color: #ffd5cf;
+}
+
+.family-request-inbox__actions .family-request-inbox__delete:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .family-request-inbox__empty {

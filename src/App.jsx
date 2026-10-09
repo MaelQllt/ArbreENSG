@@ -12,6 +12,7 @@ import { getLineage, prepareGraph } from './lib/lineage';
 export default function App() {
   const isAdminPage = window.location.pathname.replace(/\/+$/, '').endsWith('/admin');
   const [loaded, setLoaded] = useState(null);
+  const [maintenanceRetrying, setMaintenanceRetrying] = useState(false);
   const [showGame, setShowGame] = useState(() => window.location.hash.startsWith('#jeu'));
   const [selectedId, setSelectedId] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -108,6 +109,14 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!loaded?.maintenance) return undefined;
+    const retryTimer = window.setInterval(() => {
+      loadData().then(setLoaded);
+    }, 30000);
+    return () => window.clearInterval(retryTimer);
+  }, [loaded?.maintenance]);
 
   useEffect(() => {
     const handleShortcut = (event) => {
@@ -221,6 +230,35 @@ export default function App() {
     }
     return false;
   };
+
+  const retryMaintenanceCheck = async () => {
+    setMaintenanceRetrying(true);
+    try {
+      setLoaded(await loadData());
+    } finally {
+      setMaintenanceRetrying(false);
+    }
+  };
+
+  if (loaded?.maintenance) {
+    return (
+      <main className="maintenance-screen">
+        <section className="maintenance-screen__panel" aria-labelledby="maintenance-title">
+          <p className="maintenance-screen__eyebrow">ENSGdle</p>
+          <h1 id="maintenance-title">Site en cours de maintenance</h1>
+          <p>La base de données est temporairement indisponible. Le site réessaiera automatiquement.</p>
+          <button
+            type="button"
+            className="maintenance-screen__retry"
+            onClick={retryMaintenanceCheck}
+            disabled={maintenanceRetrying}
+          >
+            {maintenanceRetrying ? 'Vérification…' : 'Réessayer'}
+          </button>
+        </section>
+      </main>
+    );
+  }
 
   if (!graph) {
     return (

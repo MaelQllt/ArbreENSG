@@ -10,6 +10,7 @@ import { importFamilyWorkbook } from '../lib/xlsxImport';
 import { searchStudentsByName } from '../lib/studentSearch';
 import BrandDivider from './BrandDivider';
 import FamilyLinkRequestInbox from './FamilyLinkRequestInbox';
+import PasswordInput from './PasswordInput';
 import {
   createFamilyDataVersion,
   getSuperadminSession,
@@ -1024,7 +1025,7 @@ export default function AdminPanel({
                 </label>
                 <label>
                   Mot de passe
-                  <input autoComplete="current-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+                  <PasswordInput autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
                 </label>
                 {error && <p className="admin-message admin-message--error" role="alert">{error}</p>}
                 <button className="btn admin-submit" type="submit" disabled={busy}>

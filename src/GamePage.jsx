@@ -3,6 +3,9 @@ import houseIcon from './assets/house.svg';
 import BrandDivider from './components/BrandDivider';
 import ShapeSwatch from './components/ShapeSwatch';
 import TopoBackground, { TopoDivider } from './components/TopoBackground';
+import PlayerAccountPanel, { updatePlayerAccountStatsCache } from './components/PlayerAccountPanel';
+import { recordPlayerChallengeCompletion } from './lib/playerAccounts';
+import { getAccountAuthClient, isSupabaseConfigured } from './lib/supabase';
 import { describePromo, formatStudentAffiliations } from './lib/promo';
 import { normalizeStudentSearch as normalizeName, searchStudentsByName } from './lib/studentSearch';
 import { getGameChallengeArchive, saveGameChallengeArchive } from './lib/supabase';
@@ -43,6 +46,10 @@ const HELP_EXAMPLE_SHORTEST_EDGE_KEYS = new Set([
 ]);
 const HELP_EXAMPLE_POSSIBLE_IDS = HELP_EXAMPLE_SHORTEST_IDS;
 const HELP_EXAMPLE_ORDERED_IDS = Object.freeze(['help-mael', 'help-tom', 'help-louisa', 'help-mamadou', 'help-jules']);
+// Keep the last resolved auth state across GamePage mounts (for example when
+// switching between the graph and the game) so opening the account never
+// flashes a loading/login state while Supabase restores its persisted session.
+let cachedGameAccountAuth = { ready: false, user: null };
 const endpointNameClass = (name) => {
   const length = String(name ?? '').length;
   return length >= 26
@@ -1335,6 +1342,16 @@ export default function GamePage({ students, links }) {
   const [activeSuggestion, setActiveSuggestion] = useState(0);
   const [searchFocused, setSearchFocused] = useState(false);
   const [activePanel, setActivePanel] = useState(null);
+  const [selectedLeaderboardPlayer, setSelectedLeaderboardPlayer] = useState(null);
+  const [leaderboardPlayers, setLeaderboardPlayers] = useState([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [leaderboardError, setLeaderboardError] = useState('');
+  const leaderboardHasPlayersRef = useRef(false);
+  const [accountInitialMode, setAccountInitialMode] = useState('login');
+  const [accountConnected, setAccountConnected] = useState(() => Boolean(cachedGameAccountAuth.user));
+  const [accountAuthReady, setAccountAuthReady] = useState(() => cachedGameAccountAuth.ready);
+  const [accountAuthUser, setAccountAuthUser] = useState(() => cachedGameAccountAuth.user);
+  const [accountStatusToast, setAccountStatusToast] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedPromoYears, setSelectedPromoYears] = useState(() => {
     try {
@@ -1363,6 +1380,128 @@ export default function GamePage({ students, links }) {
   const solutionButtonRef = useRef(null);
   const panelRef = useRef(null);
   const panelCloseRef = useRef(null);
+  const accountStatusTimerRef = useRef(null);
+  const recordedCompletionRef = useRef(null);
+
+  const showAccountStatus = (message) => {
+    window.clearTimeout(accountStatusTimerRef.current);
+    setAccountStatusToast(message);
+    accountStatusTimerRef.current = window.setTimeout(() => setAccountStatusToast(''), 3000);
+  };
+
+  useEffect(() => () => window.clearTimeout(accountStatusTimerRef.current), []);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return undefined;
+    let active = true;
+    let subscription;
+    const hasResolvedAuthState = cachedGameAccountAuth.ready;
+    let initialSessionResolved = hasResolvedAuthState;
+    let hasPendingSessionEvent = false;
+    let pendingSession = null;
+    const syncSession = (session) => {
+      const user = session?.user ?? null;
+      cachedGameAccountAuth = { ready: true, user };
+      setAccountAuthUser(user);
+      setAccountConnected(Boolean(user));
+      setAccountAuthReady(true);
+    };
+    getAccountAuthClient().then(async (client) => {
+      if (!active) return;
+      const { data } = client.auth.onAuthStateChange((event, session) => {
+        if (!initialSessionResolved) {
+          if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+            hasPendingSessionEvent = true;
+            pendingSession = session;
+          }
+          return;
+        }
+        syncSession(session);
+      });
+      subscription = data.subscription;
+      // The singleton Supabase client emits INITIAL_SESSION to new listeners.
+      // Reuse our in-memory auth state and let that event keep it current instead
+      // of calling getSession again on every return to the game.
+      if (hasResolvedAuthState) return;
+      const { data: sessionData } = await client.auth.getSession();
+      initialSessionResolved = true;
+      if (active) syncSession(hasPendingSessionEvent ? pendingSession : sessionData?.session);
+    }).catch(() => {
+      initialSessionResolved = true;
+      if (active && !hasResolvedAuthState) syncSession(null);
+    });
+    return () => {
+      active = false;
+      subscription?.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activePanel !== 'leaderboard') return undefined;
+    let active = true;
+    if (!isSupabaseConfigured()) {
+      setLeaderboardPlayers([]);
+      leaderboardHasPlayersRef.current = false;
+      setLeaderboardLoading(false);
+      setLeaderboardError('Le classement réel nécessite la configuration de Supabase.');
+      return undefined;
+    }
+
+    if (!leaderboardHasPlayersRef.current) setLeaderboardLoading(true);
+    setLeaderboardError('');
+    const refreshLeaderboard = async () => {
+      try {
+        const client = await getAccountAuthClient();
+        const { data, error } = await client.rpc('get_player_leaderboard');
+        if (error) throw error;
+        const nextPlayers = (data ?? []).map((player) => ({
+          pseudo: player.pseudo,
+          firstName: player.first_name,
+          lastName: player.last_name,
+          promo: String(player.program_code ?? '') + String(player.arrival_year ?? '').slice(-2),
+          filiere: player.filiere || 'Filière non renseignée',
+          daily: Number(player.daily_challenges ?? 0),
+          weekly: Number(player.weekly_challenges ?? 0),
+          score: Number(player.points ?? 0),
+          isCurrentUser: player.is_current_user === true,
+        })).sort((left, right) => (
+          right.score - left.score || left.pseudo.localeCompare(right.pseudo, 'fr')
+        ));
+        if (!active) return;
+        setLeaderboardPlayers(nextPlayers);
+        leaderboardHasPlayersRef.current = nextPlayers.length > 0;
+        setSelectedLeaderboardPlayer((current) => current
+          ? nextPlayers.find((player) => player.pseudo === current.pseudo) ?? null
+          : null);
+        setLeaderboardError('');
+      } catch (loadError) {
+        if (!active) return;
+        const message = String(loadError?.message ?? '');
+        setLeaderboardError(
+          loadError?.code === 'PGRST202' || /get_player_leaderboard|schema cache|could not find/i.test(message)
+            ? 'Le classement réel n’est pas encore configuré. Exécute la dernière version de supabase/player_accounts.sql dans Supabase.'
+            : 'Le classement n’a pas pu être chargé. Vérifie la connexion et réessaie.'
+        );
+      } finally {
+        if (active) setLeaderboardLoading(false);
+      }
+    };
+
+    void refreshLeaderboard();
+    const refreshTimer = window.setInterval(() => void refreshLeaderboard(), 30_000);
+    return () => {
+      active = false;
+      window.clearInterval(refreshTimer);
+    };
+  }, [activePanel]);
+
+  useEffect(() => {
+    const accountState = new URLSearchParams(window.location.search).get('account');
+    if (accountState === 'recovery' || accountState === 'confirmed') {
+      setAccountInitialMode(accountState);
+      setActivePanel('account');
+    }
+  }, []);
 
   useEffect(() => {
     let timer;
@@ -1730,6 +1869,33 @@ export default function GamePage({ students, links }) {
   );
   const won = winningPath.length > 0
     && (hintsUsed < 3 || winningPath.length - 1 === challenge.distance);
+  const shortestPathSolved = won && winningPath.length - 1 === challenge.distance;
+  const baseCompletionPoints = mode === 'daily'
+    ? (shortestPathSolved ? 10 : 5)
+    : mode === 'weekly'
+      ? (shortestPathSolved ? 20 : 10)
+      : 0;
+  const hintPenalty = (hintsUsed >= 1 ? 1 : 0)
+    + (hintsUsed >= 2 ? 1 : 0)
+    + (hintsUsed >= 3 ? 2 : 0);
+  const completionPoints = Math.max(0, baseCompletionPoints - hintPenalty);
+  const trackableCompletion = accountConnected
+    && accountAuthUser?.id
+    && (mode === 'daily' || mode === 'weekly')
+    ? accountAuthUser.id + ':' + mode + ':' + challengePeriod
+    : null;
+  useEffect(() => {
+    if (!won || !trackableCompletion || recordedCompletionRef.current === trackableCompletion) return;
+    recordedCompletionRef.current = trackableCompletion;
+    recordPlayerChallengeCompletion(mode, challengePeriod, completionPoints)
+      .then((nextStats) => {
+        if (nextStats && accountAuthUser?.id) updatePlayerAccountStatsCache(accountAuthUser.id, nextStats);
+      })
+      .catch((error) => {
+        recordedCompletionRef.current = null;
+        console.warn('[scores] Impossible d’enregistrer cette réussite :', error.message);
+      });
+  }, [won, trackableCompletion, mode, challengePeriod, completionPoints, accountAuthUser]);
   const attemptLimit = (challenge?.distance ?? 0) + 5;
   const lost = attemptCount > attemptLimit && !won;
   const displayedAttemptCount = Math.min(attemptCount, attemptLimit);
@@ -2040,6 +2206,16 @@ export default function GamePage({ students, links }) {
                   >
                     Compte
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setSelectedLeaderboardPlayer(null);
+                      setActivePanel('leaderboard');
+                    }}
+                  >
+                    Classement
+                  </button>
                 </div>
               )}
             </div>
@@ -2200,7 +2376,10 @@ export default function GamePage({ students, links }) {
 
             <div className={'game-feedback' + (won ? ' game-feedback--won' : lost ? ' game-feedback--lost' : '')} role="status" aria-live="polite">
               {won
-                ? 'Bravo ! Tu as trouvé une chaîne de ' + Math.max(0, winningPath.length - 1) + ' liens.'
+                ? <>
+                    <span>Bravo ! Tu as trouvé une chaîne de {Math.max(0, winningPath.length - 1)} liens.</span>
+                    {mode !== 'practice' && <strong className="game-feedback__points">+{completionPoints} points</strong>}
+                  </>
                 : lost
                   ? 'Tu as épuisé tes tentatives. Le chemin optimal est révélé sur le graphe.'
                   : feedback || (
@@ -2256,7 +2435,7 @@ export default function GamePage({ students, links }) {
               <div className="game-round-actions__links">
                 <span
                   className="game-help-link-tooltip"
-                  data-tooltip={hintsUsed < 3 ? 'disponible après indices' : undefined}
+                  data-tooltip={!won && hintsUsed < 3 ? 'disponible après indices' : undefined}
                 >
                   <button
                     type="button"
@@ -2264,7 +2443,7 @@ export default function GamePage({ students, links }) {
                     ref={solutionButtonRef}
                     onClick={() => setActivePanel('solution')}
                     aria-haspopup="dialog"
-                    disabled={hintsUsed < 3}
+                    disabled={!won && hintsUsed < 3}
                   >
                     Voir le chemin optimal
                   </button>
@@ -2292,6 +2471,8 @@ export default function GamePage({ students, links }) {
                 + (activePanel === 'solution' ? ' game-help-panel--solution' : '')
                 + (activePanel === 'help' ? ' game-help-panel--help' : '')
                 + (activePanel === 'game-mode' ? ' game-help-panel--game-mode' : '')
+                + (activePanel === 'account' ? ' game-help-panel--account' : '')
+                + (activePanel === 'leaderboard' ? ' game-help-panel--leaderboard' : '')
                 + (activePanel === 'archive' ? ' game-help-panel--archive' : '')}
               role="dialog"
               aria-modal="true"
@@ -2414,10 +2595,74 @@ export default function GamePage({ students, links }) {
                 </>
               ) : activePanel === 'account' ? (
                 <>
-                  <p className="game-section-kicker">Compte</p>
-                  <h2 id="game-panel-title">Compte</h2>
-                  <p className="game-promo-settings__intro">Le contenu de cette section sera défini prochainement.</p>
+                  <div className="game-account-panel__eyebrow">
+                    <p className="game-section-kicker">Espace joueur</p>
+                    {accountStatusToast && <span className="game-account-panel__toast" role="status" aria-live="polite">{accountStatusToast}</span>}
+                  </div>
+                  <h2 id="game-panel-title">{accountAuthReady ? (accountConnected ? 'Mon compte' : 'Connexion') : 'Compte'}</h2>
+                  <PlayerAccountPanel
+                    initialMode={accountInitialMode}
+                    onTransientStatus={showAccountStatus}
+                    onConnectionChange={setAccountConnected}
+                    onAuthReady={() => setAccountAuthReady(true)}
+                    knownAuthReady={accountAuthReady}
+                    knownUser={accountAuthUser}
+                  />
                 </>
+              ) : activePanel === 'leaderboard' ? (
+                selectedLeaderboardPlayer ? (
+                  <>
+                    <p className="game-section-kicker">Profil joueur</p>
+                    <h2 id="game-panel-title" className="game-leaderboard__profile-pseudo">{selectedLeaderboardPlayer.pseudo}</h2>
+                    <div className="game-leaderboard__profile-school">
+                      <span className="game-leaderboard__profile-name">{selectedLeaderboardPlayer.firstName} {selectedLeaderboardPlayer.lastName}</span>
+                      <span>{selectedLeaderboardPlayer.promo}</span>
+                      <BrandDivider />
+                      <span>{selectedLeaderboardPlayer.filiere}</span>
+                    </div>
+                    <p className="game-leaderboard__intro">Statistiques des défis enregistrés · profil en lecture seule</p>
+                    <div className="game-leaderboard__profile-stats" aria-label={'Statistiques de ' + selectedLeaderboardPlayer.pseudo}>
+                      <div><strong>{selectedLeaderboardPlayer.daily}</strong><span>Défis quotidiens</span></div>
+                      <div><strong>{selectedLeaderboardPlayer.weekly}</strong><span>Défis hebdomadaires</span></div>
+                      <div><strong>{selectedLeaderboardPlayer.score.toLocaleString('fr-FR')}</strong><span>Points</span></div>
+                    </div>
+                    <button type="button" className="game-leaderboard__back" onClick={() => setSelectedLeaderboardPlayer(null)}>← Retour au classement</button>
+                  </>
+                ) : (
+                  <>
+                    <p className="game-section-kicker">Scores des joueurs</p>
+                    <h2 id="game-panel-title">Classement</h2>
+                    <p className="game-leaderboard__intro">Classement actualisé à partir des défis réussis.</p>
+                    {leaderboardLoading && <p className="game-leaderboard__status" role="status">Chargement du classement…</p>}
+                    {leaderboardError && <p className="game-leaderboard__status game-leaderboard__status--error" role="alert">{leaderboardError}</p>}
+                    {!leaderboardLoading && !leaderboardError && leaderboardPlayers.length === 0 && (
+                      <p className="game-leaderboard__status">Aucun joueur inscrit pour le moment.</p>
+                    )}
+                    {leaderboardPlayers.length > 0 && <ol className="game-leaderboard" aria-label="Classement des joueurs">
+                      {leaderboardPlayers.map((player, index) => (
+                        <li className={index < 3 ? 'game-leaderboard__row game-leaderboard__row--top' : 'game-leaderboard__row'} key={player.pseudo}>
+                          <button
+                            type="button"
+                            className="game-leaderboard__open"
+                            aria-label={'Voir le profil et les statistiques de ' + player.pseudo}
+                            onClick={() => {
+                              if (player.isCurrentUser) {
+                                setSelectedLeaderboardPlayer(null);
+                                setActivePanel('account');
+                              } else {
+                                setSelectedLeaderboardPlayer(player);
+                              }
+                            }}
+                          >
+                            <span className="game-leaderboard__rank">{index + 1}</span>
+                            <span className="game-leaderboard__pseudo">{player.pseudo}</span>
+                            <strong className="game-leaderboard__score">{player.score.toLocaleString('fr-FR')} pts</strong>
+                          </button>
+                        </li>
+                      ))}
+                    </ol>}
+                  </>
+                )
               ) : activePanel === 'archive' ? (
                 <>
                   <p className="game-section-kicker">Archives</p>

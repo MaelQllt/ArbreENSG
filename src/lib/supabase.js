@@ -8,6 +8,23 @@ export function isSupabaseConfigured() {
   return Boolean(apiUrl && anonKey);
 }
 
+let accountAuthClientPromise;
+
+export function getAccountAuthClient() {
+  if (!isSupabaseConfigured()) {
+    throw new Error('Les comptes ne sont pas configurés : ajoute les variables Supabase du site.');
+  }
+  accountAuthClientPromise ??= import('@supabase/supabase-js').then(({ createClient }) => createClient(apiUrl, anonKey, {
+    auth: {
+      flowType: 'pkce',
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  }));
+  return accountAuthClientPromise;
+}
+
 function saveSession(session) {
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
 }
@@ -47,7 +64,10 @@ async function request(path, { method = 'GET', token, body, prefer } = {}) {
     const message = typeof result === 'string'
       ? result
       : result?.message ?? result?.msg ?? result?.error_description ?? result?.hint;
-    throw new Error(message || `Erreur ${response.status}`);
+    const error = new Error(message || `Erreur ${response.status}`);
+    error.status = response.status;
+    error.code = result?.code;
+    throw error;
   }
   return result;
 }
@@ -234,4 +254,15 @@ export async function updateFamilyLinkRequest(requestId, status, session) {
     body: { p_request_id: requestId, p_status: status },
   });
   return { session: activeSession, request: Array.isArray(result) ? result[0] : result };
+}
+
+export async function deleteFamilyLinkRequest(requestId, session) {
+  if (!isSupabaseConfigured()) throw new Error('La sauvegarde Supabase n’est pas configurée.');
+  const activeSession = await ensureFreshSession(session);
+  await request('/rest/v1/rpc/delete_family_link_request', {
+    method: 'POST',
+    token: activeSession.access_token,
+    body: { p_request_id: requestId },
+  });
+  return { session: activeSession };
 }

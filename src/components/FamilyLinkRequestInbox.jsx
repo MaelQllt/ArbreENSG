@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshCw, RotateCcw } from 'lucide-react';
-import { fetchFamilyLinkRequests, updateFamilyLinkRequest } from '../lib/supabase';
+import { RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
+import { deleteFamilyLinkRequest, fetchFamilyLinkRequests, updateFamilyLinkRequest } from '../lib/supabase';
 
 const FILTERS = [
   { id: 'pending', label: 'À traiter' },
@@ -68,6 +68,25 @@ export default function FamilyLinkRequestInbox({ session, onSession, onValidate 
       )));
     } catch (updateError) {
       setError(`Impossible de modifier cette demande : ${updateError.message}`);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const deleteRequest = async (request) => {
+    const confirmed = window.confirm(
+      `Supprimer définitivement la proposition « ${request.child_name} est le fillot ou la fillotte de ${request.parent_name} » ?`
+    );
+    if (!confirmed) return;
+
+    setBusyId(request.id);
+    setError('');
+    try {
+      const result = await deleteFamilyLinkRequest(request.id, session);
+      onSession(result.session);
+      setRequests((current) => current.filter((currentRequest) => currentRequest.id !== request.id));
+    } catch (deleteError) {
+      setError(`Impossible de supprimer cette demande : ${deleteError.message}`);
     } finally {
       setBusyId(null);
     }
@@ -145,6 +164,17 @@ export default function FamilyLinkRequestInbox({ session, onSession, onValidate 
                     <span>Remettre à traiter</span>
                   </button>
                 )}
+                <button
+                  className="family-request-inbox__delete"
+                  type="button"
+                  onClick={() => deleteRequest(request)}
+                  disabled={busyId !== null}
+                  aria-label={`Supprimer la proposition de ${request.child_name} vers ${request.parent_name}`}
+                  title="Supprimer définitivement"
+                >
+                  <Trash2 size={15} strokeWidth={1.8} aria-hidden="true" />
+                  <span>Supprimer</span>
+                </button>
               </div>
             </li>
           ))}
