@@ -1,6 +1,8 @@
 import { getAccountAuthClient } from './supabase';
 
 const MIN_PASSWORD_LENGTH = 8;
+const PASSWORD_RECOVERY_KEY = 'geodata-password-recovery';
+const PASSWORD_RECOVERY_TTL = 60 * 60 * 1000;
 
 export function getPlayerAccountRedirectUrl(accountState) {
   const url = new URL(window.location.href);
@@ -8,6 +10,36 @@ export function getPlayerAccountRedirectUrl(accountState) {
   url.searchParams.set('account', accountState);
   url.hash = 'jeu';
   return url.toString();
+}
+
+export function hasSupabaseAuthCallback() {
+  if (typeof window === 'undefined') return false;
+  const params = new URLSearchParams(window.location.search);
+  return params.has('code')
+    || params.has('error_description')
+    || params.has('error_code')
+    || /(?:^|[&#])access_token=/.test(window.location.hash);
+}
+
+export function markPasswordRecoveryPending() {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(PASSWORD_RECOVERY_KEY, String(Date.now()));
+}
+
+export function hasPendingPasswordRecovery() {
+  if (typeof window === 'undefined') return false;
+  const value = Number(window.localStorage.getItem(PASSWORD_RECOVERY_KEY));
+  if (!Number.isFinite(value) || value <= 0) return false;
+  if (Date.now() - value > PASSWORD_RECOVERY_TTL) {
+    window.localStorage.removeItem(PASSWORD_RECOVERY_KEY);
+    return false;
+  }
+  return true;
+}
+
+export function clearPendingPasswordRecovery() {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(PASSWORD_RECOVERY_KEY);
 }
 
 export function validatePlayerProfile(profile) {

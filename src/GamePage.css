@@ -1770,16 +1770,6 @@
   margin-bottom: 0;
 }
 
-.game-account-panel__toast {
-  color: #8e6f55;
-  font-size: 0.68rem;
-  font-weight: 600;
-  line-height: 1.2;
-  text-align: right;
-  text-transform: none;
-  letter-spacing: 0;
-}
-
 .player-account {
   display: grid;
   gap: 12px;

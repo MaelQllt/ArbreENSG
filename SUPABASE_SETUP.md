@@ -55,12 +55,22 @@ Pour activer les comptes sur le projet Supabase :
 2. Dans **Authentication > Sign In / Providers > Email**, autorise les nouvelles
    inscriptions. Laisse la confirmation par e-mail activée pour vérifier les
    adresses et réduire les comptes indésirables.
-3. Dans **Authentication > URL Configuration > Redirect URLs**, autorise l'URL
-   de production du site et `http://localhost:5173/**` pour le développement.
-   Ajoute le chemin du site avec `/**` si GitHub Pages le sert dans un sous-dossier.
-   Les liens de confirmation et de mot de passe oublié reviennent ensuite dans
-   le jeu automatiquement.
-4. Les e-mails transactionnels de l'authentification sont distincts des
+3. Dans **Authentication > URL Configuration**, règle **Site URL** sur l'adresse
+   publique du site (par ex. `https://<utilisateur>.github.io/<depot>/`) puis
+   ajoute cette même adresse et `http://localhost:5173/**` dans **Redirect URLs**.
+   Ajoute le chemin avec `/**` si GitHub Pages le sert dans un sous-dossier.
+   Si **Site URL** reste sur `localhost`, les liens reçus par e-mail renvoient
+   vers `localhost` même depuis le site publié.
+4. Facultatif : dans **Authentication > Email Templates**, personnalise les
+   modèles **Confirm signup** et **Reset password** (sujet et contenu du mail).
+   Garde la variable `{{ .ConfirmationURL }}` dans le lien : elle est remplacée
+   par l'adresse configurée à l'étape 3, avec le jeton de confirmation.
+5. Facultatif : pour que les liens générés depuis un serveur local pointent
+   quand même vers le site publié, définis `VITE_PUBLIC_SITE_URL` avec l'adresse
+   publique (dans `.env.local` en local et dans
+   **Settings > Secrets and variables > Actions > Variables** du dépôt).
+   Sans cette variable, l'URL du navigateur est utilisée.
+6. Les e-mails transactionnels de l'authentification sont distincts des
    notifications des propositions. Pour une livraison fiable en production,
    configure le SMTP dans **Authentication > SMTP Settings**. Avec Resend, le
    serveur est `smtp.resend.com`, l'utilisateur `resend`, et le mot de passe est

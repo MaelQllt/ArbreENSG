@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   accountErrorMessage,
   checkPlayerPseudoAvailability,
+  clearPendingPasswordRecovery,
   getPlayerChallengeStats,
   getPlayerAccountRedirectUrl,
+  markPasswordRecoveryPending,
   MIN_PASSWORD_LENGTH,
   profileFromAuthMetadata,
   savePlayerProfile,
@@ -199,7 +201,6 @@ function Field({ id, label, ...props }) {
 
 export default function PlayerAccountPanel({
   initialMode = 'login',
-  onTransientStatus,
   onConnectionChange,
   onAuthReady,
   knownAuthReady = false,
@@ -445,9 +446,8 @@ export default function PlayerAccountPanel({
         if (!mounted) return;
         if (sessionError) setError(accountErrorMessage(sessionError));
         const session = data?.session;
-        if (session) {
-          await loadProfile(session);
-          if (initialMode === 'recovery') setMode('recovery');
+        if (initialMode === 'recovery') {
+          setMode('recovery');
         } else if (initialMode === 'confirmed') {
           onConnectionChange?.(false);
           setMode('confirmed');
@@ -600,8 +600,6 @@ export default function PlayerAccountPanel({
       };
       closeProfileEditor();
       setMode('profile');
-      setStatus('');
-      onTransientStatus?.('Profil enregistré.');
     });
   };
 
@@ -638,8 +636,6 @@ export default function PlayerAccountPanel({
     if (signOutError) throw signOutError;
     playerAccountSnapshot = null;
     setMode('login');
-    onConnectionChange?.(false);
-    onTransientStatus?.('Tu es déconnecté.');
   });
 
   if (!isSupabaseConfigured()) {
@@ -736,16 +732,18 @@ export default function PlayerAccountPanel({
 
       {mode === 'forgot' && (
         <form className="player-account__form" onSubmit={submitForgotPassword}>
-          <p className="player-account__notice">Nous t’enverrons un lien pour choisir un nouveau mot de passe.</p>
+          {!status && <p className="player-account__notice">Nous t’enverrons un lien pour choisir un nouveau mot de passe.</p>}
           <Field id="player-reset-email" label="Adresse e-mail" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
-          <button className="btn btn--ghost player-account__submit" type="submit" disabled={busy}>{busy ? 'Envoi…' : 'Envoyer le lien'}</button>
-          <div className="player-account__links"><button type="button" onClick={() => { setMode('login'); setError(''); setStatus(''); }}>Retour à la connexion</button></div>
+          <div className="player-account__login-actions">
+            <button type="button" className="player-account__text-button" onClick={() => { setMode('login'); setError(''); setStatus(''); }}>Retour à la connexion</button>
+            <button className="btn btn--ghost player-account__submit" type="submit" disabled={busy}>{busy ? 'Envoi…' : 'Envoyer le lien'}</button>
+          </div>
         </form>
       )}
 
       {mode === 'recovery' && (
         <form className="player-account__form" onSubmit={submitNewPassword}>
-          <p className="player-account__notice">Choisis un nouveau mot de passe pour ton compte.</p>
+          {!status && <p className="player-account__notice">Choisis un nouveau mot de passe pour ton compte.</p>}
           <Field id="player-new-password" label={`Nouveau mot de passe (${MIN_PASSWORD_LENGTH} caractères minimum)`} type="password" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} required value={password} onChange={(event) => setPassword(event.target.value)} />
           <Field id="player-new-password-confirm" label="Confirmer le mot de passe" type="password" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} required value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} />
           <div className="player-account__password-actions">

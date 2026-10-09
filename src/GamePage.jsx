@@ -4,7 +4,7 @@ import BrandDivider from './components/BrandDivider';
 import ShapeSwatch from './components/ShapeSwatch';
 import TopoBackground, { TopoDivider } from './components/TopoBackground';
 import PlayerAccountPanel, { updatePlayerAccountStatsCache } from './components/PlayerAccountPanel';
-import { recordPlayerChallengeCompletion } from './lib/playerAccounts';
+import { hasPendingPasswordRecovery, hasSupabaseAuthCallback, recordPlayerChallengeCompletion } from './lib/playerAccounts';
 import { getAccountAuthClient, isSupabaseConfigured } from './lib/supabase';
 import { describePromo, formatStudentAffiliations } from './lib/promo';
 import { normalizeStudentSearch as normalizeName, searchStudentsByName } from './lib/studentSearch';
@@ -1351,7 +1351,6 @@ export default function GamePage({ students, links }) {
   const [accountConnected, setAccountConnected] = useState(() => Boolean(cachedGameAccountAuth.user));
   const [accountAuthReady, setAccountAuthReady] = useState(() => cachedGameAccountAuth.ready);
   const [accountAuthUser, setAccountAuthUser] = useState(() => cachedGameAccountAuth.user);
-  const [accountStatusToast, setAccountStatusToast] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedPromoYears, setSelectedPromoYears] = useState(() => {
     try {
@@ -1380,16 +1379,7 @@ export default function GamePage({ students, links }) {
   const solutionButtonRef = useRef(null);
   const panelRef = useRef(null);
   const panelCloseRef = useRef(null);
-  const accountStatusTimerRef = useRef(null);
   const recordedCompletionRef = useRef(null);
-
-  const showAccountStatus = (message) => {
-    window.clearTimeout(accountStatusTimerRef.current);
-    setAccountStatusToast(message);
-    accountStatusTimerRef.current = window.setTimeout(() => setAccountStatusToast(''), 3000);
-  };
-
-  useEffect(() => () => window.clearTimeout(accountStatusTimerRef.current), []);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return undefined;
@@ -1499,6 +1489,15 @@ export default function GamePage({ students, links }) {
     const accountState = new URLSearchParams(window.location.search).get('account');
     if (accountState === 'recovery' || accountState === 'confirmed') {
       setAccountInitialMode(accountState);
+      setActivePanel('account');
+      return;
+    }
+    if (hasPendingPasswordRecovery()) {
+      setAccountInitialMode('recovery');
+      setActivePanel('account');
+      return;
+    }
+    if (hasSupabaseAuthCallback()) {
       setActivePanel('account');
     }
   }, []);
@@ -2597,12 +2596,10 @@ export default function GamePage({ students, links }) {
                 <>
                   <div className="game-account-panel__eyebrow">
                     <p className="game-section-kicker">Espace joueur</p>
-                    {accountStatusToast && <span className="game-account-panel__toast" role="status" aria-live="polite">{accountStatusToast}</span>}
                   </div>
                   <h2 id="game-panel-title">{accountAuthReady ? (accountConnected ? 'Mon compte' : 'Connexion') : 'Compte'}</h2>
                   <PlayerAccountPanel
                     initialMode={accountInitialMode}
-                    onTransientStatus={showAccountStatus}
                     onConnectionChange={setAccountConnected}
                     onAuthReady={() => setAccountAuthReady(true)}
                     knownAuthReady={accountAuthReady}

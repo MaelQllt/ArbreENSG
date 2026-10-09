@@ -18,6 +18,7 @@ jobs:
     env:
       VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      VITE_PUBLIC_SITE_URL: ${{ vars.VITE_PUBLIC_SITE_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
