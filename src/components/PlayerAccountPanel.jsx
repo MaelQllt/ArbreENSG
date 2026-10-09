@@ -748,7 +748,24 @@ export default function PlayerAccountPanel({
           <p className="player-account__notice">Choisis un nouveau mot de passe pour ton compte.</p>
           <Field id="player-new-password" label={`Nouveau mot de passe (${MIN_PASSWORD_LENGTH} caractères minimum)`} type="password" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} required value={password} onChange={(event) => setPassword(event.target.value)} />
           <Field id="player-new-password-confirm" label="Confirmer le mot de passe" type="password" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} required value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} />
-          <button className="btn btn--ghost player-account__submit" type="submit" disabled={busy}>{busy ? 'Modification…' : 'Changer le mot de passe'}</button>
+          <div className="player-account__password-actions">
+            {user && profile && (
+              <button
+                type="button"
+                className="player-account__text-button player-account__password-cancel"
+                onClick={() => {
+                  setPassword('');
+                  setPasswordConfirmation('');
+                  setError('');
+                  setStatus('');
+                  setMode('profile');
+                }}
+              >
+                Annuler
+              </button>
+            )}
+            <button className="btn btn--ghost player-account__submit" type="submit" disabled={busy}>{busy ? 'Modification…' : 'Changer le mot de passe'}</button>
+          </div>
         </form>
       )}
 

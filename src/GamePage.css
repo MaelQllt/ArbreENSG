@@ -2237,6 +2237,17 @@
   text-align: right;
 }
 
+.player-account__password-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.player-account__password-cancel {
+  display: none;
+}
+
 @media (max-width: 560px) {
   .player-account__profile-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -2252,6 +2263,15 @@
 
   .player-account__profile-actions {
     gap: 12px;
+  }
+
+  .player-account__password-cancel {
+    display: inline-flex;
+    flex: none;
+  }
+
+  .player-account__password-actions {
+    justify-content: space-between;
   }
 }
 
