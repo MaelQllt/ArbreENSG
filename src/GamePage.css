@@ -4228,3 +4228,9 @@
     text-align: center;
   }
 }
+
+@media (max-width: 767px) and (display-mode: standalone) {
+  .game-page__content {
+    padding-top: calc(max(20px, env(safe-area-inset-top)) + 12px);
+  }
+}
