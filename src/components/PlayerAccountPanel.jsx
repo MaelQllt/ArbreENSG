@@ -711,23 +711,23 @@ export default function PlayerAccountPanel({
       {(mode === 'login' || mode === 'confirmed') && (
         <>
           {mode === 'confirmed' && <p className="player-account__notice">Adresse confirmée. Connecte-toi pour accéder à ton compte.</p>}
-          <form className="player-account__form" onSubmit={submitSignIn}>
+          <form className="player-account__form player-account__form--login" onSubmit={submitSignIn}>
             <Field id="player-login-email" label="Adresse e-mail" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
             <Field id="player-login-password" label="Mot de passe" type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} />
             <div className="player-account__login-actions">
               <button type="button" className="player-account__text-button" onClick={() => { setMode('forgot'); setError(''); setStatus(''); }}>Mot de passe oublié ?</button>
               <button className="btn btn--ghost player-account__submit" type="submit" disabled={busy}>{busy ? 'Connexion…' : 'Se connecter'}</button>
             </div>
+            <div className="player-account__new-account">
+              <span>Nouveau&nbsp;?</span>
+              <button type="button" className="player-account__text-button" onClick={() => { setMode('signup'); setError(''); setStatus(''); }}>Créer un compte</button>
+            </div>
           </form>
-          <div className="player-account__new-account">
-            <span>Nouveau&nbsp;?</span>
-            <button type="button" className="player-account__text-button" onClick={() => { setMode('signup'); setError(''); setStatus(''); }}>Créer un compte</button>
-          </div>
         </>
       )}
 
       {mode === 'signup' && (
-        <form className="player-account__form" onSubmit={submitSignUp}>
+        <form className="player-account__form player-account__form--signup" onSubmit={submitSignUp}>
           <p className="player-account__notice">Crée ton compte avec ton adresse e-mail. Le pseudo sera affiché dans le classement.</p>
           <Field id="player-signup-email" label="Adresse e-mail" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
           {profileFields}

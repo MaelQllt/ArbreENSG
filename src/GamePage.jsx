@@ -1496,7 +1496,7 @@ export default function GamePage({ students, links }) {
           firstName: player.first_name,
           lastName: player.last_name,
           promo: String(player.program_code ?? '') + String(player.arrival_year ?? '').slice(-2),
-          filiere: player.filiere || 'Filière non renseignée',
+          filiere: String(player.filiere ?? '').trim().replace(/^filière non renseignée$/i, ''),
           daily: Number(player.daily_challenges ?? 0),
           weekly: Number(player.weekly_challenges ?? 0),
           score: Number(player.points ?? 0),
@@ -2676,8 +2676,12 @@ export default function GamePage({ students, links }) {
                     <div className="game-leaderboard__profile-school">
                       <span className="game-leaderboard__profile-name">{selectedLeaderboardPlayer.firstName} {selectedLeaderboardPlayer.lastName}</span>
                       <span>{selectedLeaderboardPlayer.promo}</span>
-                      <BrandDivider />
-                      <span>{selectedLeaderboardPlayer.filiere}</span>
+                      {selectedLeaderboardPlayer.filiere && (
+                        <>
+                          <BrandDivider />
+                          <span>{selectedLeaderboardPlayer.filiere}</span>
+                        </>
+                      )}
                     </div>
                     <p className="game-leaderboard__intro">Statistiques des défis enregistrés · profil en lecture seule</p>
                     <div className="game-leaderboard__profile-stats" aria-label={'Statistiques de ' + selectedLeaderboardPlayer.pseudo}>
@@ -2838,7 +2842,7 @@ export default function GamePage({ students, links }) {
                         );
                       })}
                     </div>
-                    <p className="game-archive__hint">
+                    <p className="game-archive__hint game-archive__hint--range">
                       {archiveMode === 'daily'
                         ? 'Défis quotidiens disponibles depuis le 1er septembre 2026.'
                         : 'Défis hebdomadaires disponibles depuis le 1er septembre 2026.'}

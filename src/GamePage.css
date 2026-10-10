@@ -4124,3 +4124,102 @@
     flex: 1 1 auto;
   }
 }
+
+@media (max-width: 767px) {
+  .game-archive__hint--range {
+    font-size: 0.72rem;
+  }
+
+  .game-help-panel:not(.game-help-panel--solution).game-help-panel--player-admin {
+    max-height: calc(100vh - 40px);
+    max-height: calc(100dvh - max(40px, env(safe-area-inset-top) + env(safe-area-inset-bottom) + 24px));
+    padding: 14px 12px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .game-help-panel:not(.game-help-panel--solution).game-help-panel--player-admin > h2 {
+    padding-right: 0;
+    font-size: clamp(1.08rem, 4.4vw, 1.25rem);
+  }
+
+  .player-admin {
+    gap: 9px;
+    margin-top: 10px;
+  }
+
+  .player-admin__intro {
+    font-size: 0.74rem;
+  }
+
+  .player-admin__account-trigger {
+    padding: 8px 9px;
+  }
+
+  .player-account__form--login {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px 8px;
+  }
+
+  .player-account__form--login .player-account__new-account {
+    margin-top: 0;
+  }
+
+  .player-account__form--login > .player-account__field,
+  .player-account__form--login > .player-account__notice {
+    grid-column: 1 / -1;
+  }
+
+  .player-account__form--login .player-account__login-actions {
+    display: contents;
+  }
+
+  .player-account__form--login .player-account__login-actions .player-account__submit {
+    order: 1;
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .player-account__form--login .player-account__login-actions > .player-account__text-button {
+    order: 2;
+    grid-column: 1;
+    align-self: center;
+    max-width: none;
+    font-size: 0.68rem;
+  }
+
+  .player-account__form--login .player-account__new-account {
+    order: 2;
+    grid-column: 2;
+    justify-self: end;
+    gap: 3px;
+    margin: 0;
+    font-size: 0.65rem;
+    white-space: nowrap;
+  }
+
+  .player-account__form--login .player-account__new-account .player-account__text-button {
+    font-size: 0.68rem;
+    white-space: nowrap;
+  }
+
+  .player-account__form--signup .player-account__signup-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .player-account__form--signup .player-account__signup-actions .player-account__submit {
+    align-self: stretch;
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .player-account__form--signup .player-account__signup-actions > .player-account__text-button {
+    align-self: center;
+    text-align: center;
+  }
+}
