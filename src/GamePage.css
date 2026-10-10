@@ -2309,9 +2309,10 @@
 
 .player-account__signup-actions {
   display: flex;
-  align-items: flex-end;
+  flex-direction: column-reverse;
+  align-items: stretch;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -2321,33 +2322,67 @@
 }
 
 .player-account__signup-actions .player-account__submit {
-  flex: 0 0 auto;
+  align-self: stretch;
+  width: 100%;
+  min-height: 44px;
 }
 
 .player-account__login-actions {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 10px;
+  display: contents;
 }
 
 .player-account__login-actions .player-account__submit {
-  flex: 0 0 auto;
+  order: 1;
+  grid-column: 1 / -1;
+  justify-self: stretch;
+  width: 100%;
+  min-height: 44px;
+}
+
+.player-account__form--login {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 8px;
+}
+
+.player-account__form--login > .player-account__field,
+.player-account__form--login > .player-account__notice {
+  grid-column: 1 / -1;
+}
+
+.player-account__form--login .player-account__login-actions > .player-account__text-button {
+  order: 2;
+  grid-column: 1;
+  align-self: center;
+  max-width: none;
+  font-size: 0.68rem;
 }
 
 .player-account__new-account {
   display: flex;
   align-items: baseline;
   justify-content: center;
-  gap: 0.3rem;
+  gap: 3px;
   margin-top: 8px;
   color: #8e6f55;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 600;
 }
 
 .player-account__new-account .player-account__text-button {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
+}
+
+.player-account__form--login .player-account__new-account {
+  order: 2;
+  grid-column: 2;
+  justify-self: end;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.player-account__form--signup .player-account__signup-actions > .player-account__text-button {
+  align-self: center;
+  text-align: center;
 }
 
 .player-account__form--check-email .player-account__text-button {
@@ -4247,71 +4282,6 @@
     padding: 8px 9px;
   }
 
-  .player-account__form--login {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px 8px;
-  }
-
-  .player-account__form--login .player-account__new-account {
-    margin-top: 0;
-  }
-
-  .player-account__form--login > .player-account__field,
-  .player-account__form--login > .player-account__notice {
-    grid-column: 1 / -1;
-  }
-
-  .player-account__form--login .player-account__login-actions {
-    display: contents;
-  }
-
-  .player-account__form--login .player-account__login-actions .player-account__submit {
-    order: 1;
-    grid-column: 1 / -1;
-    justify-self: stretch;
-    width: 100%;
-    min-height: 44px;
-  }
-
-  .player-account__form--login .player-account__login-actions > .player-account__text-button {
-    order: 2;
-    grid-column: 1;
-    align-self: center;
-    max-width: none;
-    font-size: 0.68rem;
-  }
-
-  .player-account__form--login .player-account__new-account {
-    order: 2;
-    grid-column: 2;
-    justify-self: end;
-    gap: 3px;
-    margin: 0;
-    font-size: 0.65rem;
-    white-space: nowrap;
-  }
-
-  .player-account__form--login .player-account__new-account .player-account__text-button {
-    font-size: 0.68rem;
-    white-space: nowrap;
-  }
-
-  .player-account__form--signup .player-account__signup-actions {
-    flex-direction: column-reverse;
-    align-items: stretch;
-    gap: 8px;
-  }
-
-  .player-account__form--signup .player-account__signup-actions .player-account__submit {
-    align-self: stretch;
-    width: 100%;
-    min-height: 44px;
-  }
-
-  .player-account__form--signup .player-account__signup-actions > .player-account__text-button {
-    align-self: center;
-    text-align: center;
-  }
 }
 
 @media (max-width: 767px) and (display-mode: standalone) {
