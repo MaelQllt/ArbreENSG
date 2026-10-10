@@ -568,6 +568,7 @@
 }
 
 .game-feedback__points {
+  margin-left: 0.6rem;
   white-space: nowrap;
 }
 
@@ -974,18 +975,31 @@
   scrollbar-width: thin;
 }
 
+.game-promo-settings__page {
+  display: contents;
+}
+
 @media (min-width: 821px) {
   .game-promo-settings__list {
-    grid-template-columns: repeat(var(--promo-column-count, 1), minmax(135px, 1fr));
-    grid-template-rows: repeat(4, auto);
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(135px, 1fr);
+    display: flex;
+    gap: 12px;
     overflow-x: auto;
     overflow-y: hidden;
     padding-bottom: 4px;
     overscroll-behavior-x: contain;
     scroll-snap-type: x proximity;
     scrollbar-gutter: stable;
+  }
+
+  .game-promo-settings__page {
+    display: grid;
+    flex: 0 0 100%;
+    grid-template-columns: repeat(2, minmax(135px, 1fr));
+    grid-template-rows: repeat(4, auto);
+    grid-auto-flow: row;
+    align-content: start;
+    gap: 7px;
+    scroll-snap-align: start;
   }
 
   .game-promo-settings__list::-webkit-scrollbar {
@@ -1757,6 +1771,305 @@
 
 .game-help-panel--account {
   width: min(620px, 100%);
+}
+
+.game-help-panel--player-admin {
+  width: min(900px, 100%);
+}
+
+.game-help-panel--player-admin > h2 {
+  padding-right: 46px;
+}
+
+.player-admin {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  color: #38235b;
+}
+
+.player-admin__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.player-admin__header > p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.player-admin__header > p span {
+  color: #8e6f55;
+  font-family: var(--font-title);
+  font-size: 0.9em;
+}
+
+.player-admin__refresh {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #d8c5b5;
+  background: transparent;
+  color: var(--blue);
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
+}
+
+.player-admin__refresh:hover,
+.player-admin__refresh:focus-visible {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: var(--paper);
+}
+
+.player-admin__refresh:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.player-admin__intro {
+  margin: -4px 0 0;
+  color: #8e6f55;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.player-admin__search input,
+.player-admin__fields input,
+.player-admin__fields select,
+.player-admin__fields textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #cbb4a1;
+  border-radius: 0;
+  padding: 9px 10px;
+  background: #fff;
+  color: var(--blue);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.player-admin__search input:focus,
+.player-admin__fields input:focus,
+.player-admin__fields select:focus,
+.player-admin__fields textarea:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+.player-admin__search > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.player-admin__accounts {
+  display: grid;
+  gap: 7px;
+}
+
+.player-admin__account {
+  border: 1px solid #e4d5c8;
+  background: #fffaf5;
+}
+
+.player-admin__account.is-open {
+  border-color: var(--sand);
+}
+
+.player-admin__account-trigger {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) 24px;
+  align-items: center;
+  width: 100%;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.player-admin__account-trigger:hover,
+.player-admin__account-trigger:focus-visible,
+.player-admin__account.is-open .player-admin__account-trigger {
+  background: #f6e5d2;
+}
+
+.player-admin__account-main,
+.player-admin__account-meta {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.player-admin__account-main strong {
+  overflow: hidden;
+  color: var(--blue);
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-admin__account-main > span,
+.player-admin__account-meta > span {
+  overflow: hidden;
+  color: #765d48;
+  font-size: 0.73rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-admin__account-meta small {
+  color: #8e6f55;
+  font-size: 0.66rem;
+}
+
+.player-admin__account-chevron {
+  color: #8e6f55;
+  font-family: var(--font-title);
+  font-size: 1.2rem;
+  text-align: center;
+}
+
+.player-admin__form {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border-top: 1px solid #e4d5c8;
+  background: var(--paper);
+}
+
+.player-admin__notice,
+.player-admin__empty {
+  margin: 0;
+  color: #8e6f55;
+  font-size: 0.8rem;
+}
+
+.player-admin__fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px 12px;
+}
+
+.player-admin__fields label,
+.player-admin__field {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  color: var(--blue);
+  font-family: var(--font-text);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.player-admin__fields label small,
+.player-admin__field > span small {
+  color: #8e6f55;
+  font-size: 0.9em;
+  font-weight: 400;
+}
+
+.player-admin__field .admin-student-select {
+  font-size: 0.85rem;
+}
+
+.player-admin__field--wide {
+  grid-column: 1 / -1;
+}
+
+.player-admin__fields textarea {
+  resize: vertical;
+}
+
+.player-admin__form-actions,
+.player-admin__delete-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.player-admin__form-actions button,
+.player-admin__delete-confirm button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--blue);
+  background: var(--blue);
+  color: var(--paper);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.player-admin__form-actions button:hover,
+.player-admin__form-actions button:focus-visible,
+.player-admin__delete-confirm button:hover,
+.player-admin__delete-confirm button:focus-visible {
+  background: #3a478e;
+}
+
+.player-admin__form-actions button.is-danger,
+.player-admin__delete-confirm button.is-danger {
+  border-color: #bd5140;
+  background: transparent;
+  color: #a43d31;
+}
+
+.player-admin__form-actions button.is-danger:hover,
+.player-admin__delete-confirm button.is-danger:hover,
+.player-admin__form-actions button.is-danger:focus-visible,
+.player-admin__delete-confirm button.is-danger:focus-visible {
+  background: #bd5140;
+  color: #fff;
+}
+
+.player-admin__delete-confirm {
+  justify-content: flex-end;
+  padding: 10px;
+  border-left: 3px solid #bd5140;
+  background: #fff1ed;
+}
+
+.player-admin__delete-confirm p {
+  flex: 1 1 100%;
+  margin: 0;
+  color: #78372f;
+  font-size: 0.78rem;
+}
+
+.player-admin__message {
+  margin: 0;
+  padding: 9px 11px;
+  border-left: 3px solid var(--yellow);
+  background: #fff5df;
+  color: var(--blue);
+  font-size: 0.78rem;
+}
+
+.player-admin__message--error {
+  border-left-color: #bd5140;
+  background: #fff1ed;
+  color: #78372f;
 }
 
 .game-account-panel__eyebrow {
@@ -2776,6 +3089,8 @@
   }
 
   .game-promo-settings__list {
+    display: flex;
+    flex-direction: column;
     grid-template-columns: 1fr;
     gap: 5px;
     max-height: min(38dvh, 300px);
@@ -2784,6 +3099,14 @@
     padding-right: 4px;
     -webkit-overflow-scrolling: touch;
     scroll-snap-type: y proximity;
+  }
+
+  .game-promo-settings__page {
+    display: grid;
+    flex: none;
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    gap: 5px;
   }
 
   .game-promo-settings__list::-webkit-scrollbar {
@@ -3763,4 +4086,41 @@
     min-height: 40px;
   }
 
+}
+
+@media (max-width: 767px) {
+  .game-help-panel--player-admin {
+    width: 100%;
+  }
+
+  .player-admin__account-trigger {
+    grid-template-columns: minmax(0, 1fr) 24px;
+    gap: 4px 8px;
+  }
+
+  .player-admin__account-main {
+    grid-column: 1;
+  }
+
+  .player-admin__account-meta {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .player-admin__account-chevron {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+
+  .player-admin__fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .player-admin__form-actions {
+    align-items: stretch;
+  }
+
+  .player-admin__form-actions button {
+    flex: 1 1 auto;
+  }
 }

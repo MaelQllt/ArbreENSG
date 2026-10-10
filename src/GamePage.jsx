@@ -4,8 +4,9 @@ import BrandDivider from './components/BrandDivider';
 import ShapeSwatch from './components/ShapeSwatch';
 import TopoBackground, { TopoDivider } from './components/TopoBackground';
 import PlayerAccountPanel, { updatePlayerAccountStatsCache } from './components/PlayerAccountPanel';
+import PlayerAccountAdminPanel from './components/PlayerAccountAdminPanel';
 import { hasPendingPasswordRecovery, hasSupabaseAuthCallback, recordPlayerChallengeCompletion } from './lib/playerAccounts';
-import { getAccountAuthClient, isSupabaseConfigured } from './lib/supabase';
+import { getAccountAuthClient, getSuperadminSession, isSupabaseConfigured } from './lib/supabase';
 import { describePromo, formatStudentAffiliations } from './lib/promo';
 import { normalizeStudentSearch as normalizeName, searchStudentsByName } from './lib/studentSearch';
 import { getGameChallengeArchive, saveGameChallengeArchive } from './lib/supabase';
@@ -50,6 +51,18 @@ const HELP_EXAMPLE_ORDERED_IDS = Object.freeze(['help-mael', 'help-tom', 'help-l
 // switching between the graph and the game) so opening the account never
 // flashes a loading/login state while Supabase restores its persisted session.
 let cachedGameAccountAuth = { ready: false, user: null };
+function getInitialAccountPanelState() {
+  const accountState = new URLSearchParams(window.location.search).get('account');
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  if (accountState === 'recovery' || accountState === 'confirmed') {
+    return { panel: 'account', mode: accountState };
+  }
+  if (hashParams.get('type') === 'recovery') return { panel: 'account', mode: 'recovery' };
+  if (hashParams.get('type') === 'signup') return { panel: 'account', mode: 'confirmed' };
+  if (hasPendingPasswordRecovery()) return { panel: 'account', mode: 'recovery' };
+  if (hasSupabaseAuthCallback()) return { panel: 'account', mode: 'login' };
+  return { panel: null, mode: 'login' };
+}
 const endpointNameClass = (name) => {
   const length = String(name ?? '').length;
   return length >= 26
@@ -1329,6 +1342,7 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
 }
 
 export default function GamePage({ students, links }) {
+  const [entryAccountState] = useState(getInitialAccountPanelState);
   const [mode, setMode] = useState('daily');
   const [round, setRound] = useState(0);
   const [attemptCount, setAttemptCount] = useState(1);
@@ -1341,13 +1355,14 @@ export default function GamePage({ students, links }) {
   const [feedback, setFeedback] = useState('');
   const [activeSuggestion, setActiveSuggestion] = useState(0);
   const [searchFocused, setSearchFocused] = useState(false);
-  const [activePanel, setActivePanel] = useState(null);
+  const [activePanel, setActivePanel] = useState(entryAccountState.panel);
   const [selectedLeaderboardPlayer, setSelectedLeaderboardPlayer] = useState(null);
   const [leaderboardPlayers, setLeaderboardPlayers] = useState([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [leaderboardError, setLeaderboardError] = useState('');
   const leaderboardHasPlayersRef = useRef(false);
-  const [accountInitialMode, setAccountInitialMode] = useState('login');
+  const [accountInitialMode, setAccountInitialMode] = useState(entryAccountState.mode);
+  const [gameSuperadminSession, setGameSuperadminSession] = useState(null);
   const [accountConnected, setAccountConnected] = useState(() => Boolean(cachedGameAccountAuth.user));
   const [accountAuthReady, setAccountAuthReady] = useState(() => cachedGameAccountAuth.ready);
   const [accountAuthUser, setAccountAuthUser] = useState(() => cachedGameAccountAuth.user);
@@ -1427,6 +1442,38 @@ export default function GamePage({ students, links }) {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    const resolveGameSuperadmin = async () => {
+      try {
+        const savedAdminSession = await getSuperadminSession();
+        if (savedAdminSession) {
+          if (active) setGameSuperadminSession(savedAdminSession);
+          return;
+        }
+        const client = await getAccountAuthClient();
+        const { data: sessionData } = await client.auth.getSession();
+        const session = sessionData?.session;
+        if (!session) {
+          if (active) setGameSuperadminSession(null);
+          return;
+        }
+        const { data, error } = await client
+          .from('superadmins')
+          .select('user_id')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+        if (active) setGameSuperadminSession(error || !data ? null : session);
+      } catch {
+        if (active) setGameSuperadminSession(null);
+      }
+    };
+    void resolveGameSuperadmin();
+    return () => {
+      active = false;
+    };
+  }, [accountAuthReady, accountAuthUser?.id]);
+
+  useEffect(() => {
     if (activePanel !== 'leaderboard') return undefined;
     let active = true;
     if (!isSupabaseConfigured()) {
@@ -1484,23 +1531,6 @@ export default function GamePage({ students, links }) {
       window.clearInterval(refreshTimer);
     };
   }, [activePanel]);
-
-  useEffect(() => {
-    const accountState = new URLSearchParams(window.location.search).get('account');
-    if (accountState === 'recovery' || accountState === 'confirmed') {
-      setAccountInitialMode(accountState);
-      setActivePanel('account');
-      return;
-    }
-    if (hasPendingPasswordRecovery()) {
-      setAccountInitialMode('recovery');
-      setActivePanel('account');
-      return;
-    }
-    if (hasSupabaseAuthCallback()) {
-      setActivePanel('account');
-    }
-  }, []);
 
   useEffect(() => {
     let timer;
@@ -1588,6 +1618,13 @@ export default function GamePage({ students, links }) {
       .sort((a, b) => b - a),
     [students]
   );
+  const promoPages = useMemo(() => {
+    const pages = [];
+    for (let index = 0; index < availablePromoYears.length; index += 8) {
+      pages.push(availablePromoYears.slice(index, index + 8));
+    }
+    return pages;
+  }, [availablePromoYears]);
   const playablePromoYears = useMemo(
     () => selectedPromoYears === null
       ? availablePromoYears
@@ -2205,6 +2242,17 @@ export default function GamePage({ students, links }) {
                   >
                     Compte
                   </button>
+                  {gameSuperadminSession && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setActivePanel('player-admin');
+                      }}
+                    >
+                      Administration
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
@@ -2471,6 +2519,7 @@ export default function GamePage({ students, links }) {
                 + (activePanel === 'help' ? ' game-help-panel--help' : '')
                 + (activePanel === 'game-mode' ? ' game-help-panel--game-mode' : '')
                 + (activePanel === 'account' ? ' game-help-panel--account' : '')
+                + (activePanel === 'player-admin' ? ' game-help-panel--player-admin' : '')
                 + (activePanel === 'leaderboard' ? ' game-help-panel--leaderboard' : '')
                 + (activePanel === 'archive' ? ' game-help-panel--archive' : '')}
               role="dialog"
@@ -2542,27 +2591,30 @@ export default function GamePage({ students, links }) {
                     className="game-promo-settings__list"
                     role="group"
                     aria-label="Promos utilisables dans le jeu"
-                    style={{ '--promo-column-count': Math.max(1, Math.ceil(availablePromoYears.length / 4)) }}
                   >
-                    {availablePromoYears.map((promo) => {
-                      const selected = draftPromoSet.has(promo);
-                      return (
-                        <label
-                          key={promo}
-                          className={'game-promo-settings__option' + (selected ? ' is-selected' : '')}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selected}
-                            onChange={() => toggleDraftPromo(promo)}
-                          />
-                          <span>
-                            <strong>{describePromo(promo, challengeClock).label}</strong>
-                            <small>Promo {promo}</small>
-                          </span>
-                        </label>
-                      );
-                    })}
+                    {promoPages.map((page, pageIndex) => (
+                      <div className="game-promo-settings__page" key={pageIndex}>
+                        {page.map((promo) => {
+                          const selected = draftPromoSet.has(promo);
+                          return (
+                            <label
+                              key={promo}
+                              className={'game-promo-settings__option' + (selected ? ' is-selected' : '')}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={() => toggleDraftPromo(promo)}
+                              />
+                              <span>
+                                <strong>{describePromo(promo, challengeClock).label}</strong>
+                                <small>Promo {promo}</small>
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    ))}
                   </div>
                   <p className="game-promo-settings__status" role="status" aria-live="polite">
                     {draftPromoYears.length < 3
@@ -2591,6 +2643,15 @@ export default function GamePage({ students, links }) {
                       Appliquer
                     </button>
                   </div>
+                </>
+              ) : activePanel === 'player-admin' ? (
+                <>
+                  <p className="game-section-kicker">Superadmin</p>
+                  <h2 id="game-panel-title">Gestion des comptes</h2>
+                  <PlayerAccountAdminPanel
+                    session={gameSuperadminSession}
+                    onSession={setGameSuperadminSession}
+                  />
                 </>
               ) : activePanel === 'account' ? (
                 <>

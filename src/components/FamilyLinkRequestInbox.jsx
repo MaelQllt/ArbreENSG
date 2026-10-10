@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import { deleteFamilyLinkRequest, fetchFamilyLinkRequests, updateFamilyLinkRequest } from '../lib/supabase';
+import { accountErrorMessage } from '../lib/playerAccounts';
 
 const FILTERS = [
   { id: 'pending', label: 'À traiter' },
@@ -37,7 +38,7 @@ export default function FamilyLinkRequestInbox({ session, onSession, onValidate 
       onSession(result.session);
       setRequests(result.requests);
     } catch (loadError) {
-      setError(`Impossible de charger les demandes : ${loadError.message}`);
+      setError(`Impossible de charger les demandes : ${accountErrorMessage(loadError)}`);
     } finally {
       setLoading(false);
     }
@@ -67,7 +68,7 @@ export default function FamilyLinkRequestInbox({ session, onSession, onValidate 
         currentRequest.id === request.id ? result.request : currentRequest
       )));
     } catch (updateError) {
-      setError(`Impossible de modifier cette demande : ${updateError.message}`);
+      setError(`Impossible de modifier cette demande : ${accountErrorMessage(updateError)}`);
     } finally {
       setBusyId(null);
     }
@@ -86,7 +87,7 @@ export default function FamilyLinkRequestInbox({ session, onSession, onValidate 
       onSession(result.session);
       setRequests((current) => current.filter((currentRequest) => currentRequest.id !== request.id));
     } catch (deleteError) {
-      setError(`Impossible de supprimer cette demande : ${deleteError.message}`);
+      setError(`Impossible de supprimer cette demande : ${accountErrorMessage(deleteError)}`);
     } finally {
       setBusyId(null);
     }

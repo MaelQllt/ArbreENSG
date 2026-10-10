@@ -1,2 +1,5 @@
 [functions.notify-family-link-request]
 verify_jwt = false
+
+[functions.manage-player-accounts]
+verify_jwt = true

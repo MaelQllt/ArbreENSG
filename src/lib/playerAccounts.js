@@ -80,6 +80,14 @@ export async function savePlayerProfile(userId, profile) {
   if (validationError) throw new Error(validationError);
 
   const client = await getAccountAuthClient();
+  const { data: { user: authenticatedUser } = {}, error: authError } = await client.auth.getUser();
+  if (authError || !authenticatedUser) {
+    throw new Error('Ta session ne correspond plus à un compte actif. Déconnecte-toi puis reconnecte-toi.');
+  }
+  if (authenticatedUser.id !== userId) {
+    throw new Error('Cette session ne correspond pas au compte à enregistrer. Déconnecte-toi puis reconnecte-toi.');
+  }
+
   const { data, error } = await client
     .from('player_profiles')
     .upsert({
@@ -153,17 +161,42 @@ export function profileFromAuthMetadata(metadata = {}) {
 
 export function accountErrorMessage(error) {
   const message = String(error?.message ?? 'Une erreur est survenue.');
+  const secureRetryDelay = message.match(/for security purposes[^.]*?after\s+(\d+)\s+seconds?/i);
+  if (secureRetryDelay) {
+    const seconds = Number(secureRetryDelay[1]);
+    return `Pour des raisons de sécurité, réessaie dans ${seconds} seconde${seconds > 1 ? 's' : ''}.`;
+  }
+  if (/for security purposes/i.test(message)) return 'Pour des raisons de sécurité, attends un peu avant de réessayer.';
   if (/player_profiles|is_player_pseudo_available/i.test(message) && /schema cache|does not exist|could not find/i.test(message)) {
     return 'La base des comptes n’est pas encore installée. Exécute le script supabase/player_accounts.sql dans Supabase.';
+  }
+  if (/player_profiles_user_id_fkey|violates foreign key constraint/i.test(message)) {
+    return 'Le compte lié à ce profil n’existe plus dans ce projet Supabase. Déconnecte-toi puis reconnecte-toi. Si le problème continue, vérifie que le site utilise le même projet Supabase que l’authentification.';
   }
   if (/invalid login credentials/i.test(message)) return 'Adresse e-mail ou mot de passe incorrect.';
   if (/email not confirmed/i.test(message)) return 'Confirme ton adresse e-mail depuis le lien reçu avant de te connecter.';
   if (/user already registered/i.test(message)) return 'Un compte existe déjà avec cette adresse e-mail. Connecte-toi ou réinitialise ton mot de passe.';
   if (/new password should be different from the old password/i.test(message)) return 'Le nouveau mot de passe doit être différent de l’ancien.';
   if (/password should be at least|weak password/i.test(message)) return `Le mot de passe doit contenir au moins ${MIN_PASSWORD_LENGTH} caractères.`;
-  if (/rate limit/i.test(message)) return 'Trop de tentatives. Attends un peu avant de réessayer.';
+  if (/password cannot be empty|password is required/i.test(message)) return 'Saisis un mot de passe.';
+  if (/email link is invalid or has expired|token has expired or is invalid|invalid token/i.test(message)) return 'Ce lien a expiré ou n’est plus valide. Demande un nouveau lien par e-mail.';
+  if (/pkce code verifier not found|code verifier could not be found/i.test(message)) return 'Ce lien ne peut pas être utilisé depuis cette session. Ouvre-le à nouveau depuis le même navigateur.';
+  if (/email rate limit exceeded|over_email_send_rate_limit/i.test(message)) return 'Trop d’e-mails ont été envoyés. Attends un peu avant de réessayer.';
+  if (/too many requests|rate limit/i.test(message)) return 'Trop de tentatives. Attends un peu avant de réessayer.';
+  if (/unable to validate email address|invalid email/i.test(message)) return 'Cette adresse e-mail n’est pas valide.';
+  if (/email address not authorized/i.test(message)) return 'Cette adresse ne peut pas encore recevoir d’e-mails de Supabase.';
+  if (/signup is disabled/i.test(message)) return 'La création de compte est momentanément désactivée.';
+  if (/error sending (?:the )?(?:confirmation|recovery|password reset) email|failed to send (?:the )?email/i.test(message)) return 'L’e-mail n’a pas pu être envoyé. Vérifie la configuration e-mail puis réessaie.';
+  if (/database error saving new user/i.test(message)) return 'Le compte n’a pas pu être créé. Vérifie que le profil est correctement configuré dans Supabase.';
   if (/fetch|network/i.test(message)) return 'Connexion impossible à Supabase. Vérifie ta connexion internet et réessaie.';
-  return message;
+  // The auth provider can return new English messages over time. Keep known
+  // French application errors intact, and never expose an untranslated
+  // provider message to the player.
+  if (/[àâçéèêëîïôùûüÿœæ]/i.test(message)
+    || /^(?:le\b|la\b|les\b|l['’]|un\b|une\b|ce\b|cette\b|ces\b|ton\b|ta\b|tes\b|tu\b|pour\b|trop\b|impossible\b|choisis\b|saisis\b|compte\b|profil\b|adresse\b|mot de passe\b|erreur\b|configure\b|connecte-toi\b|sélectionne\b)/i.test(message)) {
+    return message;
+  }
+  return 'Une erreur est survenue. Réessaie dans un instant.';
 }
 
 export { MIN_PASSWORD_LENGTH };

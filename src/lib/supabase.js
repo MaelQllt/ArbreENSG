@@ -120,7 +120,7 @@ export async function signInSuperadmin(email, password) {
     } catch {
       clearSession();
     }
-    throw new Error(`Vérification du rôle impossible : ${error.message}`);
+    throw new Error('La vérification des droits superadmin a échoué. Réessaie dans un instant.');
   }
   if (!allowed) {
     await signOutSuperadmin(session);
@@ -265,4 +265,15 @@ export async function deleteFamilyLinkRequest(requestId, session) {
     body: { p_request_id: requestId },
   });
   return { session: activeSession };
+}
+
+export async function managePlayerAccounts(action, payload = {}, session) {
+  if (!isSupabaseConfigured()) throw new Error('La gestion des comptes n’est pas configurée.');
+  const activeSession = await ensureFreshSession(session);
+  const result = await request('/functions/v1/manage-player-accounts', {
+    method: 'POST',
+    token: activeSession.access_token,
+    body: { action, ...payload },
+  });
+  return { session: activeSession, ...result };
 }

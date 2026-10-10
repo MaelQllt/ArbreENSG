@@ -78,6 +78,24 @@ Pour activer les comptes sur le projet Supabase :
    vérifié dans Resend. Le secret `RESEND_API_KEY` déjà configuré pour la fonction
    de notifications n'active pas à lui seul le SMTP d'authentification.
 
+Pour modifier ou supprimer les comptes depuis le menu superadmin, déploie aussi
+`supabase/functions/manage-player-accounts/index.ts` avec la commande
+`npx supabase functions deploy manage-player-accounts --project-ref <ref>`.
+La fonction envoie les notifications de modification et suppression de compte
+avec le SMTP Orange, indépendamment de Resend et du SMTP configuré pour Supabase
+Auth. Dans **Edge Functions > Secrets**, configure :
+
+- `ACCOUNT_ADMIN_SMTP_HOST` : `smtp.orange.fr`
+- `ACCOUNT_ADMIN_SMTP_PORT` : `465`
+- `ACCOUNT_ADMIN_SMTP_SECURE` : `true`
+- `ACCOUNT_ADMIN_SMTP_USER` : ton adresse e-mail Orange complète
+- `ACCOUNT_ADMIN_SMTP_PASSWORD` : le mot de passe dédié aux logiciels de messagerie, si Orange t'en a fait créer un
+- `ACCOUNT_ADMIN_SMTP_FROM` : facultatif, par exemple `Familles ENSG <ton-adresse@orange.fr>`
+
+La modification ou suppression du compte est enregistrée même si l'envoi du
+mail échoue. Les messages de résultat affichés dans le panneau disparaissent
+automatiquement après quelques secondes.
+
 Sans réseau, les inscriptions, connexions, confirmations et changements de mot
 de passe ne peuvent pas être effectués. Le compte et son profil restent stockés
 dans Supabase et sont retrouvés quand la personne se reconnecte.

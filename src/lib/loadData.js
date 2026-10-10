@@ -24,13 +24,13 @@ export async function loadData() {
       warnings: shared.warnings,
       source: 'shared',
     };
-  } catch (error) {
+  } catch {
     if (error.status === 540 || error.code === '540') {
       return {
         ...fallbackData(),
         maintenance: true,
       };
     }
-    return fallbackData(`Base Supabase indisponible : ${error.message}. La base Excel intégrée est utilisée.`);
+    return fallbackData('Base Supabase indisponible. La base Excel intégrée est utilisée.');
   }
 }

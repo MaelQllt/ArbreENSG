@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { searchStudentsByName } from '../lib/studentSearch';
 import { notifyFamilyLinkRequestByEmail, submitFamilyLinkRequest } from '../lib/supabase';
+import { accountErrorMessage } from '../lib/playerAccounts';
 
 function StudentPicker({ id, label, placeholder, students, value, onChange }) {
   const rootRef = useRef(null);
@@ -132,7 +133,7 @@ export default function FamilyLinkRequestForm({ students }) {
         type: 'error',
         text: unavailable
           ? 'Le service de demandes n’est pas encore activé. Réessaie un peu plus tard.'
-          : `L’envoi a échoué : ${error.message}`,
+          : `L’envoi a échoué : ${accountErrorMessage(error)}`,
       });
     } finally {
       setBusy(false);

@@ -8,6 +8,7 @@ import {
 import { buildFamilyWorkbook } from '../lib/xlsxWorkbook';
 import { importFamilyWorkbook } from '../lib/xlsxImport';
 import { searchStudentsByName } from '../lib/studentSearch';
+import { accountErrorMessage } from '../lib/playerAccounts';
 import BrandDivider from './BrandDivider';
 import FamilyLinkRequestInbox from './FamilyLinkRequestInbox';
 import PasswordInput from './PasswordInput';
@@ -667,7 +668,7 @@ export default function AdminPanel({
       setAdminSection('families');
       setDialog('admin');
     } catch (loginError) {
-      setError(loginError.message);
+      setError(accountErrorMessage(loginError));
     } finally {
       setBusy(false);
     }
@@ -678,7 +679,7 @@ export default function AdminPanel({
     try {
       await signOutSuperadmin(session);
     } catch (logoutError) {
-      setError(`Session fermée sur cet appareil. ${logoutError.message}`);
+      setError(`Session fermée sur cet appareil. ${accountErrorMessage(logoutError)}`);
     } finally {
       setSession(null);
       setDialog(null);
@@ -724,7 +725,7 @@ export default function AdminPanel({
       onSaved(nextData, parsed.warnings);
       setMessage(`${student.name} et ses ${linkedCount} lien${linkedCount === 1 ? '' : 's'} familiaux ont été supprimés.`);
     } catch (saveError) {
-      setError(`La suppression a échoué : ${saveError.message}`);
+      setError(`La suppression a échoué : ${accountErrorMessage(saveError)}`);
       if (fromShortcut) {
         setAnchorId(student.id);
         setRelationAction('delete');
@@ -773,7 +774,7 @@ export default function AdminPanel({
     } catch (exportError) {
       const detail = /archive_family_data_version|schema cache|404/i.test(exportError.message)
         ? 'Exécute d’abord le script supabase/versioned_exports.sql dans Supabase SQL Editor.'
-        : exportError.message;
+        : accountErrorMessage(exportError);
       setError(`La nouvelle base n’a pas pu être créée : ${detail}`);
     } finally {
       setBusy(false);
@@ -794,7 +795,7 @@ export default function AdminPanel({
       onSaved(imported.data, []);
       setMessage(`Le classeur a été importé comme nouvelle base v${result.version}. Les versions précédentes sont conservées.`);
     } catch (importError) {
-      setError(`Le classeur n’a pas été importé : ${importError.message}`);
+      setError(`Le classeur n’a pas été importé : ${accountErrorMessage(importError)}`);
     } finally {
       setBusy(false);
     }
@@ -846,7 +847,7 @@ export default function AdminPanel({
         onSaved(nextData, parsed.warnings);
         setMessage(`Les informations de ${updatedStudent.name} ont été mises à jour.`);
       } catch (saveError) {
-        setError(`La modification a échoué : ${saveError.message}`);
+        setError(`La modification a échoué : ${accountErrorMessage(saveError)}`);
       } finally {
         setBusy(false);
       }
@@ -946,7 +947,7 @@ export default function AdminPanel({
         if (!createStandalone) setPersonType('existing');
       }
     } catch (saveError) {
-      setError(`La sauvegarde a échoué : ${saveError.message}`);
+      setError(`La sauvegarde a échoué : ${accountErrorMessage(saveError)}`);
     } finally {
       setBusy(false);
     }
