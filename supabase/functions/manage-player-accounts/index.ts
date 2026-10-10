@@ -50,7 +50,14 @@ function parseProfile(value: unknown): EditableProfile | string {
 
 type AccountEmailResult = {
   sent: boolean;
-  issue?: 'missing_configuration' | 'smtp_authentication' | 'smtp_connection' | 'smtp_rejected';
+  issue?: 'missing_configuration' | 'smtp_authentication' | 'smtp_connection' | 'smtp_temporary_refusal' | 'smtp_rejected';
+};
+
+const isTemporarySmtpGreetingRefusal = (error: unknown) => {
+  const smtpError = error as { code?: string; responseCode?: number; message?: string };
+  return smtpError.code === 'EPROTOCOL'
+    && smtpError.responseCode === 550
+    && /invalid greeting|OFR105_103|service refuse/i.test(smtpError.message ?? '');
 };
 
 async function sendAccountNotice(to: string, subject: string, text: string): Promise<AccountEmailResult> {
@@ -65,30 +72,45 @@ async function sendAccountNotice(to: string, subject: string, text: string): Pro
     return { sent: false, issue: 'missing_configuration' };
   }
 
-  const transport = nodemailer.createTransport({
-    host,
-    port,
-    secure,
-    auth: { user, pass: password },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-  });
-  try {
-    await transport.sendMail({ from: sender, to, subject, text });
-    return { sent: true };
-  } catch (error) {
-    const smtpError = error as { code?: string; responseCode?: number; message?: string };
-    const issue: AccountEmailResult['issue'] = smtpError.code === 'EAUTH'
-      ? 'smtp_authentication'
-      : ['ECONNECTION', 'ETIMEDOUT', 'ESOCKET', 'EDNS'].includes(smtpError.code ?? '')
-        ? 'smtp_connection'
-        : 'smtp_rejected';
-    console.error('[manage-player-accounts] SMTP email failed', smtpError.code ?? 'unknown', smtpError.responseCode ?? '', smtpError.message ?? '');
-    return { sent: false, issue };
-  } finally {
-    transport.close();
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const transport = nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      auth: { user, pass: password },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
+    });
+    let retryTemporaryRefusal = false;
+    try {
+      await transport.sendMail({ from: sender, to, subject, text });
+      return { sent: true };
+    } catch (error) {
+      const smtpError = error as { code?: string; responseCode?: number; message?: string };
+      retryTemporaryRefusal = isTemporarySmtpGreetingRefusal(error) && attempt < maxAttempts;
+      if (!retryTemporaryRefusal) {
+        const issue: AccountEmailResult['issue'] = isTemporarySmtpGreetingRefusal(error)
+          ? 'smtp_temporary_refusal'
+          : smtpError.code === 'EAUTH'
+            ? 'smtp_authentication'
+            : ['ECONNECTION', 'ETIMEDOUT', 'ESOCKET', 'EDNS', 'EPROTOCOL'].includes(smtpError.code ?? '')
+              ? 'smtp_connection'
+              : 'smtp_rejected';
+        console.error('[manage-player-accounts] SMTP email failed', `attempt=${attempt}/${maxAttempts}`, smtpError.code ?? 'unknown', smtpError.responseCode ?? '', smtpError.message ?? '');
+        return { sent: false, issue };
+      }
+      console.warn('[manage-player-accounts] Orange SMTP temporarily refused the greeting; retrying', `attempt=${attempt}/${maxAttempts}`);
+    } finally {
+      transport.close();
+    }
+    if (retryTemporaryRefusal) {
+      await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
+    }
   }
+
+  return { sent: false, issue: 'smtp_temporary_refusal' };
 }
 
 Deno.serve(async (request) => {

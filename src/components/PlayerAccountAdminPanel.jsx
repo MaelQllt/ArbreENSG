@@ -162,6 +162,7 @@ function emailFailureMessage(action, issue) {
     missing_configuration: 'Le SMTP Orange n’est pas entièrement configuré dans les secrets de la fonction Supabase.',
     smtp_authentication: 'Orange a refusé l’identifiant ou le mot de passe SMTP. Vérifie les secrets de la fonction.',
     smtp_connection: 'La fonction n’a pas réussi à joindre le serveur SMTP Orange. Réessaie plus tard.',
+    smtp_temporary_refusal: 'Orange a refusé temporairement la connexion SMTP (550/OFR105_103) lors des trois tentatives. Réessaie plus tard.',
     smtp_rejected: 'Le serveur SMTP Orange a refusé l’envoi. Vérifie l’adresse du destinataire et les réglages SMTP.',
   };
   return `${action}, mais l’e-mail n’a pas été envoyé. ${details[issue] ?? details.smtp_rejected}`;
