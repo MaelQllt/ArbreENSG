@@ -203,6 +203,7 @@ export default function PlayerAccountPanel({
   initialMode = 'login',
   onConnectionChange,
   onAuthReady,
+  onInitialModeReset,
   knownAuthReady = false,
   knownUser = null,
 }) {
@@ -632,6 +633,7 @@ export default function PlayerAccountPanel({
       setPasswordConfirmation('');
       setMode('profile');
       setStatus('Mot de passe modifié.');
+      onInitialModeReset?.();
     });
   };
 
@@ -640,7 +642,14 @@ export default function PlayerAccountPanel({
     const { error: signOutError } = await client.auth.signOut();
     if (signOutError) throw signOutError;
     playerAccountSnapshot = null;
+    clearPendingPasswordRecovery();
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('account')) {
+      url.searchParams.delete('account');
+      window.history.replaceState(window.history.state, '', url.toString());
+    }
     setMode('login');
+    onInitialModeReset?.();
   });
 
   if (!isSupabaseConfigured()) {

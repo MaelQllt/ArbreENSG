@@ -2600,6 +2600,7 @@ export default function GamePage({ students, links }) {
                   <h2 id="game-panel-title">{accountAuthReady ? (accountConnected ? 'Mon compte' : 'Connexion') : 'Compte'}</h2>
                   <PlayerAccountPanel
                     initialMode={accountInitialMode}
+                    onInitialModeReset={() => setAccountInitialMode('login')}
                     onConnectionChange={setAccountConnected}
                     onAuthReady={() => setAccountAuthReady(true)}
                     knownAuthReady={accountAuthReady}
