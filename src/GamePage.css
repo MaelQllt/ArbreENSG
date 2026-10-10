@@ -179,6 +179,7 @@
   background: transparent;
   color: var(--sand);
   cursor: pointer;
+  transform: translateX(-6px);
   transition: color 140ms ease, opacity 140ms ease;
 }
 
@@ -1621,6 +1622,32 @@
   background: var(--paper);
   color: var(--blue);
   box-shadow: 1px 2px 0 rgb(56 35 91 / 11%);
+}
+
+.game-graph__viewport--elastic .game-node {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  will-change: transform;
+}
+
+.game-graph__viewport--elastic {
+  overflow: visible;
+}
+
+.game-graph__viewport--elastic .game-graph__canvas {
+  overflow: visible;
+}
+
+.game-graph__viewport--elastic .game-node--being-dragged {
+  z-index: 2;
+  cursor: grabbing;
+}
+
+.game-graph__viewport--elastic .game-node:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
 }
 
 .game-node--shortest {

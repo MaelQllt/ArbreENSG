@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { forceLink, forceManyBody, forceSimulation, forceX, forceY } from 'd3-force';
 import houseIcon from './assets/house.svg';
 import BrandDivider from './components/BrandDivider';
 import ShapeSwatch from './components/ShapeSwatch';
@@ -13,6 +14,77 @@ import { getGameChallengeArchive, saveGameChallengeArchive } from './lib/supabas
 import './GamePage.css';
 
 const endpointId = (value) => (typeof value === 'object' ? value.id : value);
+
+function forceNodeCollision(gap = 6) {
+  let nodes = [];
+  const force = (alpha) => {
+    for (let iteration = 0; iteration < 2; iteration += 1) {
+      for (let firstIndex = 0; firstIndex < nodes.length; firstIndex += 1) {
+        const first = nodes[firstIndex];
+        for (let secondIndex = firstIndex + 1; secondIndex < nodes.length; secondIndex += 1) {
+          const second = nodes[secondIndex];
+          const dx = (second.x + second.vx) - (first.x + first.vx);
+          const dy = (second.y + second.vy) - (first.y + first.vy);
+          const overlapX = (first.width + second.width) / 2 + gap - Math.abs(dx);
+          const overlapY = (first.height + second.height) / 2 + gap - Math.abs(dy);
+          if (overlapX <= 0 || overlapY <= 0) continue;
+
+          const direction = dx === 0
+            ? (first.id < second.id ? 1 : -1)
+            : Math.sign(dx);
+          const firstIsFixed = first.fx != null;
+          const secondIsFixed = second.fx != null;
+          const impulse = overlapX * alpha * 0.72;
+          if (firstIsFixed && !secondIsFixed) {
+            second.vx += direction * impulse;
+          } else if (secondIsFixed && !firstIsFixed) {
+            first.vx -= direction * impulse;
+          } else if (!firstIsFixed && !secondIsFixed) {
+            first.vx -= direction * impulse * 0.5;
+            second.vx += direction * impulse * 0.5;
+          }
+        }
+      }
+    }
+  };
+  force.initialize = (simulationNodes) => { nodes = simulationNodes; };
+  return force;
+}
+
+function separateOverlappingNodes(nodes, gap = 6) {
+  for (let iteration = 0; iteration < 2; iteration += 1) {
+    for (let firstIndex = 0; firstIndex < nodes.length; firstIndex += 1) {
+      const first = nodes[firstIndex];
+      for (let secondIndex = firstIndex + 1; secondIndex < nodes.length; secondIndex += 1) {
+        const second = nodes[secondIndex];
+        const dx = second.x - first.x;
+        const dy = second.y - first.y;
+        const overlapX = (first.width + second.width) / 2 + gap - Math.abs(dx);
+        const overlapY = (first.height + second.height) / 2 + gap - Math.abs(dy);
+        if (overlapX <= 0 || overlapY <= 0) continue;
+
+        const overlap = overlapX + 0.01;
+        const direction = dx === 0
+          ? (first.id < second.id ? 1 : -1)
+          : Math.sign(dx);
+        const firstFixed = first.fx != null;
+        const secondFixed = second.fx != null;
+        if (firstFixed && !secondFixed) {
+          second.x += direction * overlap;
+        } else if (secondFixed && !firstFixed) {
+          first.x -= direction * overlap;
+        } else if (!firstFixed && !secondFixed) {
+          first.x -= direction * overlap / 2;
+          second.x += direction * overlap / 2;
+        }
+
+        if (!firstFixed && first.vx * direction > 0) first.vx *= -0.2;
+        if (!secondFixed && second.vx * direction < 0) second.vx *= -0.2;
+      }
+    }
+  }
+}
+
 const EMPTY_GRAPH_HINTS = Object.freeze([]);
 // Années d'entrée fixes ; describePromo recalcule automatiquement les niveaux IT chaque année.
 const HELP_EXAMPLE_NODES = Object.freeze([
@@ -672,7 +744,7 @@ function getStudentInitials(name) {
     .join(' ');
 }
 
-function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId, requiredId, forbiddenId = null, weeklyMode = false, practiceMode = false, shortestIds, shortestEdgeKeys, possibleIds, orderedIds, solutionLayout = false, ariaLabel = 'Graphe des personnes trouvées' }) {
+function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId, requiredId, forbiddenId = null, weeklyMode = false, practiceMode = false, shortestIds, shortestEdgeKeys, possibleIds, orderedIds, solutionLayout = false, elasticDrag = false, ariaLabel = 'Graphe des personnes trouvées' }) {
   const viewportRef = useRef(null);
   const canvasRef = useRef(null);
   const planeRef = useRef(null);
@@ -688,6 +760,15 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
   });
   const scaleRef = useRef(1);
   scaleRef.current = layout.scale;
+  const [nodeOffsets, setNodeOffsets] = useState({});
+  const [draggingNodeId, setDraggingNodeId] = useState(null);
+  const nodeOffsetsRef = useRef({});
+  const elasticNodesRef = useRef(new Map());
+  const elasticSimulationRef = useRef(null);
+  const elasticScaleRef = useRef(1);
+  const dragRef = useRef(null);
+  const returnFrameRef = useRef(0);
+  const graphUpdateRef = useRef(null);
 
   const visibleIds = useMemo(() => new Set(nodes.map((node) => node.id)), [nodes]);
   const renderedNodes = useMemo(() => {
@@ -698,6 +779,160 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
     return [...byId.values()];
   }, [nodes, hintNodes]);
   const renderedIds = useMemo(() => new Set(renderedNodes.map((node) => node.id)), [renderedNodes]);
+  const saveNodeOffsets = (offsets) => {
+    nodeOffsetsRef.current = offsets;
+    setNodeOffsets(offsets);
+  };
+  const getElasticNode = (nodeId) => elasticNodesRef.current.get(nodeId);
+  const keepPromoNodesApart = (node, targetX) => {
+    let safeX = targetX;
+    elasticNodesRef.current.forEach((other) => {
+      if (other.id === node.id || other.promo !== node.promo) return;
+      const separation = (node.width + other.width) / 2 + 6;
+      const otherX = other.fx != null ? other.fx : other.x + other.vx;
+      if (node.baseX < other.baseX) safeX = Math.min(safeX, otherX - separation);
+      else safeX = Math.max(safeX, otherX + separation);
+    });
+    return safeX;
+  };
+  const heatElasticGraph = (alpha = 0.45) => {
+    const simulation = elasticSimulationRef.current;
+    if (!simulation) return;
+    simulation.alpha(Math.max(simulation.alpha(), alpha)).alphaTarget(0.22).restart();
+  };
+  const finishElasticDrag = () => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const node = getElasticNode(drag.nodeId);
+    const simulation = elasticSimulationRef.current;
+    dragRef.current = null;
+    setDraggingNodeId(null);
+    if (!node || !simulation) return;
+    node.fx = null;
+    node.fy = null;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      simulation.stop();
+      elasticNodesRef.current.forEach((elasticNode) => {
+        elasticNode.x = elasticNode.baseX;
+        elasticNode.y = elasticNode.baseY;
+        elasticNode.vx = 0;
+        elasticNode.vy = 0;
+      });
+      saveNodeOffsets({});
+      return;
+    }
+    node.vx = Math.max(-10, Math.min(10, node.vx + drag.velocityX * 0.011));
+    node.vy = Math.max(-8, Math.min(8, node.vy + drag.velocityY * 0.011));
+    simulation.alpha(Math.max(simulation.alpha(), 0.32)).alphaTarget(0).restart();
+  };
+  const handleElasticPointerDown = (event, nodeId) => {
+    if (!elasticDrag || !event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    const node = getElasticNode(nodeId);
+    if (!node || !elasticSimulationRef.current) return;
+    window.cancelAnimationFrame(returnFrameRef.current);
+    returnFrameRef.current = 0;
+    node.fx = node.x;
+    node.fy = node.y;
+    dragRef.current = {
+      nodeId,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: node.x,
+      originY: node.y,
+      targetX: node.x,
+      targetY: node.y,
+      lastX: event.clientX,
+      lastY: event.clientY,
+      lastAt: performance.now(),
+      velocityX: 0,
+      velocityY: 0,
+    };
+    setDraggingNodeId(nodeId);
+    heatElasticGraph(0.62);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+  const handleElasticPointerMove = (event) => {
+    const drag = dragRef.current;
+    if (!elasticDrag || !drag || drag.pointerId !== event.pointerId) return;
+    const node = getElasticNode(drag.nodeId);
+    const simulation = elasticSimulationRef.current;
+    if (!node || !simulation) return;
+    const scale = Math.max(0.01, elasticScaleRef.current);
+    const rangeX = 190 / scale;
+    const rangeY = 18 / scale;
+    const dragGainX = 1.5;
+    const dragGainY = 1.25;
+    const desiredX = Math.max(
+      node.baseX - rangeX,
+      Math.min(node.baseX + rangeX, drag.originX + ((event.clientX - drag.startX) * dragGainX) / scale)
+    );
+    drag.targetX = keepPromoNodesApart(node, desiredX);
+    drag.targetY = Math.max(
+      node.baseY - rangeY,
+      Math.min(node.baseY + rangeY, drag.originY + ((event.clientY - drag.startY) * dragGainY) / scale)
+    );
+    node.fx = drag.targetX;
+    node.fy = drag.targetY;
+    node.x = drag.targetX;
+    node.y = drag.targetY;
+
+    const now = performance.now();
+    const elapsed = Math.max(12, now - drag.lastAt);
+    const velocityX = ((event.clientX - drag.lastX) * dragGainX / scale) * 1000 / elapsed;
+    const velocityY = ((event.clientY - drag.lastY) * dragGainY / scale) * 1000 / elapsed;
+    drag.velocityX = drag.velocityX * 0.55 + velocityX * 0.45;
+    drag.velocityY = drag.velocityY * 0.55 + velocityY * 0.45;
+    drag.lastX = event.clientX;
+    drag.lastY = event.clientY;
+    drag.lastAt = now;
+    heatElasticGraph(0.5);
+  };
+  const handleElasticPointerEnd = (event) => {
+    if (!dragRef.current || (event?.pointerId != null && dragRef.current.pointerId !== event.pointerId)) return;
+    finishElasticDrag();
+  };
+  const handleElasticKeyDown = (event, nodeId) => {
+    if (!elasticDrag || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+    event.preventDefault();
+    const node = getElasticNode(nodeId);
+    if (!node) return;
+    if (!dragRef.current) {
+      window.cancelAnimationFrame(returnFrameRef.current);
+      returnFrameRef.current = 0;
+      node.fx = node.x;
+      node.fy = node.y;
+      dragRef.current = {
+        nodeId,
+        pointerId: null,
+        originX: node.x,
+        originY: node.y,
+        targetX: node.x,
+        targetY: node.y,
+        velocityX: 0,
+        velocityY: 0,
+      };
+    }
+    if (dragRef.current.nodeId !== nodeId) return;
+    const scale = Math.max(0.01, elasticScaleRef.current);
+    const step = 18 / scale;
+    const drag = dragRef.current;
+    const nextX = drag.targetX + (event.key === 'ArrowRight' ? step : event.key === 'ArrowLeft' ? -step : 0);
+    const nextY = drag.targetY + (event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0);
+    const desiredX = Math.max(node.baseX - 190 / scale, Math.min(node.baseX + 190 / scale, nextX));
+    drag.targetX = keepPromoNodesApart(node, desiredX);
+    drag.targetY = Math.max(node.baseY - 18 / scale, Math.min(node.baseY + 18 / scale, nextY));
+    node.fx = drag.targetX;
+    node.fy = drag.targetY;
+    node.x = node.fx;
+    node.y = node.fy;
+    setDraggingNodeId(nodeId);
+    heatElasticGraph(0.5);
+  };
+  const handleElasticKeyUp = (event) => {
+    if (!elasticDrag || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+    if (dragRef.current?.pointerId === null) finishElasticDrag();
+  };
   const ghostIds = useMemo(() => new Set(hintNodes
     .filter((node) => !visibleIds.has(node.id))
     .map((node) => node.id)), [hintNodes, visibleIds]);
@@ -1196,6 +1431,7 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
       });
     };
 
+    graphUpdateRef.current = update;
     update();
     let updateFrame = 0;
     const scheduleUpdate = () => {
@@ -1207,8 +1443,155 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
     return () => {
       observer.disconnect();
       cancelAnimationFrame(updateFrame);
+      graphUpdateRef.current = null;
     };
   }, [graph.edges, graph.byId, visibleIds, renderedIds, groups, shortestEdgeKeys, possibleIds, widestPromoRow, solutionLayout, forbiddenId, startId, endId]);
+
+  useLayoutEffect(() => {
+    if (!elasticDrag) return undefined;
+    const plane = planeRef.current;
+    const planeRect = plane?.getBoundingClientRect();
+    const scale = Math.max(0.01, layout.scale);
+    if (!planeRect?.width || !planeRect.height) return undefined;
+
+    elasticScaleRef.current = scale;
+    const simulationNodes = renderedNodes.flatMap((student) => {
+      const element = nodeRefs.current.get(student.id);
+      const rect = element?.getBoundingClientRect();
+      if (!rect) return [];
+      const previousOffset = nodeOffsetsRef.current[student.id] ?? { x: 0, y: 0 };
+      const x = (rect.left + rect.width / 2 - planeRect.left) / scale - previousOffset.x;
+      const y = (rect.top + rect.height / 2 - planeRect.top) / scale - previousOffset.y;
+      return [{
+        id: student.id,
+        baseX: x,
+        baseY: y,
+        x: x + previousOffset.x,
+        y: y + previousOffset.y,
+        width: rect.width / scale,
+        height: rect.height / scale,
+        promo: student.promo,
+      }];
+    });
+    if (!simulationNodes.length) return undefined;
+
+    const nodesById = new Map(simulationNodes.map((node) => [node.id, node]));
+    const simulationLinks = graph.edges.flatMap((edge) => {
+      const source = nodesById.get(endpointId(edge.source));
+      const target = nodesById.get(endpointId(edge.target));
+      if (!source || !target) return [];
+      return [{
+        source: source.id,
+        target: target.id,
+        restLength: Math.hypot(target.baseX - source.baseX, target.baseY - source.baseY),
+      }];
+    });
+    const simulation = forceSimulation(simulationNodes)
+      .stop()
+      .alpha(0)
+      .velocityDecay(0.24)
+      .alphaDecay(0.07)
+      .force('link', forceLink(simulationLinks)
+        .id((node) => node.id)
+        .distance((link) => link.restLength)
+        .strength(0.14))
+      .force('charge', forceManyBody().strength(-52).distanceMax(Math.max(180, layout.width / scale)))
+      .force('x', forceX((node) => node.baseX).strength(0.008))
+      .force('y', forceY((node) => node.baseY).strength(0.12))
+      .force('collision', forceNodeCollision(6));
+
+    const restoreNodesToOrigin = () => {
+      if (dragRef.current || returnFrameRef.current) return;
+      simulation.stop();
+      const startingPositions = simulationNodes.map((node) => ({
+        node,
+        x: node.x,
+        y: node.y,
+      }));
+      const startedAt = performance.now();
+      const duration = 900;
+      const animateHome = (now) => {
+        if (dragRef.current || elasticSimulationRef.current !== simulation) {
+          returnFrameRef.current = 0;
+          return;
+        }
+        const progress = Math.min(1, (now - startedAt) / duration);
+        const eased = progress * progress * (3 - (2 * progress));
+        startingPositions.forEach(({ node, x, y }) => {
+          node.x = x + (node.baseX - x) * eased;
+          node.y = y + (node.baseY - y) * eased;
+          node.vx = 0;
+          node.vy = 0;
+        });
+        separateOverlappingNodes(simulationNodes, 6);
+        if (progress >= 1) {
+          startingPositions.forEach(({ node }) => {
+            node.x = node.baseX;
+            node.y = node.baseY;
+          });
+          returnFrameRef.current = 0;
+          saveNodeOffsets({});
+          return;
+        }
+        saveNodeOffsets(Object.fromEntries(simulationNodes.map((node) => [node.id, {
+          x: node.x - node.baseX,
+          y: node.y - node.baseY,
+        }])));
+        returnFrameRef.current = window.requestAnimationFrame(animateHome);
+      };
+      returnFrameRef.current = window.requestAnimationFrame(animateHome);
+    };
+
+    simulation.on('tick', () => {
+      const activeDrag = dragRef.current;
+      if (activeDrag) {
+        const activeNode = nodesById.get(activeDrag.nodeId);
+        if (activeNode && activeDrag.targetX != null && activeDrag.targetY != null) {
+          activeDrag.targetX = keepPromoNodesApart(activeNode, activeDrag.targetX);
+          activeNode.fx = activeDrag.targetX;
+          activeNode.fy = activeDrag.targetY;
+          activeNode.x = activeDrag.targetX;
+          activeNode.y = activeDrag.targetY;
+        }
+      }
+      const verticalLimit = 20 / scale;
+      simulationNodes.forEach((node) => {
+        const minY = node.baseY - verticalLimit;
+        const maxY = node.baseY + verticalLimit;
+        if (node.y < minY) {
+          node.y = minY;
+          if (node.vy < 0) node.vy *= -0.32;
+        } else if (node.y > maxY) {
+          node.y = maxY;
+          if (node.vy > 0) node.vy *= -0.32;
+        }
+      });
+      separateOverlappingNodes(simulationNodes, 6);
+      const offsets = Object.fromEntries(simulationNodes.map((node) => [node.id, {
+        x: node.x - node.baseX,
+        y: node.y - node.baseY,
+      }]));
+      saveNodeOffsets(offsets);
+    });
+    simulation.on('end', restoreNodesToOrigin);
+    elasticNodesRef.current = nodesById;
+    elasticSimulationRef.current = simulation;
+    return () => {
+      window.cancelAnimationFrame(returnFrameRef.current);
+      returnFrameRef.current = 0;
+      simulation.stop();
+      simulation.on('tick', null);
+      simulation.on('end', null);
+      if (elasticSimulationRef.current === simulation) {
+        elasticSimulationRef.current = null;
+        elasticNodesRef.current = new Map();
+      }
+    };
+  }, [elasticDrag, graph.edges, layout.height, layout.scale, layout.width, renderedNodes]);
+
+  useLayoutEffect(() => {
+    if (elasticDrag) graphUpdateRef.current?.();
+  }, [elasticDrag, nodeOffsets]);
 
   return (
     <>
@@ -1218,6 +1601,7 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
           + (solutionLayout ? ' game-graph__viewport--solution' : '')
           + (weeklyMode ? ' game-graph__viewport--weekly' : '')
           + (practiceMode ? ' game-graph__viewport--practice' : '')
+          + (elasticDrag ? ' game-graph__viewport--elastic' : '')
           + (layout.horizontalScroll ? ' game-graph__viewport--scrollable' : '')}
         role="region"
         aria-label={ariaLabel + (mobileSolutionLayout && layout.horizontalScroll ? ', faites défiler horizontalement pour voir tout le graphe' : '')}
@@ -1298,12 +1682,33 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
                             + (isShortest ? ' game-node--shortest' : '')
                             + (isHinted ? ' game-node--hinted' : '')
                             + (isOffPath ? ' game-node--off-path' : '')
+                            + (elasticDrag && draggingNodeId === student.id ? ' game-node--being-dragged' : '')
                             + (displayedName.length >= 26 ? ' game-node--very-long-name'
                               : displayedName.length >= 18 ? ' game-node--long-name' : '')}
-                          aria-label={isHinted
-                            ? 'Indice : ' + getStudentInitials(student.name)
-                            : isForbidden ? student.name + ', interdit par la règle hebdomadaire'
-                              : isRequired ? student.name + ', passage obligatoire' : undefined}
+                          style={elasticDrag
+                            ? {
+                              transform: `translate3d(${nodeOffsets[student.id]?.x ?? 0}px, ${nodeOffsets[student.id]?.y ?? 0}px, 0)`,
+                            }
+                            : undefined}
+                          role={elasticDrag ? 'group' : undefined}
+                          tabIndex={elasticDrag ? 0 : undefined}
+                          aria-roledescription={elasticDrag ? 'nœud déplaçable dans le graphe' : undefined}
+                          aria-label={elasticDrag
+                            ? student.name + ', déplacer dans le graphe avec les flèches'
+                            : isHinted
+                              ? 'Indice : ' + getStudentInitials(student.name)
+                              : isForbidden ? student.name + ', interdit par la règle hebdomadaire'
+                                : isRequired ? student.name + ', passage obligatoire' : undefined}
+                          onPointerDown={elasticDrag ? (event) => handleElasticPointerDown(event, student.id) : undefined}
+                          onPointerMove={elasticDrag ? handleElasticPointerMove : undefined}
+                          onPointerUp={elasticDrag ? handleElasticPointerEnd : undefined}
+                          onPointerCancel={elasticDrag ? handleElasticPointerEnd : undefined}
+                          onLostPointerCapture={elasticDrag ? handleElasticPointerEnd : undefined}
+                          onKeyDown={elasticDrag ? (event) => handleElasticKeyDown(event, student.id) : undefined}
+                          onKeyUp={elasticDrag ? handleElasticKeyUp : undefined}
+                          onBlur={elasticDrag ? () => {
+                            if (dragRef.current?.pointerId === null) finishElasticDrag();
+                          } : undefined}
                         >
                           {stepIndex > 0 && <span className="game-node__step" aria-hidden="true">{stepIndex}</span>}
                           <ShapeSwatch promo={student.promo} size={20} />
@@ -2631,6 +3036,7 @@ export default function GamePage({ students, links }) {
                       shortestEdgeKeys={HELP_EXAMPLE_SHORTEST_EDGE_KEYS}
                       possibleIds={HELP_EXAMPLE_POSSIBLE_IDS}
                       orderedIds={HELP_EXAMPLE_ORDERED_IDS}
+                      elasticDrag
                       ariaLabel="Graphe d'exemple"
                     />
                   </section>
