@@ -145,7 +145,10 @@ export async function recordPlayerChallengeCompletion(mode, periodKey, points) {
     points,
   });
   if (error && error.code !== '23505') throw error;
-  return getPlayerChallengeStats();
+  return {
+    stats: await getPlayerChallengeStats(),
+    alreadyCompleted: error?.code === '23505',
+  };
 }
 
 export function profileFromAuthMetadata(metadata = {}) {

@@ -1351,6 +1351,7 @@ export default function GamePage({ students, links }) {
   const [foundIds, setFoundIds] = useState([]);
   const [hintsUsed, setHintsUsed] = useState(0);
   const [hintedStudentIds, setHintedStudentIds] = useState([]);
+  const [completionRecord, setCompletionRecord] = useState(null);
   const [query, setQuery] = useState('');
   const [feedback, setFeedback] = useState('');
   const [activeSuggestion, setActiveSuggestion] = useState(0);
@@ -1740,6 +1741,8 @@ export default function GamePage({ students, links }) {
   useEffect(() => {
     if (currentPeriodRef.current === challengePeriod) return;
     currentPeriodRef.current = challengePeriod;
+    recordedCompletionRef.current = null;
+    setCompletionRecord(null);
     setFoundIds([]);
     setHintsUsed(0);
     setHintedStudentIds([]);
@@ -1920,15 +1923,32 @@ export default function GamePage({ students, links }) {
     && (mode === 'daily' || mode === 'weekly')
     ? accountAuthUser.id + ':' + mode + ':' + challengePeriod
     : null;
+  const currentCompletionRecord = completionRecord?.key === trackableCompletion
+    ? completionRecord
+    : null;
   useEffect(() => {
     if (!won || !trackableCompletion || recordedCompletionRef.current === trackableCompletion) return;
     recordedCompletionRef.current = trackableCompletion;
+    setCompletionRecord({ key: trackableCompletion, status: 'saving' });
     recordPlayerChallengeCompletion(mode, challengePeriod, completionPoints)
-      .then((nextStats) => {
-        if (nextStats && accountAuthUser?.id) updatePlayerAccountStatsCache(accountAuthUser.id, nextStats);
+      .then((result) => {
+        if (!result) {
+          setCompletionRecord({ key: trackableCompletion, status: 'failed' });
+          return;
+        }
+        if (result.stats && accountAuthUser?.id) updatePlayerAccountStatsCache(accountAuthUser.id, result.stats);
+        setCompletionRecord((current) => (
+          current?.key === trackableCompletion && current.status === 'duplicate'
+            ? current
+            : {
+              key: trackableCompletion,
+              status: result.alreadyCompleted ? 'duplicate' : 'recorded',
+            }
+        ));
       })
       .catch((error) => {
-        recordedCompletionRef.current = null;
+        if (recordedCompletionRef.current === trackableCompletion) recordedCompletionRef.current = null;
+        setCompletionRecord({ key: trackableCompletion, status: 'failed' });
         console.warn('[scores] Impossible d’enregistrer cette réussite :', error.message);
       });
   }, [won, trackableCompletion, mode, challengePeriod, completionPoints, accountAuthUser]);
@@ -1970,6 +1990,8 @@ export default function GamePage({ students, links }) {
 
   const selectMode = (nextMode, nextArchiveSelection = null) => {
     if (nextMode === mode && !archiveSelection && !nextArchiveSelection) return;
+    recordedCompletionRef.current = null;
+    setCompletionRecord(null);
     setMode(nextMode);
     setArchiveSelection(nextArchiveSelection);
     setFoundIds([]);
@@ -2047,6 +2069,8 @@ export default function GamePage({ students, links }) {
     const storedSelection = includeAllPromos ? null : nextYears;
     setSelectedPromoYears(storedSelection);
     setArchiveSelection(null);
+    recordedCompletionRef.current = null;
+    setCompletionRecord(null);
     if (mode === 'weekly' && !nextWeeklyChallengeAvailable) {
       setMode('daily');
       setArchiveSelection(null);
@@ -2425,7 +2449,19 @@ export default function GamePage({ students, links }) {
               {won
                 ? <>
                     <span>Bravo ! Tu as trouvé une chaîne de {Math.max(0, winningPath.length - 1)} liens.</span>
-                    {mode !== 'practice' && <strong className="game-feedback__points">+{completionPoints} points</strong>}
+                    {mode !== 'practice' && (
+                      <strong className={'game-feedback__points' + (currentCompletionRecord?.status === 'duplicate' ? ' game-feedback__points--duplicate' : '')}>
+                        {!trackableCompletion
+                          ? `+${completionPoints} points`
+                          : currentCompletionRecord?.status === 'recorded'
+                            ? `+${completionPoints} points`
+                            : currentCompletionRecord?.status === 'duplicate'
+                              ? 'Défi déjà réalisé'
+                              : currentCompletionRecord?.status === 'failed'
+                                ? 'Points non confirmés'
+                                : 'Vérification…'}
+                      </strong>
+                    )}
                   </>
                 : lost
                   ? 'Tu as épuisé tes tentatives. Le chemin optimal est révélé sur le graphe.'

@@ -572,6 +572,11 @@
   white-space: nowrap;
 }
 
+.game-feedback__points--duplicate {
+  white-space: normal;
+  text-align: right;
+}
+
 .game-feedback--lost {
   border-color: var(--sand);
   font-weight: 700;
