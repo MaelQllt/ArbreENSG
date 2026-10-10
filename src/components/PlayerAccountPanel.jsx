@@ -449,6 +449,8 @@ export default function PlayerAccountPanel({
         const session = data?.session;
         if (initialMode === 'recovery') {
           setMode('recovery');
+        } else if (session?.user) {
+          await loadProfile(session);
         } else if (initialMode === 'confirmed') {
           onConnectionChange?.(false);
           setMode('confirmed');

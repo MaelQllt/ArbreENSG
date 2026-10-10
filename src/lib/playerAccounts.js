@@ -5,7 +5,8 @@ const PASSWORD_RECOVERY_KEY = 'geodata-password-recovery';
 const PASSWORD_RECOVERY_TTL = 60 * 60 * 1000;
 
 export function getPlayerAccountRedirectUrl(accountState) {
-  const url = new URL(window.location.href);
+  const publicSiteUrl = String(import.meta.env.VITE_PUBLIC_SITE_URL ?? '').trim();
+  const url = new URL(publicSiteUrl || window.location.href, window.location.origin);
   url.search = '';
   url.searchParams.set('account', accountState);
   url.hash = 'jeu';
