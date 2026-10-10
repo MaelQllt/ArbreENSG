@@ -167,6 +167,59 @@
   line-height: 0;
 }
 
+.game-account-indicator {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--sand);
+  cursor: pointer;
+  transition: color 140ms ease, opacity 140ms ease;
+}
+
+.game-account-indicator.is-connected {
+  color: var(--yellow);
+}
+
+.game-account-indicator.is-disconnected {
+  color: var(--sand);
+}
+
+.game-account-indicator svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.game-account-indicator__dot {
+  position: absolute;
+  right: 1px;
+  bottom: 2px;
+  width: 5px;
+  height: 5px;
+  border: 1px solid var(--blue);
+  border-radius: 50%;
+  background: var(--sand);
+}
+
+.game-account-indicator.is-connected .game-account-indicator__dot {
+  background: var(--yellow);
+}
+
+.game-account-indicator:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 1px;
+}
+
 .game-menu__trigger svg {
   position: absolute;
   inset: 0;
@@ -3326,6 +3379,11 @@
   }
 
   .game-menu__trigger {
+    width: 32px;
+    height: 32px;
+  }
+
+  .game-account-indicator {
     width: 32px;
     height: 32px;
   }

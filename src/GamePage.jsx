@@ -2209,6 +2209,33 @@ export default function GamePage({ students, links }) {
             <button type="button" className={mode === 'practice' ? 'is-active' : ''} onClick={() => selectMode('practice')}>Entraînement</button>
           </nav>
           <div className="game-page__actions">
+            <button
+              className={'game-account-indicator'
+                + (accountAuthReady && accountConnected ? ' is-connected' : '')
+                + (accountAuthReady && !accountConnected ? ' is-disconnected' : '')}
+              type="button"
+              aria-label={!accountAuthReady
+                ? 'Ouvrir le compte'
+                : accountConnected
+                  ? 'Compte connecté, ouvrir le compte'
+                  : 'Compte non connecté, ouvrir la connexion'}
+              title={!accountAuthReady
+                ? 'Compte'
+                : accountConnected
+                  ? 'Compte connecté'
+                  : 'Compte non connecté'}
+              onClick={() => {
+                setMenuOpen(false);
+                setSelectedLeaderboardPlayer(null);
+                setActivePanel('account');
+              }}
+            >
+              <svg aria-hidden="true" viewBox="0 0 20 20" focusable="false">
+                <circle cx="10" cy="6.2" r="3" />
+                <path d="M3.5 17c.5-3.3 3-5.3 6.5-5.3s6 2 6.5 5.3" />
+              </svg>
+              {accountAuthReady && <span className="game-account-indicator__dot" aria-hidden="true" />}
+            </button>
             <a className="btn btn--ghost game-page__back" href="#" aria-label="Retour à l’arbre">
               <img className="game-page__back-home-icon" src={houseIcon} alt="" aria-hidden="true" />
               <span className="game-page__back-label"><span aria-hidden="true">←</span> Retour à l’arbre</span>
