@@ -1368,6 +1368,17 @@
   background: #f5ddc9;
 }
 
+.game-archive__day.is-completed {
+  border-color: var(--sand);
+  background: #fac18a;
+  color: var(--blue);
+}
+
+.game-archive__day.is-today.is-completed {
+  border-color: var(--sand);
+  background: #fac18a;
+}
+
 @media (hover: hover) and (pointer: fine) {
 
 .game-archive__day.is-available:hover {

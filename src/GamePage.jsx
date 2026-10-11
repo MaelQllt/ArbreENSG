@@ -7,7 +7,7 @@ import ShapeSwatch from './components/ShapeSwatch';
 import TopoBackground, { TopoDivider } from './components/TopoBackground';
 import PlayerAccountPanel, { updatePlayerAccountStatsCache } from './components/PlayerAccountPanel';
 import PlayerAccountAdminPanel from './components/PlayerAccountAdminPanel';
-import { hasPendingPasswordRecovery, hasSupabaseAuthCallback, recordPlayerChallengeCompletion } from './lib/playerAccounts';
+import { getPlayerChallengeCompletions, hasPendingPasswordRecovery, hasSupabaseAuthCallback, recordPlayerChallengeCompletion } from './lib/playerAccounts';
 import { getAccountAuthClient, getSuperadminSession, isSupabaseConfigured } from './lib/supabase';
 import { describePromo, formatStudentAffiliations } from './lib/promo';
 import { normalizeStudentSearch as normalizeName, searchStudentsByName } from './lib/studentSearch';
@@ -1758,6 +1758,7 @@ export default function GamePage({ students, links }) {
   const [hintsUsed, setHintsUsed] = useState(0);
   const [hintedStudentIds, setHintedStudentIds] = useState([]);
   const [completionRecord, setCompletionRecord] = useState(null);
+  const [completedChallengePeriods, setCompletedChallengePeriods] = useState(() => new Set());
   const [query, setQuery] = useState('');
   const [feedback, setFeedback] = useState('');
   const [activeSuggestion, setActiveSuggestion] = useState(0);
@@ -1847,6 +1848,34 @@ export default function GamePage({ students, links }) {
       subscription?.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    if (!accountConnected || !accountAuthUser?.id) {
+      setCompletedChallengePeriods(new Set());
+      return () => {
+        active = false;
+      };
+    }
+
+    getPlayerChallengeCompletions()
+      .then((completions) => {
+        if (!active) return;
+        setCompletedChallengePeriods(new Set(
+          completions.map(({ mode: completedMode, period_key: periodKey }) => `${completedMode}:${periodKey}`)
+        ));
+      })
+      .catch((error) => {
+        if (active) {
+          setCompletedChallengePeriods(new Set());
+          console.warn('[archives] Impossible de charger les défis déjà réalisés :', error.message);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [accountConnected, accountAuthUser?.id]);
 
   useEffect(() => {
     let active = true;
@@ -2109,7 +2138,13 @@ export default function GamePage({ students, links }) {
     const available = periodKey >= firstArchiveDate && (archiveMode === 'daily'
       ? periodKey === todayKey || periodKey <= currentDailyPeriod
       : day.getUTCDay() === 1 && periodKey <= currentWeeklyPeriod);
-    return { periodKey, day: day.getUTCDate(), available, isToday: periodKey === todayKey };
+    return {
+      periodKey,
+      day: day.getUTCDate(),
+      available,
+      isToday: periodKey === todayKey,
+      completed: completedChallengePeriods.has(`${archiveMode}:${periodKey}`),
+    };
   });
   const currentArchiveMonth = new Date(todayKey + 'T12:00:00Z');
   const firstArchiveMonth = new Date('2026-09-01T12:00:00Z');
@@ -2342,6 +2377,11 @@ export default function GamePage({ students, links }) {
           setCompletionRecord({ key: trackableCompletion, status: 'failed' });
           return;
         }
+        setCompletedChallengePeriods((current) => {
+          const next = new Set(current);
+          next.add(`${mode}:${challengePeriod}`);
+          return next;
+        });
         if (result.stats && accountAuthUser?.id) updatePlayerAccountStatsCache(accountAuthUser.id, result.stats);
         setCompletionRecord((current) => (
           current?.key === trackableCompletion && current.status === 'duplicate'
@@ -3276,7 +3316,8 @@ export default function GamePage({ students, links }) {
                         const selected = archiveDate === cell.periodKey;
                         const archiveLabel = (archiveMode === 'weekly' ? 'Semaine du ' : 'Défi du ')
                           + formatArchiveDate(cell.periodKey)
-                          + (cell.isToday ? ' (aujourd’hui)' : '');
+                          + (cell.isToday ? ' (aujourd’hui)' : '')
+                          + (cell.completed ? ' (défi déjà réalisé, rejouable sans points)' : '');
                         return (
                           <button
                             key={cell.periodKey}
@@ -3284,9 +3325,11 @@ export default function GamePage({ students, links }) {
                             className={'game-archive__day'
                               + (cell.available ? ' is-available' : '')
                               + (cell.isToday ? ' is-today' : '')
+                              + (cell.completed ? ' is-completed' : '')
                               + (selected ? ' is-selected' : '')}
                             disabled={!cell.available}
                             aria-label={archiveLabel}
+                            title={cell.completed ? 'Défi déjà réalisé · Rejouable sans points' : undefined}
                             aria-pressed={selected}
                             onClick={() => {
                               const isCurrentChallenge = archiveMode === 'daily'

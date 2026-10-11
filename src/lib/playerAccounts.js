@@ -128,6 +128,28 @@ export async function getPlayerChallengeStats() {
   return { daily, weekly, points };
 }
 
+export async function getPlayerChallengeCompletions() {
+  const client = await getAccountAuthClient();
+  const { data: { session }, error: sessionError } = await client.auth.getSession();
+  if (sessionError) throw sessionError;
+  if (!session?.user) return [];
+
+  const pageSize = 1000;
+  const completions = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await client
+      .from('player_challenge_completions')
+      .select('mode, period_key')
+      .eq('user_id', session.user.id)
+      .order('period_key', { ascending: true })
+      .order('mode', { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    completions.push(...(data ?? []));
+    if ((data ?? []).length < pageSize) return completions;
+  }
+}
+
 export async function recordPlayerChallengeCompletion(mode, periodKey, points) {
   if (!['daily', 'weekly'].includes(mode) || !/^\d{4}-\d{2}-\d{2}$/.test(String(periodKey))) return null;
   const basePointOptions = mode === 'daily' ? [5, 10] : [10, 20];
