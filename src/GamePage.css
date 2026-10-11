@@ -195,10 +195,10 @@
 }
 
 .game-account-indicator.is-disconnected {
-  color: var(--sand);
+  color: #f2938b;
 }
 
-.game-account-indicator svg {
+.game-account-indicator__person {
   width: 15px;
   height: 15px;
   fill: none;
@@ -208,19 +208,16 @@
   stroke-linejoin: round;
 }
 
-.game-account-indicator__dot {
+.game-account-indicator .game-account-indicator__status {
   position: absolute;
-  right: 1px;
-  bottom: 2px;
-  width: 5px;
-  height: 5px;
-  border: 1px solid #2b317f;
+  right: -1px;
+  bottom: 0;
+  box-sizing: border-box;
+  width: 11px;
+  height: 11px;
+  padding: 1px;
   border-radius: 50%;
-  background: var(--sand);
-}
-
-.game-account-indicator.is-connected .game-account-indicator__dot {
-  background: var(--yellow);
+  background: var(--blue);
 }
 
 .game-account-indicator:focus-visible {
@@ -3616,16 +3613,14 @@
     height: 28px;
   }
 
-  .game-account-indicator svg {
+  .game-account-indicator__person {
     width: 16px;
     height: 16px;
   }
 
-  .game-account-indicator__dot {
-    right: 2px;
-    bottom: 5px;
-    width: 4px;
-    height: 4px;
+  .game-account-indicator .game-account-indicator__status {
+    right: -1px;
+    bottom: 1px;
   }
 
   .game-menu__panel button {

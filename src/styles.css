@@ -941,8 +941,9 @@ video {
   display: inline-grid;
   min-width: 1.1rem;
   height: 1.1rem;
+  box-sizing: border-box;
   margin-left: 0.4rem;
-  padding: 0 0.2rem 3px;
+  padding: 0;
   place-items: center;
   border: 1px solid var(--yellow);
   border-radius: 50px;
@@ -953,6 +954,11 @@ video {
   font-weight: 800;
   line-height: 1;
   vertical-align: middle;
+}
+
+.admin-request-badge__count {
+  position: relative;
+  top: -0.5px;
 }
 
 .admin-access__button:focus-visible .admin-request-badge, .admin-panel__logout:focus-visible .admin-request-badge {
@@ -1019,6 +1025,17 @@ video {
   text-transform: uppercase;
 }
 
+.admin-panel__eyebrow-role {
+  margin-right: 0.45rem;
+}
+
+.admin-panel__eyebrow-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  vertical-align: middle;
+}
+
 .admin-panel__header h2 {
   margin: 0;
   font-family: var(--font-title);
@@ -1074,11 +1091,18 @@ video {
   display: inline-flex;
   width: 6.6rem;
   height: 2.35rem;
+  box-sizing: border-box;
   flex: 0 0 6.6rem;
   align-items: center;
   justify-content: center;
   gap: 0.3rem;
   white-space: nowrap;
+}
+
+.admin-panel__actions > .admin-panel__close {
+  box-sizing: border-box;
+  height: 2.35rem;
+  min-height: 2.35rem;
 }
 
 .admin-panel__actions .admin-request-badge {
@@ -2901,13 +2925,14 @@ video {
     display: flex;
     align-self: stretch;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: space-evenly;
     min-width: 0;
     margin: 0;
   }
 
   .admin-panel__eyebrow-role {
     display: block;
+    margin-right: 0;
     font-size: 0.58rem;
     line-height: 1.05;
   }
@@ -2963,6 +2988,11 @@ video {
     padding: 0.2rem;
     border-width: 1px;
     font-size: 0.66rem;
+  }
+
+  .admin-panel__actions > .admin-panel__close {
+    height: 30px;
+    min-height: 30px;
   }
 
   .admin-panel__actions .admin-request-badge {
@@ -3354,6 +3384,22 @@ video {
   margin: 0;
   padding: 1rem 0;
   color: var(--sand);
+}
+
+.family-request-inbox__feedback--resolved {
+  border-left-color: var(--yellow);
+  color: var(--yellow);
+}
+
+.family-request-inbox__feedback--dismissed,
+.family-request-inbox__feedback--pending {
+  border-left-color: var(--sand);
+  color: var(--sand);
+}
+
+.family-request-inbox__feedback--deleted {
+  border-left-color: #bd5140;
+  color: #f2938b;
 }
 
 @media (max-width: 767px) {

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { forceLink, forceManyBody, forceSimulation, forceX, forceY } from 'd3-force';
+import { CircleCheck, CircleX } from 'lucide-react';
 import houseIcon from './assets/house.svg';
 import BrandDivider from './components/BrandDivider';
 import ShapeSwatch from './components/ShapeSwatch';
@@ -2635,11 +2636,13 @@ export default function GamePage({ students, links }) {
                 setActivePanel('account');
               }}
             >
-              <svg aria-hidden="true" viewBox="0 0 20 20" focusable="false">
+              <svg className="game-account-indicator__person" aria-hidden="true" viewBox="0 0 20 20" focusable="false">
                 <circle cx="10" cy="6.2" r="3" />
                 <path d="M3.5 17c.5-3.3 3-5.3 6.5-5.3s6 2 6.5 5.3" />
               </svg>
-              {accountAuthReady && <span className="game-account-indicator__dot" aria-hidden="true" />}
+              {accountAuthReady && (accountConnected
+                ? <CircleCheck className="game-account-indicator__status" aria-hidden="true" size={11} strokeWidth={2.5} />
+                : <CircleX className="game-account-indicator__status" aria-hidden="true" size={11} strokeWidth={2.5} />)}
             </button>
             <a className="btn btn--ghost game-page__back" href="#" aria-label="Retour à l’arbre">
               <img className="game-page__back-home-icon" src={houseIcon} alt="" aria-hidden="true" />

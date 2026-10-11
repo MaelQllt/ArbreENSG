@@ -36,12 +36,14 @@ function deleteRequestErrorMessage(error) {
   return accountErrorMessage(error);
 }
 
-export default function FamilyLinkRequestInbox({ session, onSession, onValidate }) {
+export default function FamilyLinkRequestInbox({ session, onSession, onValidate, onPendingRequestCountChange }) {
   const [requests, setRequests] = useState([]);
   const [filter, setFilter] = useState('pending');
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [successKind, setSuccessKind] = useState('resolved');
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -50,6 +52,7 @@ export default function FamilyLinkRequestInbox({ session, onSession, onValidate 
       const result = await fetchFamilyLinkRequests(session);
       onSession(result.session);
       setRequests(result.requests);
+      onPendingRequestCountChange?.(result.requests.filter((request) => request.status === 'pending').length);
     } catch (loadError) {
       setError(`Impossible de charger les demandes : ${accountErrorMessage(loadError)}`);
     } finally {
@@ -61,6 +64,12 @@ export default function FamilyLinkRequestInbox({ session, onSession, onValidate 
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    if (!success) return undefined;
+    const timeout = window.setTimeout(() => setSuccess(''), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [success]);
+
   const visibleRequests = useMemo(
     () => filter === 'all' ? requests : requests.filter((request) => request.status === filter),
     [requests, filter]
@@ -69,6 +78,7 @@ export default function FamilyLinkRequestInbox({ session, onSession, onValidate 
   const changeStatus = async (request, nextStatus) => {
     setBusyId(request.id);
     setError('');
+    setSuccess('');
     try {
       let activeSession = session;
       if (nextStatus === 'resolved') {
@@ -77,9 +87,17 @@ export default function FamilyLinkRequestInbox({ session, onSession, onValidate 
       }
       const result = await updateFamilyLinkRequest(request.id, nextStatus, activeSession);
       onSession(result.session);
-      setRequests((current) => current.map((currentRequest) => (
+      const nextRequests = requests.map((currentRequest) => (
         currentRequest.id === request.id ? result.request : currentRequest
-      )));
+      ));
+      setRequests(nextRequests);
+      onPendingRequestCountChange?.(nextRequests.filter((currentRequest) => currentRequest.status === 'pending').length);
+      setSuccessKind(nextStatus);
+      setSuccess(nextStatus === 'resolved'
+        ? 'Requête validée. Le lien a été ajouté au graphe.'
+        : nextStatus === 'dismissed'
+          ? 'Requête ignorée.'
+          : 'Requête remise à traiter.');
     } catch (updateError) {
       setError(`Impossible de modifier cette demande : ${accountErrorMessage(updateError)}`);
     } finally {
@@ -95,10 +113,15 @@ export default function FamilyLinkRequestInbox({ session, onSession, onValidate 
 
     setBusyId(request.id);
     setError('');
+    setSuccess('');
     try {
       const result = await deleteFamilyLinkRequest(request.id, session);
       onSession(result.session);
-      setRequests((current) => current.filter((currentRequest) => currentRequest.id !== request.id));
+      const nextRequests = requests.filter((currentRequest) => currentRequest.id !== request.id);
+      setRequests(nextRequests);
+      onPendingRequestCountChange?.(nextRequests.filter((currentRequest) => currentRequest.status === 'pending').length);
+      setSuccessKind('deleted');
+      setSuccess('Requête supprimée.');
     } catch (deleteError) {
       setError(`Impossible de supprimer cette demande : ${deleteRequestErrorMessage(deleteError)}`);
     } finally {
@@ -141,6 +164,11 @@ export default function FamilyLinkRequestInbox({ session, onSession, onValidate 
       </div>
 
       {error && <p className="admin-message admin-message--error" role="alert">{error}</p>}
+      {success && (
+        <p className={`admin-message admin-message--success family-request-inbox__feedback family-request-inbox__feedback--${successKind}`} role="status">
+          {success}
+        </p>
+      )}
       {loading && requests.length === 0 ? (
         <p className="family-request-inbox__empty">Chargement des propositions…</p>
       ) : visibleRequests.length === 0 ? (

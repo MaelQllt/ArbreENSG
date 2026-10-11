@@ -8,7 +8,11 @@ import {
 import { buildFamilyWorkbook } from '../lib/xlsxWorkbook';
 import { importFamilyWorkbook } from '../lib/xlsxImport';
 import { searchStudentsByName } from '../lib/studentSearch';
-import { fetchPendingFamilyLinkRequestCount } from '../lib/supabase';
+import {
+  fetchFamilyLinkRequests,
+  fetchPendingFamilyLinkRequestCount,
+  updateFamilyLinkRequest,
+} from '../lib/supabase';
 import { accountErrorMessage } from '../lib/playerAccounts';
 import BrandDivider from './BrandDivider';
 import FamilyLinkRequestInbox from './FamilyLinkRequestInbox';
@@ -588,7 +592,7 @@ export default function AdminPanel({
       if (document.visibilityState === 'visible') void refreshPendingCount();
     };
     void refreshPendingCount();
-    const interval = window.setInterval(refreshPendingCount, 30_000);
+    const interval = window.setInterval(refreshPendingCount, 15_000);
     document.addEventListener('visibilitychange', refreshWhenVisible);
     window.addEventListener('focus', refreshPendingCount);
     return () => {
@@ -936,6 +940,7 @@ export default function AdminPanel({
     }
 
     let nextLinks = [...data.links];
+    let removedLinkToRestore = null;
     if (!createStandalone) {
       if (people.some((person) => person.id === anchor.id)) return setError('Un étudiant ne peut pas être son propre parrain ou fillot.');
       if (relationAction === 'remove' && !removablePeople.some((candidate) => candidate.id === people[0].id)) {
@@ -957,6 +962,7 @@ export default function AdminPanel({
 
       if (relationAction === 'remove') {
         const { source, target } = linksToAdd[0];
+        removedLinkToRestore = { source, target };
         const exists = data.links.some((link) => endpointId(link.source) === source && endpointId(link.target) === target);
         if (!exists) return setError('Ce lien n’existe plus. Recharge les données puis réessaie.');
         nextLinks = data.links.filter((link) => endpointId(link.source) !== source || endpointId(link.target) !== target);
@@ -974,11 +980,35 @@ export default function AdminPanel({
       setSession(updatedSession);
       // Garder les identifiants React et graphe en place après la sauvegarde.
       onSaved(nextData, parsed.warnings);
-      setMessage(createStandalone
-        ? `${people[0].name} a été ajouté·e au graphe sans lien familial.`
-        : relationAction === 'remove'
-          ? `Le lien avec ${people[0].name} a été supprimé.`
+      if (relationAction === 'remove') {
+        const { source, target } = removedLinkToRestore;
+        try {
+          const requestList = await fetchFamilyLinkRequests(updatedSession);
+          let requestSession = requestList.session;
+          let reopenedCount = 0;
+          const matchingRequests = requestList.requests.filter((request) =>
+            request.status === 'resolved' && request.parent_id === source && request.child_id === target
+          );
+          for (const request of matchingRequests) {
+            const result = await updateFamilyLinkRequest(request.id, 'pending', requestSession);
+            requestSession = result.session;
+            reopenedCount += 1;
+          }
+          setSession(requestSession);
+          setPendingRequestCount(
+            requestList.requests.filter((request) => request.status === 'pending').length + reopenedCount
+          );
+          setMessage(reopenedCount > 0
+            ? `Le lien avec ${people[0].name} a été supprimé. La demande correspondante est de nouveau à traiter.`
+            : `Le lien avec ${people[0].name} a été supprimé.`);
+        } catch (requestError) {
+          setError(`Le lien avec ${people[0].name} a été supprimé, mais la demande correspondante n’a pas pu être remise à traiter : ${accountErrorMessage(requestError)}`);
+        }
+      } else {
+        setMessage(createStandalone
+          ? `${people[0].name} a été ajouté·e au graphe sans lien familial.`
           : `${people.length} personne${people.length > 1 ? 's ont été ajoutées' : ' a été ajoutée'} à la famille de ${anchor.name}.`);
+      }
       if (relationAction === 'add' && personType === 'existing') setSelectedIds([]);
       if (createNewPerson) {
         setNewFirstName('');
@@ -1049,7 +1079,7 @@ export default function AdminPanel({
           Admin
           {session && pendingRequestCount > 0 && (
             <span className="admin-request-badge" aria-hidden="true">
-              {pendingRequestCount > 99 ? '99+' : pendingRequestCount}
+              <span className="admin-request-badge__count">{pendingRequestCount > 99 ? '99+' : pendingRequestCount}</span>
             </span>
           )}
         </button>
@@ -1089,7 +1119,7 @@ export default function AdminPanel({
                 <div>
                   <p className="admin-panel__eyebrow">
                     <span className="admin-panel__eyebrow-role">Superadmin</span>
-                    <span className="admin-panel__eyebrow-identity"><BrandDivider /> {session?.user?.email}</span>
+                    <span className="admin-panel__eyebrow-identity"><BrandDivider />{session?.user?.email}</span>
                   </p>
                   <h2 id="admin-title">{adminSection === 'requests' ? 'Propositions de liens' : 'Gestion des familles'}</h2>
                 </div>
@@ -1104,7 +1134,7 @@ export default function AdminPanel({
                     {adminSection === 'requests' ? 'Familles' : 'Requêtes'}
                     {session && adminSection !== 'requests' && pendingRequestCount > 0 && (
                       <span className="admin-request-badge" aria-label={`${pendingRequestCount} à traiter`}>
-                        {pendingRequestCount > 99 ? '99+' : pendingRequestCount}
+                        <span className="admin-request-badge__count">{pendingRequestCount > 99 ? '99+' : pendingRequestCount}</span>
                       </span>
                     )}
                   </button>
@@ -1118,6 +1148,7 @@ export default function AdminPanel({
                   session={session}
                   onSession={setSession}
                   onValidate={handleValidateFamilyLinkRequest}
+                  onPendingRequestCountChange={setPendingRequestCount}
                 />
               ) : (
               <form className="admin-form" onSubmit={handleSave}>
