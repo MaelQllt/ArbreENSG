@@ -2284,6 +2284,13 @@ export default function GamePage({ students, links }) {
     () => shortestPath.map((id) => graph.byId.get(id)).filter(Boolean),
     [shortestPath, graph.byId]
   );
+  const solutionNodes = useMemo(() => {
+    const ruleNode = challenge?.constraint
+      ? graph.byId.get(challenge.constraint.studentId)
+      : null;
+    if (!ruleNode || shortestNodes.some((student) => student.id === ruleNode.id)) return shortestNodes;
+    return [...shortestNodes, ruleNode];
+  }, [challenge, graph.byId, shortestNodes]);
   const solutionPossibleIds = useMemo(() => new Set(shortestPath), [shortestPath]);
   const hintedNodes = useMemo(() => hintsUsed >= 3
     ? shortestNodes
@@ -3383,12 +3390,32 @@ export default function GamePage({ students, links }) {
                       ? 'Il peut exister d’autres chemins aussi courts qui respectent la consigne.'
                       : 'Il peut exister d’autres chemins aussi courts.'}
                   </p>
+                  {challenge?.constraint && ruleStudent && (
+                    <div
+                      className={'game-solution__rule'
+                        + (challenge.constraint.type === 'avoid' ? ' game-solution__rule--avoid' : '')}
+                      role="note"
+                    >
+                      <span className="game-solution__rule-label">
+                        {challenge.constraint.type === 'through' ? 'Obligatoire' : 'Interdit'}
+                      </span>
+                      <ShapeSwatch promo={ruleStudent.promo} size={18} />
+                      <span className="game-solution__rule-copy">
+                        <strong>{ruleStudent.name}</strong>
+                        <small>{challenge.constraint.type === 'through'
+                          ? 'À inclure dans la chaîne'
+                          : 'À ne pas ajouter à la chaîne'}</small>
+                      </span>
+                    </div>
+                  )}
                   <GameGraph
                     graph={shortestGraph}
-                    nodes={shortestNodes}
+                    nodes={solutionNodes}
                     startId={startId}
                     endId={endId}
                     requiredId={requiredStudentId}
+                    forbiddenId={forbiddenStudentId}
+                    weeklyMode={mode === 'weekly'}
                     shortestIds={shortestIds}
                     shortestEdgeKeys={shortestPathEdgeKeys}
                     possibleIds={solutionPossibleIds}
