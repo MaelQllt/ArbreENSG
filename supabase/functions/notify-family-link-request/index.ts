@@ -1,3 +1,5 @@
+import nodemailer from 'npm:nodemailer@^9';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
@@ -39,11 +41,18 @@ Deno.serve(async (request) => {
   }
   if (request.method !== 'POST') return jsonResponse({ error: 'Method not allowed.' }, 405);
 
-  const resendKey = Deno.env.get('RESEND_API_KEY');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const recipient = Deno.env.get('REQUESTS_TO_EMAIL');
-  if (!resendKey || !serviceKey || !supabaseUrl || !recipient) {
+  const host = Deno.env.get('ACCOUNT_ADMIN_SMTP_HOST')?.trim() || 'smtp.gmail.com';
+  const port = Number(Deno.env.get('ACCOUNT_ADMIN_SMTP_PORT') || '465');
+  const secureValue = Deno.env.get('ACCOUNT_ADMIN_SMTP_SECURE')?.trim().toLowerCase();
+  const secure = secureValue ? secureValue !== 'false' : port === 465;
+  const user = Deno.env.get('ACCOUNT_ADMIN_SMTP_USER')?.trim();
+  const password = Deno.env.get('ACCOUNT_ADMIN_SMTP_PASSWORD');
+  const sender = Deno.env.get('ACCOUNT_ADMIN_SMTP_FROM')?.trim() || user;
+  if (!serviceKey || !supabaseUrl || !recipient || !user || !password || !sender
+    || !Number.isInteger(port) || port < 1 || port > 65535) {
     console.error('Missing email or Supabase server configuration.');
     return jsonResponse({ error: 'Email service is not configured.' }, 503);
   }
@@ -82,7 +91,6 @@ Deno.serve(async (request) => {
     return jsonResponse({ sent: false, reason: 'already-sent-or-not-found' });
   }
 
-  const sender = Deno.env.get('REQUESTS_FROM_EMAIL') ?? 'Familles ENSG <onboarding@resend.dev>';
   const sentAt = new Intl.DateTimeFormat('fr-FR', {
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -95,37 +103,34 @@ Deno.serve(async (request) => {
     `Reçue le ${sentAt}`,
   ].join('\n');
 
-  let resendResponse: Response;
+  const transport = nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: { user, pass: password },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+  });
   try {
-    resendResponse = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${resendKey}`,
-        'Content-Type': 'application/json',
-        'Idempotency-Key': `family-link-request-${requestId}`,
-      },
-      body: JSON.stringify({
-        from: sender,
-        to: [recipient],
-        subject: 'Nouvelle proposition de lien familial',
-        text,
-      }),
+    await transport.sendMail({
+      from: sender,
+      to: recipient,
+      subject: 'Nouvelle proposition de lien familial',
+      text,
     });
-  } catch {
+  } catch (error) {
+    const smtpError = error as { code?: string; responseCode?: number; message?: string };
+    console.error('[notify-family-link-request] SMTP email failed', smtpError.code ?? 'unknown', smtpError.responseCode ?? '', smtpError.message ?? '');
     await callDatabaseRpc('release_family_link_request_email', { p_request_id: requestId }, serviceKey).catch(() => null);
-    return jsonResponse({ error: 'Could not contact the email provider.' }, 502);
-  }
-
-  if (!resendResponse.ok) {
-    console.error(`Resend rejected the notification with ${resendResponse.status}`);
-    await callDatabaseRpc('release_family_link_request_email', { p_request_id: requestId }, serviceKey).catch(() => null);
-    return jsonResponse({ error: 'The email provider rejected the notification.' }, 502);
+    return jsonResponse({ error: 'Could not send the email notification.' }, 502);
+  } finally {
+    transport.close();
   }
 
   try {
     await callDatabaseRpc('mark_family_link_request_email_sent', { p_request_id: requestId }, serviceKey);
   } catch {
-    // Resend's idempotency key prevents duplicate delivery if the client retries.
     console.error(`Email sent, but request ${requestId} could not be marked as notified.`);
   }
 

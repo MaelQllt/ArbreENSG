@@ -70,27 +70,27 @@ Pour activer les comptes sur le projet Supabase :
    publique (dans `.env.local` en local et dans
    **Settings > Secrets and variables > Actions > Variables** du dépôt).
    Sans cette variable, l'URL du navigateur est utilisée.
-6. Les e-mails transactionnels de l'authentification sont distincts des
-   notifications des propositions. Pour une livraison fiable en production,
-   configure le SMTP dans **Authentication > SMTP Settings**. Avec Resend, le
-   serveur est `smtp.resend.com`, l'utilisateur `resend`, et le mot de passe est
-   une clé API Resend. Utilise une adresse d'expédition dont le domaine est
-   vérifié dans Resend. Le secret `RESEND_API_KEY` déjà configuré pour la fonction
-   de notifications n'active pas à lui seul le SMTP d'authentification.
+6. Les e-mails d'authentification utilisent leur propre SMTP : dans
+   **Authentication > Emails > SMTP Settings**, configure `smtp.gmail.com`, le
+   port `465`, l'adresse Gmail complète comme identifiant et un mot de passe
+   d'application Google (pas le mot de passe normal du compte). Utilise cette
+   même adresse comme expéditeur, avec `ENSGdle` comme nom d'expéditeur. Le
+   compte Google doit avoir la validation en deux étapes activée pour créer un
+   mot de passe d'application.
 
 Pour modifier ou supprimer les comptes depuis le menu superadmin, déploie aussi
 `supabase/functions/manage-player-accounts/index.ts` avec la commande
 `npx supabase functions deploy manage-player-accounts --project-ref <ref>`.
 La fonction envoie les notifications de modification et suppression de compte
-avec le SMTP Orange, indépendamment de Resend et du SMTP configuré pour Supabase
-Auth. Dans **Edge Functions > Secrets**, configure :
+avec le SMTP configuré dans les secrets Edge Functions. Dans **Edge Functions >
+Secrets**, configure :
 
-- `ACCOUNT_ADMIN_SMTP_HOST` : `smtp.orange.fr`
+- `ACCOUNT_ADMIN_SMTP_HOST` : `smtp.gmail.com`
 - `ACCOUNT_ADMIN_SMTP_PORT` : `465`
 - `ACCOUNT_ADMIN_SMTP_SECURE` : `true`
-- `ACCOUNT_ADMIN_SMTP_USER` : ton adresse e-mail Orange complète
-- `ACCOUNT_ADMIN_SMTP_PASSWORD` : le mot de passe dédié aux logiciels de messagerie, si Orange t'en a fait créer un
-- `ACCOUNT_ADMIN_SMTP_FROM` : facultatif, par exemple `Familles ENSG <ton-adresse@orange.fr>`
+- `ACCOUNT_ADMIN_SMTP_USER` : `ensgdle.notifications@gmail.com`
+- `ACCOUNT_ADMIN_SMTP_PASSWORD` : le mot de passe d'application Google, sans les espaces d'affichage
+- `ACCOUNT_ADMIN_SMTP_FROM` : `ENSGdle <ensgdle.notifications@gmail.com>`
 
 La modification ou suppression du compte est enregistrée même si l'envoi du
 mail échoue. Les messages de résultat affichés dans le panneau disparaissent
@@ -129,21 +129,22 @@ demande reste enregistrée même si le fournisseur e-mail est indisponible.
    Pour une base où ce script a déjà été exécuté, lance aussi
    `supabase/delete_family_link_request.sql` afin d'activer la suppression depuis
    l'admin.
-2. Dans **Edge Functions > Secrets**, configure `RESEND_API_KEY` et
-   `REQUESTS_TO_EMAIL` avec l'adresse de réception. Cette adresse pourra être
-   changée plus tard en modifiant le secret. `REQUESTS_FROM_EMAIL` est facultatif
-   et vaut par défaut `Familles ENSG <onboarding@resend.dev>` pour les essais.
-3. Dans **Edge Functions**, déploie une fonction nommée
-   `notify-family-link-request` avec le code de
-   `supabase/functions/notify-family-link-request/index.ts`. Désactive la
-   vérification JWT de cette fonction : le formulaire est public ; la fonction
-   n'accepte qu'un identifiant de demande et utilise la clé serveur uniquement
-   pour réclamer une notification déjà enregistrée. Le garde-fou limite les
-   notifications à 10 par heure.
+2. Dans **Edge Functions > Secrets**, configure `REQUESTS_TO_EMAIL` avec
+   l'adresse de réception du BDE. Le SMTP Gmail utilise les mêmes secrets
+   `ACCOUNT_ADMIN_SMTP_*` que les notifications d'administration des comptes.
+   Le mot de passe est celui d'application Google, sans les espaces d'affichage.
+   `RESEND_API_KEY` et `REQUESTS_FROM_EMAIL` ne sont plus utilisés par cette
+   fonction.
+3. Déploie `notify-family-link-request` depuis le dossier du projet :
+   `npx supabase functions deploy notify-family-link-request --project-ref <ref>`.
+   La configuration `verify_jwt = false` est enregistrée dans
+   `supabase/config.toml` ; la fonction publique n'accepte qu'un identifiant de
+   demande et utilise la clé serveur uniquement pour réclamer une notification
+   déjà enregistrée. Le garde-fou limite les notifications à 10 par heure.
 4. Une fois le site poussé sur GitHub Pages, envoie une demande d'essai. Tu dois
    recevoir un e-mail à l'adresse de réception configurée.
 
-Pour les essais, Resend autorise `onboarding@resend.dev` uniquement vers
-l'adresse e-mail associée au compte Resend. Pour envoyer depuis une adresse
-personnalisée en production, vérifie un domaine que tu contrôles dans Resend et
-configure `REQUESTS_FROM_EMAIL` avec ce domaine.
+Les secrets Edge Functions sont partagés par les fonctions du projet et sont
+pris en compte immédiatement après leur enregistrement. Une mise à jour de
+secret ne nécessite donc pas de redéploiement ; une modification du code de la
+fonction, elle, nécessite le déploiement indiqué ci-dessus.
