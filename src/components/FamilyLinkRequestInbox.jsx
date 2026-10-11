@@ -185,6 +185,21 @@ export default function FamilyLinkRequestInbox({ session, onSession, onValidate,
               </div>
               <p><strong>{request.child_name}</strong> est le fillot ou la fillotte de <strong>{request.parent_name}</strong>.</p>
               {request.message && <blockquote>{request.message}</blockquote>}
+              {Array.isArray(request.additional_reports) && request.additional_reports.length > 0 && (
+                <div className="family-request-inbox__reports">
+                  <p className="family-request-inbox__reports-title">
+                    Informations complémentaires ({request.additional_reports.length})
+                  </p>
+                  <ul className="family-request-inbox__reports-list">
+                    {request.additional_reports.map((report) => (
+                      <li key={report.id}>
+                        <time dateTime={report.created_at}>{formatRequestDate(report.created_at)}</time>
+                        <blockquote>{report.message}</blockquote>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="family-request-inbox__actions">
                 {request.status === 'pending' ? (
                   <>

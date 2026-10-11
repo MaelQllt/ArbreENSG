@@ -3,6 +3,8 @@ import { searchStudentsByName } from '../lib/studentSearch';
 import { notifyFamilyLinkRequestByEmail, submitFamilyLinkRequest } from '../lib/supabase';
 import { accountErrorMessage } from '../lib/playerAccounts';
 
+const idOf = (endpoint) => (typeof endpoint === 'object' ? endpoint?.id : endpoint);
+
 function StudentPicker({ id, label, placeholder, students, value, onChange }) {
   const rootRef = useRef(null);
   const [query, setQuery] = useState('');
@@ -99,7 +101,7 @@ function StudentPicker({ id, label, placeholder, students, value, onChange }) {
   );
 }
 
-export default function FamilyLinkRequestForm({ students }) {
+export default function FamilyLinkRequestForm({ students, links = [] }) {
   const [childId, setChildId] = useState('');
   const [parentId, setParentId] = useState('');
   const [message, setMessage] = useState('');
@@ -111,10 +113,70 @@ export default function FamilyLinkRequestForm({ students }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!child || !parent || child.id === parent.id || busy) return;
+    if (links.some((link) => idOf(link.source) === parent.id && idOf(link.target) === child.id)) {
+      setFeedback({ type: 'error', text: 'Ce lien existe déjà dans le graphe.' });
+      return;
+    }
     setBusy(true);
     setFeedback(null);
     try {
       const savedRequest = await submitFamilyLinkRequest({ child, parent, message });
+      if (savedRequest?.existing_link) {
+        setFeedback({ type: 'error', text: 'Ce lien existe déjà dans le graphe.' });
+        return;
+      }
+      if (savedRequest?.duplicate) {
+        if (!savedRequest.message_received) {
+          setFeedback({
+            type: 'success',
+            text: 'Cette proposition est déjà en attente. Tu peux ajouter un message avec des informations complémentaires pour le BDE.',
+          });
+          return;
+        }
+
+        if (savedRequest.message_already_sent) {
+          setChildId('');
+          setParentId('');
+          setMessage('');
+          setFeedback({
+            type: 'success',
+            text: 'Cette proposition est déjà en attente. Ces informations ont déjà été transmises au BDE.',
+          });
+          return;
+        }
+
+        if (!savedRequest.report_id) {
+          setFeedback({
+            type: 'error',
+            text: 'Cette proposition est déjà en attente. Ton message est enregistré, mais l’e-mail n’a pas pu être préparé ; le BDE le retrouvera dans l’administration.',
+          });
+          return;
+        }
+
+        try {
+          const notification = await notifyFamilyLinkRequestByEmail(
+            savedRequest.id,
+            child,
+            parent,
+            savedRequest.report_id
+          );
+          if (!notification?.sent) throw new Error('La notification n’a pas été envoyée.');
+          setChildId('');
+          setParentId('');
+          setMessage('');
+          setFeedback({
+            type: 'success',
+            text: 'Cette proposition est déjà en attente. Ton message complémentaire a été transmis au BDE.',
+          });
+        } catch {
+          setFeedback({
+            type: 'error',
+            text: 'Cette proposition est déjà en attente. Ton message complémentaire est enregistré, mais l’alerte e-mail n’a pas pu être envoyée ; le BDE le retrouvera dans l’administration.',
+          });
+        }
+        return;
+      }
+
       try {
         const notification = await notifyFamilyLinkRequestByEmail(savedRequest.id, child, parent);
         if (!notification?.sent) throw new Error('La notification n’a pas été envoyée.');

@@ -58,16 +58,26 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: 'Email service is not configured.' }, 503);
   }
 
-  let requestId: number;
+  let requestId: number | null = null;
+  let reportId: number | null = null;
   let childPromo = '';
   let parentPromo = '';
   try {
     const body = await request.json();
-    const rawId = String(body?.requestId ?? '');
-    if (!/^\d+$/.test(rawId)) return jsonResponse({ error: 'Invalid request id.' }, 400);
-    requestId = Number(rawId);
-    if (!Number.isSafeInteger(requestId) || requestId <= 0) {
-      return jsonResponse({ error: 'Invalid request id.' }, 400);
+    if (body?.reportId !== undefined && body?.reportId !== null) {
+      const rawReportId = String(body.reportId);
+      if (!/^\d+$/.test(rawReportId)) return jsonResponse({ error: 'Invalid report id.' }, 400);
+      reportId = Number(rawReportId);
+      if (!Number.isSafeInteger(reportId) || reportId <= 0) {
+        return jsonResponse({ error: 'Invalid report id.' }, 400);
+      }
+    } else {
+      const rawRequestId = String(body?.requestId ?? '');
+      if (!/^\d+$/.test(rawRequestId)) return jsonResponse({ error: 'Invalid request id.' }, 400);
+      requestId = Number(rawRequestId);
+      if (!Number.isSafeInteger(requestId) || requestId <= 0) {
+        return jsonResponse({ error: 'Invalid request id.' }, 400);
+      }
     }
     childPromo = String(body?.childPromo ?? '').trim();
     parentPromo = String(body?.parentPromo ?? '').trim();
@@ -77,17 +87,24 @@ Deno.serve(async (request) => {
 
   let familyRequest: {
     id: number;
+    request_id?: number;
     child_name: string;
     parent_name: string;
     message: string;
     created_at: string;
   } | null;
   try {
-    familyRequest = await callDatabaseRpc(
-      'claim_family_link_request_email',
-      { p_request_id: requestId },
-      serviceKey,
-    );
+    familyRequest = reportId
+      ? await callDatabaseRpc(
+        'claim_family_link_request_report_email',
+        { p_report_id: reportId },
+        serviceKey,
+      )
+      : await callDatabaseRpc(
+        'claim_family_link_request_email',
+        { p_request_id: requestId },
+        serviceKey,
+      );
   } catch {
     return jsonResponse({ error: 'Could not prepare the email notification.' }, 503);
   }
@@ -108,6 +125,7 @@ Deno.serve(async (request) => {
     parentPromo,
     message: familyRequest.message,
     sentAt,
+    isAdditionalReport: reportId !== null,
   });
 
   const transport = nodemailer.createTransport({
@@ -123,23 +141,33 @@ Deno.serve(async (request) => {
     await transport.sendMail({
       from: sender,
       to: recipient,
-      subject: 'Nouvelle proposition de lien',
+      subject: reportId !== null
+        ? 'Information complémentaire sur un lien proposé'
+        : 'Nouvelle proposition de lien',
       text,
       html,
     });
   } catch (error) {
     const smtpError = error as { code?: string; responseCode?: number; message?: string };
     console.error('[notify-family-link-request] SMTP email failed', smtpError.code ?? 'unknown', smtpError.responseCode ?? '', smtpError.message ?? '');
-    await callDatabaseRpc('release_family_link_request_email', { p_request_id: requestId }, serviceKey).catch(() => null);
+    if (reportId !== null) {
+      await callDatabaseRpc('release_family_link_request_report_email', { p_report_id: reportId }, serviceKey).catch(() => null);
+    } else if (requestId !== null) {
+      await callDatabaseRpc('release_family_link_request_email', { p_request_id: requestId }, serviceKey).catch(() => null);
+    }
     return jsonResponse({ error: 'Could not send the email notification.' }, 502);
   } finally {
     transport.close();
   }
 
   try {
-    await callDatabaseRpc('mark_family_link_request_email_sent', { p_request_id: requestId }, serviceKey);
+    if (reportId !== null) {
+      await callDatabaseRpc('mark_family_link_request_report_email_sent', { p_report_id: reportId }, serviceKey);
+    } else if (requestId !== null) {
+      await callDatabaseRpc('mark_family_link_request_email_sent', { p_request_id: requestId }, serviceKey);
+    }
   } catch {
-    console.error(`Email sent, but request ${requestId} could not be marked as notified.`);
+    console.error(`Email sent, but ${reportId !== null ? 'report' : 'request'} ${reportId ?? requestId} could not be marked as notified.`);
   }
 
   return jsonResponse({ sent: true });

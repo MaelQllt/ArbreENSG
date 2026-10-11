@@ -42,6 +42,7 @@ export function renderFamilyLinkRequestEmail({
   parentPromo = '',
   message = '',
   sentAt,
+  isAdditionalReport = false,
 }: {
   childName: string;
   childPromo?: string;
@@ -49,25 +50,30 @@ export function renderFamilyLinkRequestEmail({
   parentPromo?: string;
   message?: string;
   sentAt: string;
+  isAdditionalReport?: boolean;
 }) {
   const cleanMessage = message.trim();
   const safeChildPromo = /^[12]\d{3}$/.test(childPromo) ? childPromo : '';
   const safeParentPromo = /^[12]\d{3}$/.test(parentPromo) ? parentPromo : '';
   const requestSentence = `Lien proposé : ${parentName}${safeParentPromo ? ` (Promo ${safeParentPromo})` : ''} est le parrain ou la marraine de ${childName}${safeChildPromo ? ` (Promo ${safeChildPromo})` : ''}`;
   const text = [
+    ...(isAdditionalReport ? ['Nouveau signalement pour une proposition déjà en attente.', ''] : []),
     requestSentence,
-    ...(cleanMessage ? ['', 'Message ajouté :', cleanMessage] : []),
+    ...(cleanMessage ? ['', isAdditionalReport ? 'Information complémentaire :' : 'Message ajouté :', cleanMessage] : []),
     '',
-    `Reçue le ${sentAt}`,
+    `${isAdditionalReport ? 'Signalement reçu le' : 'Reçue le'} ${sentAt}`,
   ].join('\n');
   const escapedMessage = cleanMessage ? escapeEmailHtml(cleanMessage).replace(/\r?\n/g, '<br>') : '';
-  const content = `<p style="margin:0 0 12px;color:#8e6f55;font-size:13px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;">Lien proposé</p>${studentNodeHtml(parentName, safeParentPromo, 'PARRAIN · MARRAINE')}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" height="22" style="height:22px;color:#fac18a;font-size:16px;line-height:22px;">│</td></tr></table>${studentNodeHtml(childName, safeChildPromo, 'FILLOT · FILLOTTE')}<p style="margin:16px 0 0;color:#8e6f55;font-size:13px;line-height:1.5;">Reçue le <strong style="color:#38235b;">${escapeEmailHtml(sentAt)}</strong></p>${escapedMessage ? `<p style="margin:24px 0 7px;color:#8e6f55;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;">Message ajouté</p><div style="margin:0;padding:11px 14px;background:#f7f4ef;border-left:3px solid #d7c7b7;color:#776c65;font-size:13px;line-height:1.55;">${escapedMessage}</div>` : ''}`;
+  const heading = isAdditionalReport ? 'Information complémentaire sur un lien' : 'Nouvelle proposition de lien';
+  const content = `${isAdditionalReport ? '<div style="margin:0 0 18px;padding:11px 14px;background:#fff9e8;border-left:3px solid #ded41f;color:#2b317f;font-size:13px;line-height:1.5;">Cette relation a déjà été proposée. Un nouveau signalement a été transmis au BDE.</div>' : ''}<p style="margin:0 0 12px;color:#8e6f55;font-size:13px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;">Lien proposé</p>${studentNodeHtml(parentName, safeParentPromo, 'PARRAIN · MARRAINE')}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" height="22" style="height:22px;color:#fac18a;font-size:16px;line-height:22px;">│</td></tr></table>${studentNodeHtml(childName, safeChildPromo, 'FILLOT · FILLOTTE')}<p style="margin:16px 0 0;color:#8e6f55;font-size:13px;line-height:1.5;">${isAdditionalReport ? 'Signalement reçu le' : 'Reçue le'} <strong style="color:#38235b;">${escapeEmailHtml(sentAt)}</strong></p>${escapedMessage ? `<p style="margin:24px 0 7px;color:#8e6f55;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;">${isAdditionalReport ? 'Information complémentaire' : 'Message ajouté'}</p><div style="margin:0;padding:11px 14px;background:#f7f4ef;border-left:3px solid #d7c7b7;color:#776c65;font-size:13px;line-height:1.55;">${escapedMessage}</div>` : ''}`;
 
   return {
     text,
     html: renderBrandedEmail({
-      preheader: 'Une nouvelle proposition de lien attend la vérification du BDE.',
-      heading: 'Nouvelle proposition de lien',
+      preheader: isAdditionalReport
+        ? 'Une information complémentaire concerne une proposition de lien déjà reçue.'
+        : 'Une nouvelle proposition de lien attend la vérification du BDE.',
+      heading,
       content,
     }),
   };

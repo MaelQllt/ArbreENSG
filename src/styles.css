@@ -938,13 +938,16 @@ video {
 }
 
 .admin-request-badge {
-  display: inline-grid;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
   min-width: 1.1rem;
   height: 1.1rem;
   box-sizing: border-box;
   margin-left: 0.4rem;
   padding: 0;
-  place-items: center;
   border: 1px solid var(--yellow);
   border-radius: 50px;
   background: transparent;
@@ -953,12 +956,22 @@ video {
   font-size: 0.62rem;
   font-weight: 800;
   line-height: 1;
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: "lnum" 1, "tnum" 1;
   vertical-align: middle;
 }
 
+.admin-request-badge--wide {
+  width: auto;
+  min-width: 1.1rem;
+  padding: 0 0.12rem;
+}
+
 .admin-request-badge__count {
-  position: relative;
-  top: -0.5px;
+  display: block;
+  line-height: 1;
+  text-align: center;
+  transform: translateY(-0.25px);
 }
 
 .admin-access__button:focus-visible .admin-request-badge, .admin-panel__logout:focus-visible .admin-request-badge {
@@ -2996,10 +3009,17 @@ video {
   }
 
   .admin-panel__actions .admin-request-badge {
+    width: 1rem;
     min-width: 1rem;
     height: 1rem;
     margin-left: 0;
     font-size: 0.58rem;
+  }
+
+  .admin-panel__actions .admin-request-badge--wide {
+    width: auto;
+    min-width: 1rem;
+    padding: 0 0.12rem;
   }
 
   .admin-form {
@@ -3319,6 +3339,43 @@ video {
   font-size: 0.86rem;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.family-request-inbox__reports {
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-left: 2px solid var(--sand);
+  background: rgb(255 255 255 / 5%);
+}
+
+.family-request-inbox__reports-title {
+  margin: 0;
+  color: var(--sand);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.family-request-inbox__reports-list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.family-request-inbox__reports-list li {
+  color: var(--paper);
+  font-size: 0.76rem;
+}
+
+.family-request-inbox__reports-list time {
+  display: block;
+  color: var(--sand);
+  font-size: 0.68rem;
+}
+
+.family-request-inbox__reports-list blockquote {
+  margin-top: 0.35rem;
 }
 
 .family-request-inbox__actions {

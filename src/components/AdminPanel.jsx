@@ -1078,7 +1078,7 @@ export default function AdminPanel({
         >
           Admin
           {session && pendingRequestCount > 0 && (
-            <span className="admin-request-badge" aria-hidden="true">
+            <span className={`admin-request-badge${pendingRequestCount > 99 ? ' admin-request-badge--wide' : ''}`} aria-hidden="true">
               <span className="admin-request-badge__count">{pendingRequestCount > 99 ? '99+' : pendingRequestCount}</span>
             </span>
           )}
@@ -1133,7 +1133,7 @@ export default function AdminPanel({
                   >
                     {adminSection === 'requests' ? 'Familles' : 'Requêtes'}
                     {session && adminSection !== 'requests' && pendingRequestCount > 0 && (
-                      <span className="admin-request-badge" aria-label={`${pendingRequestCount} à traiter`}>
+                      <span className={`admin-request-badge${pendingRequestCount > 99 ? ' admin-request-badge--wide' : ''}`} aria-label={`${pendingRequestCount} à traiter`}>
                         <span className="admin-request-badge__count">{pendingRequestCount > 99 ? '99+' : pendingRequestCount}</span>
                       </span>
                     )}

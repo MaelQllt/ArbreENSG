@@ -400,7 +400,7 @@ export default function App() {
               <span className="contact-info__title-mobile">Un problème&nbsp;?</span>
             </h2>
             <p>Un lien manque ou tu as repéré une autre erreur&nbsp;?<br />Envoie une proposition au BDE.</p>
-            <FamilyLinkRequestForm students={loaded.data.nodes} />
+            <FamilyLinkRequestForm students={loaded.data.nodes} links={loaded.data.links} />
           </section>
         </div>
       )}
