@@ -168,6 +168,13 @@ function emailFailureMessage(action, issue) {
   return `${action}, mais l’e-mail n’a pas été envoyé. ${details[issue] ?? details.smtp_rejected}`;
 }
 
+function adminErrorMessage(error) {
+  if (Number(error?.status) === 401 || /invalid jwt|jwt expired|unauthorized/i.test(String(error?.message ?? ''))) {
+    return 'La session d’administration a expiré ou n’est plus valide. Déconnecte-toi puis reconnecte-toi avant de réessayer.';
+  }
+  return accountErrorMessage(error);
+}
+
 export default function PlayerAccountAdminPanel({ session, onSession }) {
   const cachedAccounts = accountListCache.get(session?.user?.id);
   const [accounts, setAccounts] = useState(cachedAccounts ?? []);
@@ -211,7 +218,8 @@ export default function PlayerAccountAdminPanel({ session, onSession }) {
 
   useEffect(() => {
     if (!message) return undefined;
-    const timeoutId = window.setTimeout(() => setMessage(''), 8000);
+    const duration = message.startsWith('Compte supprimé. Un e-mail a été envoyé') ? 5000 : 8000;
+    const timeoutId = window.setTimeout(() => setMessage(''), duration);
     return () => window.clearTimeout(timeoutId);
   }, [message]);
 
@@ -230,7 +238,7 @@ export default function PlayerAccountAdminPanel({ session, onSession }) {
       accountListCache.set(session?.user?.id, nextAccounts);
       setAccounts(nextAccounts);
     } catch (loadError) {
-      setError(accountErrorMessage(loadError));
+      setError(adminErrorMessage(loadError));
     } finally {
       setLoading(false);
     }
@@ -273,7 +281,7 @@ export default function PlayerAccountAdminPanel({ session, onSession }) {
       accountListCache.set(session?.user?.id, updatedAccounts);
       setAccounts(updatedAccounts);
     } catch (saveError) {
-      setError(accountErrorMessage(saveError));
+      setError(adminErrorMessage(saveError));
     } finally {
       setBusy(false);
     }
@@ -289,13 +297,13 @@ export default function PlayerAccountAdminPanel({ session, onSession }) {
       setSelectedUserId('');
       setDeleteConfirmation(false);
       setMessage(result.emailSent
-        ? 'Compte supprimé. Un e-mail a été envoyé à la personne.'
+        ? 'Compte supprimé. Un e-mail a été envoyé à la personne concernée.'
         : emailFailureMessage('Compte supprimé', result.emailIssue));
       const remainingAccounts = accounts.filter((account) => account.userId !== selectedAccount.userId);
       accountListCache.set(session?.user?.id, remainingAccounts);
       setAccounts(remainingAccounts);
     } catch (deleteError) {
-      setError(accountErrorMessage(deleteError));
+      setError(adminErrorMessage(deleteError));
     } finally {
       setBusy(false);
     }

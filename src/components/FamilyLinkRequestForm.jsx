@@ -115,11 +115,12 @@ export default function FamilyLinkRequestForm({ students }) {
     setFeedback(null);
     try {
       const savedRequest = await submitFamilyLinkRequest({ child, parent, message });
-      setChildId('');
-      setParentId('');
-      setMessage('');
       try {
-        await notifyFamilyLinkRequestByEmail(savedRequest.id);
+        const notification = await notifyFamilyLinkRequestByEmail(savedRequest.id, child, parent);
+        if (!notification?.sent) throw new Error('La notification n’a pas été envoyée.');
+        setChildId('');
+        setParentId('');
+        setMessage('');
         setFeedback({ type: 'success', text: 'Merci, ta proposition a été enregistrée et le BDE a été averti par e-mail.' });
       } catch {
         setFeedback({

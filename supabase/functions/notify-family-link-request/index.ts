@@ -12,6 +12,15 @@ const jsonResponse = (body: Record<string, unknown>, status = 200) => new Respon
   { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
 );
 
+function studentNodeHtml(name: string, promo: string, role: string) {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#2b317f" style="width:100%;background:#2b317f;border-left:4px solid #fac18a;"><tr><td width="48" valign="middle" align="center" style="width:48px;padding:14px 0 14px 10px;color:#ded41f;font-family:Arial,Helvetica,sans-serif;font-size:22px;line-height:26px;">◆</td><td valign="middle" style="padding:13px 16px 13px 4px;font-family:Arial,Helvetica,sans-serif;"><p style="margin:0 0 4px;color:#ded41f;font-size:10px;line-height:14px;font-weight:700;letter-spacing:1px;">${role}</p><p style="margin:0;color:#ffffff;font-size:17px;line-height:22px;font-weight:700;word-break:break-word;">${escapeEmailHtml(name)}</p>${promo ? `<p style="margin:3px 0 0;color:#fac18a;font-size:13px;line-height:18px;font-weight:700;">Promo ${escapeEmailHtml(promo)}</p>` : ''}</td></tr></table>`;
+}
+
+const emailPromo = (value: unknown) => {
+  const promo = String(value ?? '').trim();
+  return /^[12]\d{3}$/.test(promo) ? promo : '';
+};
+
 async function callDatabaseRpc<T>(name: string, args: Record<string, unknown>, serviceKey: string): Promise<T> {
   const response = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/rpc/${name}`, {
     method: 'POST',
@@ -59,6 +68,8 @@ Deno.serve(async (request) => {
   }
 
   let requestId: number;
+  let childPromo = '';
+  let parentPromo = '';
   try {
     const body = await request.json();
     const rawId = String(body?.requestId ?? '');
@@ -67,6 +78,8 @@ Deno.serve(async (request) => {
     if (!Number.isSafeInteger(requestId) || requestId <= 0) {
       return jsonResponse({ error: 'Invalid request id.' }, 400);
     }
+    childPromo = emailPromo(body?.childPromo);
+    parentPromo = emailPromo(body?.parentPromo);
   } catch {
     return jsonResponse({ error: 'Invalid request body.' }, 400);
   }
@@ -97,20 +110,20 @@ Deno.serve(async (request) => {
     timeStyle: 'short',
     timeZone: 'Europe/Paris',
   }).format(new Date(familyRequest.created_at));
+  const requestSentence = `Lien proposé : ${familyRequest.child_name}${childPromo ? ` (Promo ${childPromo})` : ''} est le fillot ou la fillotte de ${familyRequest.parent_name}${parentPromo ? ` (Promo ${parentPromo})` : ''}`;
   const text = [
-    ...(familyRequest.message?.trim() ? [familyRequest.message.trim()] : []),
-    `Nouvelle proposition de lien familial : ${familyRequest.child_name} est le fillot ou la fillotte de ${familyRequest.parent_name}`,
+    requestSentence,
+    ...(familyRequest.message?.trim() ? ['', 'Message ajouté :', familyRequest.message.trim()] : []),
     '',
     `Reçue le ${sentAt}`,
   ].join('\n');
-  const requestSentence = `Nouvelle proposition de lien familial : ${familyRequest.child_name} est le fillot ou la fillotte de ${familyRequest.parent_name}`;
   const escapedMessage = familyRequest.message?.trim()
     ? escapeEmailHtml(familyRequest.message.trim()).replace(/\r?\n/g, '<br>')
     : '';
   const html = renderBrandedEmail({
     preheader: 'Une nouvelle proposition de lien familial attend la vérification du BDE.',
     heading: 'Nouvelle proposition de lien familial',
-    content: `${escapedMessage ? `<p style="margin:0 0 8px;color:#8e6f55;font-size:13px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;">Message ajouté</p><div style="margin:0 0 24px;padding:15px 18px;background:#fff9e8;border-left:4px solid #fac18a;color:#38235b;font-size:15px;line-height:1.6;">${escapedMessage}</div>` : ''}<p style="margin:0 0 10px;color:#8e6f55;font-size:13px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;">Lien proposé</p><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f2bc" style="background:#f4f2bc;border-left:5px solid #ded41f;"><tr><td style="padding:19px 20px;color:#2b317f;font-size:17px;line-height:1.55;">${escapeEmailHtml(requestSentence)}</td></tr></table><p style="margin:20px 0 0;color:#8e6f55;font-size:14px;line-height:1.5;">Reçue le <strong style="color:#38235b;">${escapeEmailHtml(sentAt)}</strong></p>`,
+    content: `<p style="margin:0 0 12px;color:#8e6f55;font-size:13px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;">Lien proposé</p>${studentNodeHtml(familyRequest.child_name, childPromo, 'FILLOT · FILLOTTE')}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" height="22" style="height:22px;color:#fac18a;font-size:16px;line-height:22px;">│</td></tr></table>${studentNodeHtml(familyRequest.parent_name, parentPromo, 'PARRAIN · MARRAINE')}<p style="margin:16px 0 0;color:#8e6f55;font-size:13px;line-height:1.5;">Reçue le <strong style="color:#38235b;">${escapeEmailHtml(sentAt)}</strong></p>${escapedMessage ? `<p style="margin:24px 0 7px;color:#8e6f55;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;">Message ajouté</p><div style="margin:0;padding:11px 14px;background:#f7f4ef;border-left:3px solid #d7c7b7;color:#776c65;font-size:13px;line-height:1.55;">${escapedMessage}</div>` : ''}`,
   });
 
   const transport = nodemailer.createTransport({

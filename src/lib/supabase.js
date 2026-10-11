@@ -226,11 +226,15 @@ export async function submitFamilyLinkRequest({ child, parent, message = '' }) {
   });
 }
 
-export async function notifyFamilyLinkRequestByEmail(requestId) {
+export async function notifyFamilyLinkRequestByEmail(requestId, child, parent) {
   if (!isSupabaseConfigured()) throw new Error('L’envoi des demandes n’est pas configuré.');
   return request('/functions/v1/notify-family-link-request', {
     method: 'POST',
-    body: { requestId },
+    body: {
+      requestId,
+      childPromo: child?.promo,
+      parentPromo: parent?.promo,
+    },
   });
 }
 

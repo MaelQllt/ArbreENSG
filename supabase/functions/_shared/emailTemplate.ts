@@ -31,20 +31,21 @@ export function renderBrandedEmail({
 }) {
   return `<!doctype html>
 <html lang="fr">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>${escapeEmailHtml(heading)} – ENSGdle</title></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>${escapeEmailHtml(heading)} – ENSGdle</title>
+<style>@media(max-width:620px){.email-container{width:100%!important}.email-px{padding-left:24px!important;padding-right:24px!important}.email-title{font-size:25px!important;line-height:31px!important}}</style></head>
 <body style="margin:0;padding:0;background:#eceef6;-webkit-text-size-adjust:100%;font-family:Arial,Helvetica,sans-serif;color:#38235b;">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;font-size:1px;line-height:1px;color:#eceef6;">${escapeEmailHtml(preheader)}</div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#eceef6" style="background:#eceef6;">
     <tr><td align="center" style="padding:28px 12px;">
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:#ffffff;">
-        <tr><td bgcolor="#2b317f" style="background:#2b317f;padding:28px 32px 18px;border-bottom:6px solid #ded41f;">
-          <p style="margin:0;color:#ded41f;font-size:14px;font-weight:700;letter-spacing:1.5px;">ENSGdle</p>
-          <p style="margin:7px 0 0;color:#fac18a;font-size:13px;line-height:1.4;">BDE Géodata</p>
-          <h1 style="margin:18px 0 0;color:#ffffff;font-size:25px;line-height:1.25;font-weight:700;">${escapeEmailHtml(heading)}</h1>
+      <table role="presentation" class="email-container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:#ffffff;">
+        <tr><td class="email-px" bgcolor="#2b317f" style="background:#2b317f;padding:30px 36px 20px;">
+          <p style="margin:0;color:#ffffff;font-size:25px;line-height:30px;font-weight:800;letter-spacing:-.4px;">ENSGdle</p>
+          <p style="margin:5px 0 0;color:#fac18a;font-size:12px;line-height:18px;font-weight:700;letter-spacing:.8px;">JEU DE PARRAINAGE<svg xmlns="http://www.w3.org/2000/svg" width="22" height="10" viewBox="0 0 18 8" aria-hidden="true" focusable="false" style="display:inline-block;vertical-align:0;margin:0 8px;"><path d="M1 5.5 L5 4 L9 4.7 L13 2.8 L17 3.5" fill="none" stroke="#fac18a" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" /></svg>GÉODATA PARIS</p>
+          <h1 class="email-title" style="margin:30px 0 0;color:#f4f2bc;font-size:31px;line-height:38px;font-weight:700;">${escapeEmailHtml(heading)}</h1>
         </td></tr>
         <tr><td bgcolor="#2b317f" style="background:#2b317f;padding:0;">${topoSvg}</td></tr>
-        <tr><td style="padding:26px 32px 12px;">${content}</td></tr>
-        <tr><td style="padding:14px 32px 26px;border-top:1px solid #dfe0ee;color:#77717a;font-size:12px;line-height:1.6;">Message automatique envoyé par ENSGdle, merci de ne pas répondre à cet e-mail.</td></tr>
+        <tr><td class="email-px" style="padding:26px 36px 14px;">${content}</td></tr>
+        <tr><td class="email-px" style="padding:16px 36px 26px;border-top:1px solid #dfe0ee;color:#77717a;font-size:12px;line-height:1.6;">Message automatique envoyé par ENSGdle, merci de ne pas répondre à cet e-mail.</td></tr>
       </table>
     </td></tr>
   </table>

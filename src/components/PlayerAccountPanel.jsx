@@ -705,8 +705,11 @@ export default function PlayerAccountPanel({
 
   return (
     <div className="player-account">
-      {error && <p className="player-account__message player-account__message--error" role="alert">{error}</p>}
-      {status && <p className="player-account__message" role="status">{status}</p>}
+      {error ? (
+        <p className="player-account__message player-account__message--error" role="alert">{error}</p>
+      ) : status ? (
+        <p className="player-account__message" role="status">{status}</p>
+      ) : null}
 
       {(mode === 'login' || mode === 'confirmed') && (
         <>
@@ -759,7 +762,7 @@ export default function PlayerAccountPanel({
 
       {mode === 'recovery' && (
         <form className="player-account__form" onSubmit={submitNewPassword}>
-          {!status && <p className="player-account__notice">Choisis un nouveau mot de passe pour ton compte.</p>}
+          {!status && !error && <p className="player-account__notice">Choisis un nouveau mot de passe pour ton compte.</p>}
           <Field id="player-new-password" label={`Nouveau mot de passe (${MIN_PASSWORD_LENGTH} caractères minimum)`} type="password" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} required value={password} onChange={(event) => setPassword(event.target.value)} />
           <Field id="player-new-password-confirm" label="Confirmer le mot de passe" type="password" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} required value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} />
           <div className="player-account__password-actions">
