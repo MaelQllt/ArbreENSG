@@ -2152,6 +2152,68 @@
   background: var(--paper);
 }
 
+.player-admin__role {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--yellow);
+  background: #f6e5d2;
+}
+
+.player-admin__role > div {
+  min-width: 0;
+}
+
+.player-admin__role strong {
+  color: var(--blue);
+  font-size: 0.8rem;
+}
+
+.player-admin__role p {
+  margin: 3px 0 0;
+  color: #765d48;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.player-admin__role-grant {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--blue);
+  background: var(--blue);
+  color: var(--paper);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.player-admin__role-grant:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .player-admin__role-grant:hover:not(:disabled) {
+    background: #3a478e;
+  }
+}
+
+.player-admin__role-grant:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.player-admin__role-status {
+  flex: 0 0 auto;
+  color: #765d48;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
 .player-admin__notice,
 .player-admin__empty {
   margin: 0;
@@ -4420,6 +4482,15 @@
 
   .player-admin__form-actions button {
     flex: 1 1 auto;
+  }
+
+  .player-admin__role {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .player-admin__role-grant {
+    align-self: flex-start;
   }
 }
 

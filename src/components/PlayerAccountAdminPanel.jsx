@@ -169,8 +169,8 @@ function emailFailureMessage(action, issue) {
 }
 
 function adminErrorMessage(error) {
-  if (Number(error?.status) === 401 || /invalid jwt|jwt expired|unauthorized/i.test(String(error?.message ?? ''))) {
-    return 'La session d’administration a expiré ou n’est plus valide. Déconnecte-toi puis reconnecte-toi avant de réessayer.';
+  if (Number(error?.status) === 401 || /invalid jwt|jwt expired|unauthorized|invalid refresh token|refresh token.*(?:not found|invalid)/i.test(String(error?.message ?? ''))) {
+    return 'Supabase a refusé la session superadmin. Le site a tenté de la renouveler ; ferme puis rouvre ta session si le problème persiste.';
   }
   return accountErrorMessage(error);
 }
@@ -309,6 +309,26 @@ export default function PlayerAccountAdminPanel({ session, onSession }) {
     }
   };
 
+  const grantSuperadmin = async (account) => {
+    if (!account || account.isSuperadmin || busy) return;
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      await request('grant_superadmin', { userId: account.userId });
+      const updatedAccounts = accounts.map((item) => item.userId === account.userId
+        ? { ...item, isSuperadmin: true }
+        : item);
+      accountListCache.set(session?.user?.id, updatedAccounts);
+      setAccounts(updatedAccounts);
+      setMessage(`Le rôle superadmin a été attribué à ${account.profile?.pseudo || account.email}. Il sera actif à sa prochaine connexion.`);
+    } catch (grantError) {
+      setError(adminErrorMessage(grantError));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <section className="player-admin" aria-label="Gestion des comptes joueurs">
       <header className="player-admin__header">
@@ -317,7 +337,7 @@ export default function PlayerAccountAdminPanel({ session, onSession }) {
           <RefreshCw size={17} strokeWidth={1.8} aria-hidden="true" />
         </button>
       </header>
-      <p className="player-admin__intro">Modifie les profils ou supprime un compte. La personne concernée reçoit un e-mail après chaque action.</p>
+      <p className="player-admin__intro">Modifie les profils, supprime un compte ou accorde le rôle superadmin.</p>
       <label className="player-admin__search">
         <span className="sr-only">Rechercher un compte</span>
         <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher par nom, pseudo ou e-mail" />
@@ -345,6 +365,21 @@ export default function PlayerAccountAdminPanel({ session, onSession }) {
                 {active && (
                   <form className="player-admin__form" onSubmit={saveProfile}>
                     {!account.hasProfile && <p className="player-admin__notice">Ce compte n’a pas encore de profil complet.</p>}
+                    <div className="player-admin__role">
+                      <div>
+                        <strong>Accès superadmin</strong>
+                        <p>{account.isSuperadmin
+                          ? 'Ce compte peut gérer les familles, les requêtes et les comptes joueurs.'
+                          : 'Le rôle sera actif dès la prochaine connexion de cette personne.'}</p>
+                      </div>
+                      {account.isSuperadmin ? (
+                        <span className="player-admin__role-status">Déjà attribué</span>
+                      ) : (
+                        <button type="button" className="player-admin__role-grant" onClick={() => grantSuperadmin(account)} disabled={busy}>
+                          {busy ? 'Attribution…' : 'Accorder le rôle'}
+                        </button>
+                      )}
+                    </div>
                     <div className="player-admin__fields">
                       <label><span>Prénom</span><input required maxLength={80} value={draft.firstName} onChange={(event) => updateDraft('firstName', event.target.value)} /></label>
                       <label><span>Nom</span><input required maxLength={80} value={draft.lastName} onChange={(event) => updateDraft('lastName', event.target.value)} /></label>

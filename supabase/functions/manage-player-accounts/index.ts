@@ -221,6 +221,16 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: 'Tu ne peux pas supprimer le compte superadmin actuellement connecté.' }, 400);
   }
 
+  if (body.action === 'grant_superadmin') {
+    const { data: target, error: targetError } = await service.auth.admin.getUserById(userId);
+    if (targetError || !target.user) return jsonResponse({ error: 'Ce compte est introuvable.' }, 404);
+    const { error: grantError } = await service
+      .from('superadmins')
+      .upsert({ user_id: userId }, { onConflict: 'user_id' });
+    if (grantError) return jsonResponse({ error: 'Le rôle superadmin n’a pas pu être attribué.' }, 503);
+    return jsonResponse({ isSuperadmin: true });
+  }
+
   if (body.action === 'update') {
     const parsedProfile = parseProfile(body.profile);
     if (typeof parsedProfile === 'string') return jsonResponse({ error: parsedProfile }, 400);

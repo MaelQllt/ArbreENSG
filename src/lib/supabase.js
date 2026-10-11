@@ -9,6 +9,7 @@ export function isSupabaseConfigured() {
 }
 
 let accountAuthClientPromise;
+const sessionRefreshes = new Map();
 
 export function getAccountAuthClient() {
   if (!isSupabaseConfigured()) {
@@ -73,21 +74,40 @@ async function request(path, { method = 'GET', token, body, prefer } = {}) {
 }
 
 async function refreshSession(session) {
-  const result = await request('/auth/v1/token?grant_type=refresh_token', {
-    method: 'POST',
-    body: { refresh_token: session.refresh_token },
-  });
-  const refreshed = {
-    ...session,
-    ...result,
-    user: result.user ?? session.user,
-    expires_at: Math.floor(Date.now() / 1000) + result.expires_in,
-  };
-  saveSession(refreshed);
-  return refreshed;
+  const refreshToken = session?.refresh_token;
+  if (!refreshToken) throw new Error('La session ne contient pas de jeton de renouvellement.');
+  const pendingRefresh = sessionRefreshes.get(refreshToken);
+  if (pendingRefresh) return pendingRefresh;
+
+  const refreshPromise = (async () => {
+    const result = await request('/auth/v1/token?grant_type=refresh_token', {
+      method: 'POST',
+      body: { refresh_token: refreshToken },
+    });
+    const refreshed = {
+      ...session,
+      ...result,
+      user: result.user ?? session.user,
+      expires_at: Math.floor(Date.now() / 1000) + result.expires_in,
+    };
+    // Only the manually managed superadmin session belongs in sessionStorage.
+    if (readSession()?.refresh_token === refreshToken) saveSession(refreshed);
+    return refreshed;
+  })();
+  sessionRefreshes.set(refreshToken, refreshPromise);
+  try {
+    return await refreshPromise;
+  } finally {
+    if (sessionRefreshes.get(refreshToken) === refreshPromise) sessionRefreshes.delete(refreshToken);
+  }
 }
 
 async function ensureFreshSession(session) {
+  const storedSession = readSession();
+  if (storedSession?.user?.id && storedSession.user.id === session?.user?.id
+    && storedSession.refresh_token !== session.refresh_token) {
+    session = storedSession;
+  }
   if (session.expires_at && session.expires_at > Math.floor(Date.now() / 1000) + 60) return session;
   return refreshSession(session);
 }
@@ -281,11 +301,85 @@ export async function deleteFamilyLinkRequest(requestId, session) {
 
 export async function managePlayerAccounts(action, payload = {}, session) {
   if (!isSupabaseConfigured()) throw new Error('La gestion des comptes n’est pas configurée.');
-  const activeSession = await ensureFreshSession(session);
-  const result = await request('/functions/v1/manage-player-accounts', {
+  const isSameUser = (candidate) => candidate?.user?.id && candidate.user.id === session?.user?.id;
+  const hasTime = (candidate) => candidate?.expires_at > Math.floor(Date.now() / 1000) + 60;
+
+  // The in-game admin entry can receive the player's Supabase JS session,
+  // while the /admin page uses a separately persisted session. Let the SDK
+  // refresh its own session so its rotating refresh token stays in sync.
+  const getActiveSession = async (forceRefresh = false, previousSession = session) => {
+    const storedAdminSession = readSession();
+    if (isSameUser(storedAdminSession)) {
+      // Another request may already have rotated this token. Reuse that newer
+      // copy instead of racing a second refresh with the consumed token.
+      if (storedAdminSession.access_token !== previousSession?.access_token && hasTime(storedAdminSession)) {
+        return storedAdminSession;
+      }
+      if (!forceRefresh && hasTime(storedAdminSession)) return storedAdminSession;
+      try {
+        return await refreshSession(storedAdminSession);
+      } catch (refreshError) {
+        // If the separate admin refresh token was invalidated, the same user
+        // may still have a healthy session managed by Supabase JS.
+        try {
+          const authClient = await getAccountAuthClient();
+          const { data: sessionData } = await authClient.auth.getSession();
+          const accountSession = sessionData?.session;
+          if (isSameUser(accountSession)) {
+            if (!forceRefresh && hasTime(accountSession)) return accountSession;
+            const { data, error } = await authClient.auth.refreshSession();
+            if (!error && data.session) return data.session;
+          }
+        } catch {
+          // Keep the original refresh error below; it explains why recovery failed.
+        }
+        throw refreshError;
+      }
+    }
+
+    const authClient = await getAccountAuthClient();
+    const { data: sessionData, error: sessionError } = await authClient.auth.getSession();
+    if (sessionError) throw sessionError;
+    const accountSession = sessionData?.session;
+    if (isSameUser(accountSession)) {
+      if (accountSession.access_token !== previousSession?.access_token && hasTime(accountSession)) {
+        return accountSession;
+      }
+      if (!forceRefresh && hasTime(accountSession)) return accountSession;
+      const { data, error } = await authClient.auth.refreshSession();
+      if (error) throw error;
+      if (data.session) return data.session;
+    }
+
+    if (!forceRefresh && hasTime(previousSession)) return previousSession;
+    return refreshSession(previousSession);
+  };
+
+  const invoke = (activeSession) => request('/functions/v1/manage-player-accounts', {
     method: 'POST',
     token: activeSession.access_token,
     body: { action, ...payload },
   });
+
+  let activeSession = await getActiveSession();
+  let result;
+  try {
+    result = await invoke(activeSession);
+  } catch (error) {
+    if (Number(error?.status) !== 401) throw error;
+    try {
+      activeSession = await getActiveSession(true, activeSession);
+      result = await invoke(activeSession);
+    } catch (retryError) {
+      // Leave the panel with one actionable session error instead of repeating
+      // the same failed request on the stale access token.
+      if (Number(retryError?.status) === 401 || /invalid refresh token|refresh token.*(?:not found|invalid)/i.test(String(retryError?.message ?? ''))) {
+        const sessionError = new Error('La session superadmin n’est plus valide. Reconnecte-toi puis rouvre l’administration.');
+        sessionError.status = 401;
+        throw sessionError;
+      }
+      throw retryError;
+    }
+  }
   return { session: activeSession, ...result };
 }
