@@ -323,7 +323,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
             return 'rgba(255,255,255,0.06)';
           }}
           linkWidth={(l) => (inLineage(l) ? 2 : 0.45)}
-          linkDirectionalParticles={(l) => (!disableGraphAnimations && inLineage(l) ? 1 : 0)}
+          linkDirectionalParticles={(l) => (!reducedMotion && inLineage(l) ? 1 : 0)}
           linkDirectionalParticleWidth={5}
           linkDirectionalParticleSpeed={0.01}
           linkDirectionalParticleColor={() => COLORS.sand}
@@ -381,7 +381,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
           maxZoom={MAX_ZOOM}
           d3VelocityDecay={VELOCITY_DECAY}
           // nécessaire : les accesseurs dépendent de l'état React, le canvas doit se redessiner
-          autoPauseRedraw={disableGraphAnimations}
+          autoPauseRedraw={reducedMotion}
           warmupTicks={size.width <= 767 ? 36 : 80}
           cooldownTicks={size.width <= 767 ? 150 : 250}
           onEngineStop={() => {
