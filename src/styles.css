@@ -1114,7 +1114,9 @@ video {
 
 .admin-panel__actions > .admin-panel__close {
   box-sizing: border-box;
+  width: 2.35rem;
   height: 2.35rem;
+  flex-basis: 2.35rem;
   min-height: 2.35rem;
 }
 
@@ -3004,8 +3006,10 @@ video {
   }
 
   .admin-panel__actions > .admin-panel__close {
+    width: 30px;
     height: 30px;
     min-height: 30px;
+    flex-basis: 30px;
   }
 
   .admin-panel__actions .admin-request-badge {

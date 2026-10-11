@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import { deleteFamilyLinkRequest, fetchFamilyLinkRequests, updateFamilyLinkRequest } from '../lib/supabase';
 import { accountErrorMessage } from '../lib/playerAccounts';
@@ -37,6 +37,8 @@ function deleteRequestErrorMessage(error) {
 }
 
 export default function FamilyLinkRequestInbox({ session, onSession, onValidate, onPendingRequestCountChange }) {
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
   const [requests, setRequests] = useState([]);
   const [filter, setFilter] = useState('pending');
   const [loading, setLoading] = useState(true);
@@ -49,7 +51,7 @@ export default function FamilyLinkRequestInbox({ session, onSession, onValidate,
     setLoading(true);
     setError('');
     try {
-      const result = await fetchFamilyLinkRequests(session);
+      const result = await fetchFamilyLinkRequests(sessionRef.current);
       onSession(result.session);
       setRequests(result.requests);
       onPendingRequestCountChange?.(result.requests.filter((request) => request.status === 'pending').length);
@@ -58,7 +60,7 @@ export default function FamilyLinkRequestInbox({ session, onSession, onValidate,
     } finally {
       setLoading(false);
     }
-  }, [onSession, session]);
+  }, [onPendingRequestCountChange, onSession]);
 
   useEffect(() => {
     void refresh();

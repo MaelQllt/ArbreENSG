@@ -5,7 +5,7 @@ import { accountErrorMessage } from '../lib/playerAccounts';
 
 const idOf = (endpoint) => (typeof endpoint === 'object' ? endpoint?.id : endpoint);
 
-function StudentPicker({ id, label, placeholder, students, value, onChange }) {
+function StudentPicker({ id, label, placeholder, students, value, onChange, onInteraction }) {
   const rootRef = useRef(null);
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -55,6 +55,7 @@ function StudentPicker({ id, label, placeholder, students, value, onChange }) {
             aria-activedescendant={open && results[activeIndex] ? `${id}-option-${activeIndex}` : undefined}
             onFocus={() => setOpen(true)}
             onChange={(event) => {
+              onInteraction?.();
               setQuery(event.target.value);
               setActiveIndex(0);
               setOpen(true);
@@ -109,6 +110,14 @@ export default function FamilyLinkRequestForm({ students, links = [] }) {
   const [feedback, setFeedback] = useState(null);
   const child = students.find((student) => student.id === childId);
   const parent = students.find((student) => student.id === parentId);
+
+  useEffect(() => {
+    if (!feedback) return undefined;
+    const timeoutId = window.setTimeout(() => setFeedback(null), 5000);
+    return () => window.clearTimeout(timeoutId);
+  }, [feedback]);
+
+  const clearFeedback = () => setFeedback(null);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -212,7 +221,11 @@ export default function FamilyLinkRequestForm({ students, links = [] }) {
         placeholder="Rechercher le parrain ou la marraine"
         students={students}
         value={parentId}
-        onChange={setParentId}
+        onChange={(value) => {
+          clearFeedback();
+          setParentId(value);
+        }}
+        onInteraction={clearFeedback}
       />
       <StudentPicker
         id="family-request-child"
@@ -220,7 +233,11 @@ export default function FamilyLinkRequestForm({ students, links = [] }) {
         placeholder="Rechercher le fillot ou la fillotte"
         students={students}
         value={childId}
-        onChange={setChildId}
+        onChange={(value) => {
+          clearFeedback();
+          setChildId(value);
+        }}
+        onInteraction={clearFeedback}
       />
       <label className="family-request__message-label" htmlFor="family-request-message">
         Message <span>(facultatif)</span>
@@ -231,7 +248,10 @@ export default function FamilyLinkRequestForm({ students, links = [] }) {
         maxLength={1500}
         rows={3}
         placeholder="Ajoute un détail utile à la vérification…"
-        onChange={(event) => setMessage(event.target.value)}
+        onChange={(event) => {
+          clearFeedback();
+          setMessage(event.target.value);
+        }}
       />
       {feedback && <p className={`family-request__feedback family-request__feedback--${feedback.type}`} role={feedback.type === 'error' ? 'alert' : 'status'}>{feedback.text}</p>}
       <button className="btn family-request__submit" type="submit" disabled={busy || !child || !parent || child.id === parent.id}>
