@@ -249,6 +249,14 @@ export async function fetchFamilyLinkRequests(session) {
   return { session: activeSession, requests: Array.isArray(rows) ? rows : [] };
 }
 
+export async function fetchPendingFamilyLinkRequestCount(session) {
+  const result = await fetchFamilyLinkRequests(session);
+  return {
+    session: result.session,
+    count: result.requests.filter((request) => request.status === 'pending').length,
+  };
+}
+
 export async function updateFamilyLinkRequest(requestId, status, session) {
   if (!isSupabaseConfigured()) throw new Error('La sauvegarde Supabase n’est pas configurée.');
   const activeSession = await ensureFreshSession(session);

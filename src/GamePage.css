@@ -126,9 +126,15 @@
   color: var(--sand);
 }
 
-.game-promo-mode:hover strong,
 .game-promo-mode:focus-visible strong {
   color: var(--yellow);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.game-promo-mode:hover strong {
+  color: var(--yellow);
+}
 }
 
 .game-promo-mode:focus-visible {
@@ -263,17 +269,32 @@
   border-top: 1px solid rgb(142 111 85 / 24%);
 }
 
-.game-menu__panel button:hover,
 .game-menu__panel button:focus-visible {
   background: #f4f2bc;
 }
 
-.game-menu__panel button:disabled,
+@media (hover: hover) and (pointer: fine) {
+
+.game-menu__panel button:hover {
+  background: #f4f2bc;
+}
+}
+
+.game-menu__panel button:disabled {
+  background: transparent;
+  color: #8e6f55;
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (hover: hover) and (pointer: fine) {
+
 .game-menu__panel button:disabled:hover {
   background: transparent;
   color: #8e6f55;
   opacity: 0.55;
   cursor: not-allowed;
+}
 }
 .game-section-kicker {
   margin: 0 0 0.3rem;
@@ -314,18 +335,34 @@
   border-left: 1px solid rgb(250 193 138 / 45%);
 }
 
-.game-modes button:hover,
 .game-modes button.is-active {
   background: var(--yellow);
   color: var(--blue);
 }
 
-.game-modes button:disabled,
+@media (hover: hover) and (pointer: fine) {
+
+.game-modes button:hover {
+  background: var(--yellow);
+  color: var(--blue);
+}
+}
+
+.game-modes button:disabled {
+  background: rgb(255 255 255 / 10%);
+  color: rgb(250 193 138 / 48%);
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+@media (hover: hover) and (pointer: fine) {
+
 .game-modes button:disabled:hover {
   background: rgb(255 255 255 / 10%);
   color: rgb(250 193 138 / 48%);
   opacity: 0.65;
   cursor: not-allowed;
+}
 }
 
 .game-layout {
@@ -532,9 +569,12 @@
   color: var(--yellow);
 }
 
+@media (hover: hover) and (pointer: fine) {
+
 .game-search__submit:hover {
   background: var(--yellow);
   color: var(--blue);
+}
 }
 
 .game-search__submit:disabled {
@@ -571,16 +611,30 @@
   text-align: left;
 }
 
-.game-search__suggestions button:hover,
 .game-search__suggestions button.is-active {
   background: var(--sand);
 }
 
-.game-search__suggestions button:disabled,
+@media (hover: hover) and (pointer: fine) {
+
+.game-search__suggestions button:hover {
+  background: var(--sand);
+}
+}
+
+.game-search__suggestions button:disabled {
+  background: #e8e7e1;
+  color: #858585;
+  cursor: not-allowed;
+}
+
+@media (hover: hover) and (pointer: fine) {
+
 .game-search__suggestions button:disabled:hover {
   background: #e8e7e1;
   color: #858585;
   cursor: not-allowed;
+}
 }
 
 .game-search__suggestions small {
@@ -670,9 +724,12 @@
   color: var(--yellow);
 }
 
+@media (hover: hover) and (pointer: fine) {
+
 .game-round-actions .btn:hover {
   background: var(--yellow);
   color: var(--blue);
+}
 }
 
 .game-round-actions .btn:disabled {
@@ -750,10 +807,17 @@
   pointer-events: none;
 }
 
-.game-help-link-tooltip[data-tooltip]:hover::after,
 .game-help-link-tooltip[data-tooltip]:focus-within::after {
   visibility: visible;
   opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.game-help-link-tooltip[data-tooltip]:hover::after {
+  visibility: visible;
+  opacity: 1;
+}
 }
 
 .game-help-backdrop {
@@ -876,8 +940,11 @@
   font-weight: 700;
 }
 
+@media (hover: hover) and (pointer: fine) {
+
 .game-leaderboard__open:hover {
   background: rgb(219 210 20 / 12%);
+}
 }
 
 .game-leaderboard__open:focus-visible {
@@ -948,9 +1015,15 @@
   color: var(--sand);
 }
 
-.game-leaderboard__back:hover,
 .game-leaderboard__back:focus-visible {
   color: var(--blue);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.game-leaderboard__back:hover {
+  color: var(--blue);
+}
 }
 
 .game-leaderboard__back:focus-visible {
@@ -1022,8 +1095,11 @@
   cursor: pointer;
 }
 
+@media (hover: hover) and (pointer: fine) {
+
 .game-promo-settings__select-actions button:hover {
   color: var(--blue);
+}
 }
 
 .game-promo-settings__list {
@@ -1077,8 +1153,11 @@
     background: #b49a83;
   }
 
+  @media (hover: hover) and (pointer: fine) {
+
   .game-promo-settings__list::-webkit-scrollbar-thumb:hover {
     background: #8e6f55;
+  }
   }
 }
 
@@ -1175,16 +1254,27 @@
   cursor: pointer;
 }
 
+@media (hover: hover) and (pointer: fine) {
+
 .game-archive__modes button:hover {
   background: var(--yellow);
   color: var(--blue);
 }
+}
 
-.game-archive__modes button.is-active,
+.game-archive__modes button.is-active {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: var(--yellow);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
 .game-archive__modes button.is-active:hover {
   border-color: var(--blue);
   background: var(--blue);
   color: var(--yellow);
+}
 }
 
 .game-archive__calendar {
@@ -1219,8 +1309,11 @@
   line-height: 1;
 }
 
+@media (hover: hover) and (pointer: fine) {
+
 .game-archive__month button:hover:not(:disabled) {
   background: var(--yellow);
+}
 }
 
 .game-archive__month button:disabled {
@@ -1278,9 +1371,12 @@
   background: #f5ddc9;
 }
 
+@media (hover: hover) and (pointer: fine) {
+
 .game-archive__day.is-available:hover {
   border-color: var(--yellow);
   background: var(--yellow);
+}
 }
 
 .game-archive__day.is-selected {
@@ -1399,11 +1495,19 @@
   transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
-.game-help-panel__close:hover,
 .game-help-panel__close:focus-visible {
   border-color: var(--yellow);
   background: var(--yellow);
   color: var(--blue);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.game-help-panel__close:hover {
+  border-color: var(--yellow);
+  background: var(--yellow);
+  color: var(--blue);
+}
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1908,11 +2012,19 @@
   transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
 }
 
-.player-admin__refresh:hover,
 .player-admin__refresh:focus-visible {
   border-color: var(--blue);
   background: var(--blue);
   color: var(--paper);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.player-admin__refresh:hover {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: var(--paper);
+}
 }
 
 .player-admin__refresh:disabled {
@@ -1988,10 +2100,15 @@
   cursor: pointer;
 }
 
-.player-admin__account-trigger:hover,
-.player-admin__account-trigger:focus-visible,
-.player-admin__account.is-open .player-admin__account-trigger {
+.player-admin__account-trigger:focus-visible, .player-admin__account.is-open .player-admin__account-trigger {
   background: #f6e5d2;
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.player-admin__account-trigger:hover {
+  background: #f6e5d2;
+}
 }
 
 .player-admin__account-main,
@@ -2107,11 +2224,15 @@
   cursor: pointer;
 }
 
-.player-admin__form-actions button:hover,
-.player-admin__form-actions button:focus-visible,
-.player-admin__delete-confirm button:hover,
-.player-admin__delete-confirm button:focus-visible {
+.player-admin__form-actions button:focus-visible, .player-admin__delete-confirm button:focus-visible {
   background: #3a478e;
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.player-admin__form-actions button:hover, .player-admin__delete-confirm button:hover {
+  background: #3a478e;
+}
 }
 
 .player-admin__form-actions button.is-danger,
@@ -2121,12 +2242,17 @@
   color: #a43d31;
 }
 
-.player-admin__form-actions button.is-danger:hover,
-.player-admin__delete-confirm button.is-danger:hover,
-.player-admin__form-actions button.is-danger:focus-visible,
-.player-admin__delete-confirm button.is-danger:focus-visible {
+.player-admin__form-actions button.is-danger:focus-visible, .player-admin__delete-confirm button.is-danger:focus-visible {
   background: #bd5140;
   color: #fff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.player-admin__form-actions button.is-danger:hover, .player-admin__delete-confirm button.is-danger:hover {
+  background: #bd5140;
+  color: #fff;
+}
 }
 
 .player-admin__delete-confirm {
@@ -2269,9 +2395,12 @@
   font-size: 0.82rem;
 }
 
+@media (hover: hover) and (pointer: fine) {
+
 .player-account__submit:hover:not(:disabled) {
   background: var(--yellow);
   color: var(--blue);
+}
 }
 
 .player-account__submit:disabled {
@@ -2428,9 +2557,11 @@
   cursor: pointer;
 }
 
-.player-account__links button:hover,
-.player-account__text-button:hover {
+@media (hover: hover) and (pointer: fine) {
+
+.player-account__links button:hover, .player-account__text-button:hover {
   color: #8e6f55;
+}
 }
 
 .player-account__links button:focus-visible,
@@ -2535,11 +2666,19 @@
   line-height: 1;
 }
 
-.player-account__edit-icon:hover,
 .player-account__edit-icon:focus-visible {
   border-color: var(--blue);
   background: var(--sand);
   color: var(--blue);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.player-account__edit-icon:hover {
+  border-color: var(--blue);
+  background: var(--sand);
+  color: var(--blue);
+}
 }
 
 .player-account__name {
@@ -2619,9 +2758,15 @@
   transition: color 140ms ease;
 }
 
-.player-account__edit-collapse:hover,
 .player-account__edit-collapse:focus-visible {
   color: var(--blue);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.player-account__edit-collapse:hover {
+  color: var(--blue);
+}
 }
 
 .player-account__edit-collapse:focus-visible {

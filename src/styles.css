@@ -152,10 +152,17 @@ video {
   transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
-.maintenance-screen__retry:hover:not(:disabled),
 .maintenance-screen__retry:focus-visible {
   border-color: var(--sand);
   background: var(--sand);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.maintenance-screen__retry:hover:not(:disabled) {
+  border-color: var(--sand);
+  background: var(--sand);
+}
 }
 
 .maintenance-screen__retry:disabled {
@@ -207,9 +214,12 @@ video {
   color: var(--yellow);
 }
 
+@media (hover: hover) and (pointer: fine) {
+
 .btn--ghost:hover {
   background: var(--yellow);
   color: var(--blue);
+}
 }
 
 /* ========== En-tête ========== */
@@ -363,10 +373,17 @@ video {
   text-align: left;
 }
 
-.student-search__option:hover,
 .student-search__option.is-active {
   background: var(--sand);
   color: var(--blue);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.student-search__option:hover {
+  background: var(--sand);
+  color: var(--blue);
+}
 }
 
 .student-search__name {
@@ -385,9 +402,15 @@ video {
   white-space: nowrap;
 }
 
-.student-search__option:hover .student-search__promo,
 .student-search__option.is-active .student-search__promo {
   color: var(--blue) !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.student-search__option:hover .student-search__promo {
+  color: var(--blue) !important;
+}
 }
 
 .student-search__promo .brand-divider {
@@ -486,9 +509,12 @@ video {
   line-height: 1;
 }
 
+@media (hover: hover) and (pointer: fine) {
+
 .contact-info__button:hover {
   background: var(--yellow);
   color: var(--blue);
+}
 }
 
 .controls .global-view-control,
@@ -502,20 +528,42 @@ video {
   transition: background-color 0.12s ease, color 0.12s ease;
 }
 
-.controls .global-view-control:is(:hover, :focus-visible, :active),
-.controls .legend-disclosure__standalone:is(:hover, :focus-visible, :active),
-.controls .legend-disclosure__target:is(:hover, :focus-visible, :active),
-.controls .contact-info__button:is(:hover, :focus-visible, :active),
-.controls__actions .game-launch:is(:hover, :focus-visible, :active),
-.controls__actions .admin-access__button:not(:disabled):is(:hover, :focus-visible, :active) {
+.controls .global-view-control:is(:focus-visible, :active),
+.controls .legend-disclosure__standalone:is(:focus-visible, :active),
+.controls .legend-disclosure__target:is(:focus-visible, :active),
+.controls .contact-info__button:is(:focus-visible, :active),
+.controls__actions .game-launch:is(:focus-visible, :active),
+.controls__actions .admin-access__button:not(:disabled):is(:focus-visible, :active) {
   background: var(--yellow);
   color: var(--blue);
 }
 
-.controls .contact-info__button:is(:hover, :focus-visible, :active) {
+@media (hover: hover) and (pointer: fine) {
+
+.controls .global-view-control:hover,
+.controls .legend-disclosure__standalone:hover,
+.controls .legend-disclosure__target:hover,
+.controls .contact-info__button:hover,
+.controls__actions .game-launch:hover,
+.controls__actions .admin-access__button:not(:disabled):hover {
+  background: var(--yellow);
+  color: var(--blue);
+}
+}
+
+.controls .contact-info__button:is(:focus-visible, :active) {
   border-color: var(--sand);
   background: var(--sand);
   color: var(--blue);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.controls .contact-info__button:hover {
+  border-color: var(--sand);
+  background: var(--sand);
+  color: var(--blue);
+}
 }
 
 .contact-info__overlay {
@@ -664,10 +712,15 @@ video {
   text-align: left;
 }
 
-.family-request__suggestions button:hover,
-.family-request__suggestions button:focus-visible,
-.family-request__suggestions button.is-active {
+.family-request__suggestions button:focus-visible, .family-request__suggestions button.is-active {
   background: var(--sand);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.family-request__suggestions button:hover {
+  background: var(--sand);
+}
 }
 
 .family-request__suggestions small {
@@ -714,9 +767,12 @@ video {
   font-size: 0.9rem;
 }
 
+@media (hover: hover) and (pointer: fine) {
+
 .family-request__submit:hover:not(:disabled) {
   background: var(--yellow);
   color: var(--blue);
+}
 }
 
 .family-request__submit:disabled {
@@ -797,8 +853,11 @@ video {
   text-decoration: underline;
 }
 
+@media (hover: hover) and (pointer: fine) {
+
 .legend__toggle:hover {
   color: var(--yellow);
+}
 }
 
 /* Remplissage par colonnes : --rows vaut 3 jusqu'à 9 promos, puis 4, puis 5... */
@@ -876,6 +935,39 @@ video {
 
 .admin-access__button {
   font-size: 0.82rem;
+}
+
+.admin-request-badge {
+  display: inline-grid;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  margin-left: 0.4rem;
+  padding: 0 0.2rem 3px;
+  place-items: center;
+  border: 1px solid var(--yellow);
+  border-radius: 50px;
+  background: transparent;
+  color: var(--yellow);
+  font-family: var(--font-title);
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.admin-access__button:focus-visible .admin-request-badge, .admin-panel__logout:focus-visible .admin-request-badge {
+  border-color: var(--blue);
+  background: transparent;
+  color: var(--blue);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.admin-access__button:hover .admin-request-badge, .admin-panel__logout:hover .admin-request-badge {
+  border-color: var(--blue);
+  background: transparent;
+  color: var(--blue);
+}
 }
 
 .admin-scrim {
@@ -957,11 +1049,17 @@ video {
   transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
-.admin-panel__close:hover,
-.admin-panel__close:focus-visible,
-.admin-panel__logout:hover {
+.admin-panel__close:focus-visible {
   background: var(--sand);
   color: var(--blue);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.admin-panel__close:hover, .admin-panel__logout:hover {
+  background: var(--sand);
+  color: var(--blue);
+}
 }
 
 .admin-panel__logout {
@@ -970,6 +1068,22 @@ video {
   background: transparent;
   color: var(--sand);
   font-size: 0.82rem;
+}
+
+.admin-panel__actions > .admin-panel__logout {
+  display: inline-flex;
+  width: 6.6rem;
+  height: 2.35rem;
+  flex: 0 0 6.6rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  white-space: nowrap;
+}
+
+.admin-panel__actions .admin-request-badge {
+  border-color: var(--sand);
+  color: var(--sand);
 }
 
 .admin-form {
@@ -1049,9 +1163,15 @@ video {
   stroke-linejoin: round;
 }
 
-.password-input__toggle:hover,
 .password-input__toggle:focus-visible {
   color: var(--blue);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.password-input__toggle:hover {
+  color: var(--blue);
+}
 }
 
 .password-input__toggle:focus-visible {
@@ -1186,10 +1306,17 @@ video {
   cursor: pointer;
 }
 
-.admin-student-select__option.is-active,
+.admin-student-select__option.is-active {
+  background: var(--sand);
+  color: var(--blue);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
 .admin-student-select__option:hover {
   background: var(--sand);
   color: var(--blue);
+}
 }
 
 .admin-student-select__empty {
@@ -1233,10 +1360,17 @@ video {
   transition: background-color 140ms ease, color 140ms ease;
 }
 
-.admin-student-multi-select__chip button:hover,
 .admin-student-multi-select__chip button:focus-visible {
   background: var(--sand);
   color: var(--blue);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.admin-student-multi-select__chip button:hover {
+  background: var(--sand);
+  color: var(--blue);
+}
 }
 
 .admin-student-multi-select__clear {
@@ -1257,8 +1391,11 @@ video {
   font-weight: 400;
 }
 
+@media (hover: hover) and (pointer: fine) {
+
 .admin-form label.admin-student-multi-select__option:hover {
   background: var(--sand);
+}
 }
 
 .admin-form .admin-student-multi-select__checkbox {
@@ -1414,10 +1551,17 @@ video {
   pointer-events: none;
 }
 
-.admin-form__footer > button[data-tooltip]:hover::after,
 .admin-form__footer > button[data-tooltip]:focus-visible::after {
   visibility: visible;
   opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.admin-form__footer > button[data-tooltip]:hover::after {
+  visibility: visible;
+  opacity: 1;
+}
 }
 
 .admin-form__footer > .admin-submit {
@@ -1437,9 +1581,12 @@ video {
   font-weight: 700;
 }
 
+@media (hover: hover) and (pointer: fine) {
+
 .admin-submit:hover {
   background: var(--sand);
   border-color: var(--sand);
+}
 }
 
 .admin-submit--danger {
@@ -1448,9 +1595,12 @@ video {
   color: var(--blue);
 }
 
+@media (hover: hover) and (pointer: fine) {
+
 .admin-submit--danger:hover {
   border-color: #ffb3b3;
   background: #ffb3b3;
+}
 }
 
 .admin-submit:disabled,
@@ -1736,10 +1886,17 @@ video {
   transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
-.card__close:hover,
 .card__close:focus-visible {
   background: var(--blue);
   color: var(--paper);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.card__close:hover {
+  background: var(--blue);
+  color: var(--paper);
+}
 }
 
 .card__name {
@@ -1883,19 +2040,37 @@ video {
   transition: transform 0.5s ease;
 }
 
-.card__link:hover,
 .card__link:focus-visible {
   color: var(--relation-ink);
 }
 
-.card__link:hover::after,
+@media (hover: hover) and (pointer: fine) {
+
+.card__link:hover {
+  color: var(--relation-ink);
+}
+}
+
 .card__link:focus-visible::after {
   transform: scaleX(1);
 }
 
-.card__link:hover .brand-divider,
+@media (hover: hover) and (pointer: fine) {
+
+.card__link:hover::after {
+  transform: scaleX(1);
+}
+}
+
 .card__link:focus-visible .brand-divider {
   color: var(--relation-ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.card__link:hover .brand-divider {
+  color: var(--relation-ink);
+}
 }
 
 .card__link-promo {
@@ -2508,10 +2683,17 @@ video {
     opacity: 1;
   }
 
-  .contact-info__button:hover,
   .contact-info__button:active {
     background: var(--blue);
     color: var(--yellow);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+
+  .contact-info__button:hover {
+    background: var(--blue);
+    color: var(--yellow);
+  }
   }
 
   .dock:not(.dock--legend-open) > .legend-disclosure,
@@ -2716,11 +2898,31 @@ video {
   .admin-panel:not(.admin-panel--login) .admin-panel__eyebrow {
     grid-column: 1;
     grid-row: 1;
+    display: flex;
+    align-self: stretch;
+    flex-direction: column;
+    justify-content: space-between;
     min-width: 0;
-    margin-bottom: 0;
-    overflow-wrap: anywhere;
-    font-size: 0.64rem;
-    line-height: 1.25;
+    margin: 0;
+  }
+
+  .admin-panel__eyebrow-role {
+    display: block;
+    font-size: 0.58rem;
+    line-height: 1.05;
+  }
+
+  .admin-panel__eyebrow-identity {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    font-size: clamp(0.42rem, 2.4vw, 0.58rem);
+    line-height: 1.05;
+    white-space: nowrap;
+  }
+
+  .admin-panel__eyebrow-identity .brand-divider {
+    display: none;
   }
 
   .admin-panel:not(.admin-panel--login) .admin-panel__actions {
@@ -2732,7 +2934,7 @@ video {
   .admin-panel:not(.admin-panel--login) .admin-panel__header h2 {
     grid-column: 1 / -1;
     grid-row: 2;
-    margin-top: 0.45rem;
+    margin-top: 0.35rem;
     font-size: clamp(1rem, 4.7vw, 1.2rem);
     line-height: 1.15;
     white-space: nowrap;
@@ -2744,18 +2946,30 @@ video {
 
   .admin-panel__close {
     position: relative;
-    width: 38px;
-    height: 38px;
-    min-height: 38px;
+    width: 30px;
+    height: 30px;
+    min-height: 30px;
     border-width: 1px;
     font-size: 1rem;
   }
 
-  .admin-panel__logout {
-    min-height: 38px;
-    padding: 0.3rem 0.55rem;
+  .admin-panel__actions > .admin-panel__logout {
+    width: 4.8rem;
+    height: 30px;
+    min-height: 30px;
+    flex-basis: 4.8rem;
+    box-sizing: border-box;
+    gap: 0.1rem;
+    padding: 0.2rem;
     border-width: 1px;
-    font-size: 0.76rem;
+    font-size: 0.66rem;
+  }
+
+  .admin-panel__actions .admin-request-badge {
+    min-width: 1rem;
+    height: 1rem;
+    margin-left: 0;
+    font-size: 0.58rem;
   }
 
   .admin-form {
@@ -2928,10 +3142,17 @@ video {
   transition: background-color 150ms ease, color 150ms ease;
 }
 
-.family-request-inbox__refresh:hover:not(:disabled),
 .family-request-inbox__refresh:focus-visible {
   background: var(--sand);
   color: var(--blue);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.family-request-inbox__refresh:hover:not(:disabled) {
+  background: var(--sand);
+  color: var(--blue);
+}
 }
 
 .family-request-inbox__refresh:disabled {
@@ -2974,11 +3195,17 @@ video {
   gap: 0.35rem;
 }
 
-.family-request-inbox__filters button.is-active,
-.family-request-inbox__filters button:hover,
-.family-request-inbox__actions button:hover:not(:disabled) {
+.family-request-inbox__filters button.is-active {
   background: var(--sand);
   color: var(--blue);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.family-request-inbox__filters button:hover, .family-request-inbox__actions button:hover:not(:disabled) {
+  background: var(--sand);
+  color: var(--blue);
+}
 }
 
 .family-request-inbox__filters button span {
@@ -2997,10 +3224,17 @@ video {
   transition: background-color 150ms ease, color 150ms ease;
 }
 
-.family-request-inbox__filters button:hover span,
 .family-request-inbox__filters button.is-active span {
   background: var(--blue);
   color: var(--sand);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.family-request-inbox__filters button:hover span {
+  background: var(--blue);
+  color: var(--sand);
+}
 }
 
 .family-request-inbox__list {
@@ -3075,10 +3309,13 @@ video {
   font-size: 0.74rem;
 }
 
+@media (hover: hover) and (pointer: fine) {
+
 .family-request-inbox__actions .family-request-inbox__restore:hover:not(:disabled) {
   border-color: var(--sand);
   background: rgb(250 193 138 / 10%);
   color: var(--paper);
+}
 }
 
 .family-request-inbox__actions .family-request-inbox__delete {
@@ -3093,11 +3330,19 @@ video {
   font-size: 0.74rem;
 }
 
-.family-request-inbox__actions .family-request-inbox__delete:hover:not(:disabled),
 .family-request-inbox__actions .family-request-inbox__delete:focus-visible {
   border-color: #f2938b;
   background: rgb(189 81 64 / 16%);
   color: #ffd5cf;
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.family-request-inbox__actions .family-request-inbox__delete:hover:not(:disabled) {
+  border-color: #f2938b;
+  background: rgb(189 81 64 / 16%);
+  color: #ffd5cf;
+}
 }
 
 .family-request-inbox__actions .family-request-inbox__delete:disabled {

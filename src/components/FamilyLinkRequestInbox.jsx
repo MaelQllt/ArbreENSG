@@ -23,6 +23,19 @@ function formatRequestDate(value) {
   }).format(new Date(value));
 }
 
+function deleteRequestErrorMessage(error) {
+  if (error?.code === 'PGRST202' || /could not find the function .*delete_family_link_request|delete_family_link_request.*schema cache/i.test(error?.message ?? '')) {
+    return 'La suppression n’est pas encore installée dans Supabase. Exécute le script supabase/delete_family_link_request.sql dans le SQL Editor.';
+  }
+  if (error?.code === '42501' || error?.status === 401 || error?.status === 403) {
+    return 'La session superadmin a expiré ou n’a pas les droits nécessaires. Reconnecte-toi puis réessaie.';
+  }
+  if (error?.code === 'P0002') {
+    return 'Cette demande n’existe plus. Actualise la liste puis réessaie.';
+  }
+  return accountErrorMessage(error);
+}
+
 export default function FamilyLinkRequestInbox({ session, onSession, onValidate }) {
   const [requests, setRequests] = useState([]);
   const [filter, setFilter] = useState('pending');
@@ -87,7 +100,7 @@ export default function FamilyLinkRequestInbox({ session, onSession, onValidate 
       onSession(result.session);
       setRequests((current) => current.filter((currentRequest) => currentRequest.id !== request.id));
     } catch (deleteError) {
-      setError(`Impossible de supprimer cette demande : ${accountErrorMessage(deleteError)}`);
+      setError(`Impossible de supprimer cette demande : ${deleteRequestErrorMessage(deleteError)}`);
     } finally {
       setBusyId(null);
     }

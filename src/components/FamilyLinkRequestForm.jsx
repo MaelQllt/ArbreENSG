@@ -145,20 +145,20 @@ export default function FamilyLinkRequestForm({ students }) {
     <form className="family-request" onSubmit={handleSubmit}>
       <p className="family-request__intro">Le BDE vérifiera la proposition avant toute modification du graphe.</p>
       <StudentPicker
-        id="family-request-child"
-        label="Qui est le fillot ou la fillotte ?"
-        placeholder="Rechercher le fillot"
-        students={students}
-        value={childId}
-        onChange={setChildId}
-      />
-      <StudentPicker
         id="family-request-parent"
-        label="De qui ?"
+        label="Qui est le parrain ou la marraine ?"
         placeholder="Rechercher le parrain ou la marraine"
         students={students}
         value={parentId}
         onChange={setParentId}
+      />
+      <StudentPicker
+        id="family-request-child"
+        label="De qui ?"
+        placeholder="Rechercher le fillot ou la fillotte"
+        students={students}
+        value={childId}
+        onChange={setChildId}
       />
       <label className="family-request__message-label" htmlFor="family-request-message">
         Message <span>(facultatif)</span>

@@ -8,6 +8,7 @@ import {
 import { buildFamilyWorkbook } from '../lib/xlsxWorkbook';
 import { importFamilyWorkbook } from '../lib/xlsxImport';
 import { searchStudentsByName } from '../lib/studentSearch';
+import { fetchPendingFamilyLinkRequestCount } from '../lib/supabase';
 import { accountErrorMessage } from '../lib/playerAccounts';
 import BrandDivider from './BrandDivider';
 import FamilyLinkRequestInbox from './FamilyLinkRequestInbox';
@@ -487,6 +488,7 @@ export default function AdminPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [anchorId, setAnchorId] = useState(initialSelectedId || data.nodes[0]?.id || '');
   const [relationAction, setRelationAction] = useState('add');
   const [relationType, setRelationType] = useState('parrain');
@@ -557,6 +559,45 @@ export default function AdminPanel({
   useEffect(() => {
     onAdminStatus?.(!restoring && Boolean(session));
   }, [onAdminStatus, restoring, session]);
+
+  useEffect(() => {
+    if (!session || restoring) {
+      setPendingRequestCount(0);
+      return undefined;
+    }
+
+    let active = true;
+    let loadingCount = false;
+    const refreshPendingCount = async () => {
+      if (loadingCount || document.visibilityState === 'hidden') return;
+      loadingCount = true;
+      try {
+        const result = await fetchPendingFamilyLinkRequestCount(session);
+        if (active) {
+          setSession(result.session);
+          setPendingRequestCount(result.count);
+        }
+      } catch {
+        // L'inbox affiche ses propres erreurs ; le badge reste discret si le comptage échoue.
+      } finally {
+        loadingCount = false;
+      }
+    };
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void refreshPendingCount();
+    };
+    void refreshPendingCount();
+    const interval = window.setInterval(refreshPendingCount, 30_000);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('focus', refreshPendingCount);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('focus', refreshPendingCount);
+    };
+  }, [restoring, session]);
 
   useEffect(() => {
     if (initialSelectedId && data.nodes.some((node) => node.id === initialSelectedId)) {
@@ -1001,8 +1042,16 @@ export default function AdminPanel({
             setMessage('');
             setDialog(session ? 'admin' : 'login');
           }}
+          aria-label={pendingRequestCount > 0
+            ? `Admin, ${pendingRequestCount} requête${pendingRequestCount > 1 ? 's' : ''} à traiter`
+            : 'Admin'}
         >
           Admin
+          {session && pendingRequestCount > 0 && (
+            <span className="admin-request-badge" aria-hidden="true">
+              {pendingRequestCount > 99 ? '99+' : pendingRequestCount}
+            </span>
+          )}
         </button>
       </div>
 
@@ -1038,7 +1087,10 @@ export default function AdminPanel({
             <section className="admin-panel" role="dialog" aria-modal="true" aria-labelledby="admin-title">
               <header className="admin-panel__header">
                 <div>
-                  <p className="admin-panel__eyebrow">Superadmin <BrandDivider /> {session?.user?.email}</p>
+                  <p className="admin-panel__eyebrow">
+                    <span className="admin-panel__eyebrow-role">Superadmin</span>
+                    <span className="admin-panel__eyebrow-identity"><BrandDivider /> {session?.user?.email}</span>
+                  </p>
                   <h2 id="admin-title">{adminSection === 'requests' ? 'Propositions de liens' : 'Gestion des familles'}</h2>
                 </div>
                 <div className="admin-panel__actions">
@@ -1050,6 +1102,11 @@ export default function AdminPanel({
                     disabled={busy}
                   >
                     {adminSection === 'requests' ? 'Familles' : 'Requêtes'}
+                    {session && adminSection !== 'requests' && pendingRequestCount > 0 && (
+                      <span className="admin-request-badge" aria-label={`${pendingRequestCount} à traiter`}>
+                        {pendingRequestCount > 99 ? '99+' : pendingRequestCount}
+                      </span>
+                    )}
                   </button>
                   <button type="button" className="admin-panel__logout" onClick={handleLogout} disabled={busy}>Déconnexion</button>
                   <button type="button" className="admin-panel__close" onClick={closeDialog} aria-label="Fermer">×</button>

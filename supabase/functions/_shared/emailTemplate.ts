@@ -20,6 +20,59 @@ export const escapeEmailHtml = (value: string) => value.replace(/[&<>"']/g, (cha
   "'": '&#39;',
 }[character] ?? character));
 
+function studentNodeHtml(name: string, promo: string, role: string) {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#2b317f" style="width:100%;background:#2b317f;border-left:4px solid #fac18a;"><tr><td width="48" valign="middle" align="center" style="width:48px;padding:14px 0 14px 10px;color:#ded41f;font-family:Arial,Helvetica,sans-serif;font-size:22px;line-height:26px;">◆</td><td valign="middle" style="padding:13px 16px 13px 4px;font-family:Arial,Helvetica,sans-serif;"><p style="margin:0 0 4px;color:#ded41f;font-size:10px;line-height:14px;font-weight:700;letter-spacing:1px;">${role}</p><p style="margin:0;color:#ffffff;font-size:17px;line-height:22px;font-weight:700;word-break:break-word;">${escapeEmailHtml(name)}</p>${promo ? `<p style="margin:3px 0 0;color:#fac18a;font-size:13px;line-height:18px;font-weight:700;">Promo ${escapeEmailHtml(promo)}</p>` : ''}</td></tr></table>`;
+}
+
+export function renderAccountNoticeEmail(subject: string, text: string) {
+  const paragraphs = text.trim().split(/\n\s*\n/).map((paragraph) =>
+    `<p style="margin:0 0 18px;color:#38235b;font-size:15px;line-height:1.65;">${escapeEmailHtml(paragraph).replace(/\r?\n/g, '<br>')}</p>`
+  ).join('');
+  return renderBrandedEmail({
+    preheader: 'Information concernant ton compte ENSGdle.',
+    heading: subject,
+    content: paragraphs,
+  });
+}
+
+export function renderFamilyLinkRequestEmail({
+  childName,
+  childPromo = '',
+  parentName,
+  parentPromo = '',
+  message = '',
+  sentAt,
+}: {
+  childName: string;
+  childPromo?: string;
+  parentName: string;
+  parentPromo?: string;
+  message?: string;
+  sentAt: string;
+}) {
+  const cleanMessage = message.trim();
+  const safeChildPromo = /^[12]\d{3}$/.test(childPromo) ? childPromo : '';
+  const safeParentPromo = /^[12]\d{3}$/.test(parentPromo) ? parentPromo : '';
+  const requestSentence = `Lien proposé : ${parentName}${safeParentPromo ? ` (Promo ${safeParentPromo})` : ''} est le parrain ou la marraine de ${childName}${safeChildPromo ? ` (Promo ${safeChildPromo})` : ''}`;
+  const text = [
+    requestSentence,
+    ...(cleanMessage ? ['', 'Message ajouté :', cleanMessage] : []),
+    '',
+    `Reçue le ${sentAt}`,
+  ].join('\n');
+  const escapedMessage = cleanMessage ? escapeEmailHtml(cleanMessage).replace(/\r?\n/g, '<br>') : '';
+  const content = `<p style="margin:0 0 12px;color:#8e6f55;font-size:13px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;">Lien proposé</p>${studentNodeHtml(parentName, safeParentPromo, 'PARRAIN · MARRAINE')}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" height="22" style="height:22px;color:#fac18a;font-size:16px;line-height:22px;">│</td></tr></table>${studentNodeHtml(childName, safeChildPromo, 'FILLOT · FILLOTTE')}<p style="margin:16px 0 0;color:#8e6f55;font-size:13px;line-height:1.5;">Reçue le <strong style="color:#38235b;">${escapeEmailHtml(sentAt)}</strong></p>${escapedMessage ? `<p style="margin:24px 0 7px;color:#8e6f55;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;">Message ajouté</p><div style="margin:0;padding:11px 14px;background:#f7f4ef;border-left:3px solid #d7c7b7;color:#776c65;font-size:13px;line-height:1.55;">${escapedMessage}</div>` : ''}`;
+
+  return {
+    text,
+    html: renderBrandedEmail({
+      preheader: 'Une nouvelle proposition de lien attend la vérification du BDE.',
+      heading: 'Nouvelle proposition de lien',
+      content,
+    }),
+  };
+}
+
 export function renderBrandedEmail({
   preheader,
   heading,
@@ -41,7 +94,7 @@ export function renderBrandedEmail({
         <tr><td class="email-px" bgcolor="#2b317f" style="background:#2b317f;padding:30px 36px 20px;">
           <p style="margin:0;color:#ffffff;font-size:25px;line-height:30px;font-weight:800;letter-spacing:-.4px;">ENSGdle</p>
           <p style="margin:5px 0 0;color:#fac18a;font-size:12px;line-height:18px;font-weight:700;letter-spacing:.8px;">JEU DE PARRAINAGE<svg xmlns="http://www.w3.org/2000/svg" width="22" height="10" viewBox="0 0 18 8" aria-hidden="true" focusable="false" style="display:inline-block;vertical-align:0;margin:0 8px;"><path d="M1 5.5 L5 4 L9 4.7 L13 2.8 L17 3.5" fill="none" stroke="#fac18a" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" /></svg>GÉODATA PARIS</p>
-          <h1 class="email-title" style="margin:30px 0 0;color:#f4f2bc;font-size:31px;line-height:38px;font-weight:700;">${escapeEmailHtml(heading)}</h1>
+          <h1 class="email-title" style="margin:30px 0 0;color:#ded41f;font-size:31px;line-height:38px;font-weight:700;">${escapeEmailHtml(heading)}</h1>
         </td></tr>
         <tr><td bgcolor="#2b317f" style="background:#2b317f;padding:0;">${topoSvg}</td></tr>
         <tr><td class="email-px" style="padding:26px 36px 14px;">${content}</td></tr>

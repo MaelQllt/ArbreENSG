@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Aperçu des e-mails ENSGdle</title>
+    <style>
+      :root { color-scheme: light; font-family: Arial, Helvetica, sans-serif; color: #2b317f; background: #eceef6; }
+      * { box-sizing: border-box; }
+      body { margin: 0; padding: 28px; }
+      header { max-width: 1400px; margin: 0 auto 22px; }
+      h1 { margin: 0 0 8px; font-size: 25px; }
+      header p { margin: 0; color: #665b55; line-height: 1.5; }
+      nav { display: flex; gap: 8px; margin-top: 16px; }
+      nav button { padding: 9px 13px; border: 1px solid #2b317f; background: transparent; color: #2b317f; font: inherit; font-weight: 700; cursor: pointer; }
+      nav button[aria-pressed="true"] { background: #2b317f; color: white; }
+      main { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; max-width: 1400px; margin: 0 auto; align-items: start; }
+      section { min-width: 0; }
+      h2 { margin: 0 0 9px; font-size: 16px; }
+      iframe { display: block; width: 100%; height: min(920px, calc(100vh - 150px)); min-height: 620px; border: 1px solid #fac18a; background: white; }
+      body.is-mobile main { grid-template-columns: 1fr; }
+      body.is-mobile iframe { width: min(390px, 100%); height: 844px; min-height: 0; margin: 0 auto; }
+      @media (max-width: 760px) { body { padding: 16px; } main { grid-template-columns: 1fr; } iframe { height: 780px; min-height: 0; } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Aperçu des e-mails ENSGdle</h1>
+      <p>Exemples fictifs. Cette page utilise les mêmes fonctions de rendu que les e-mails envoyés, sans contacter Supabase ni envoyer de message.</p>
+      <nav aria-label="Format d’aperçu">
+        <button type="button" data-layout="desktop" aria-pressed="true">Ordinateur</button>
+        <button type="button" data-layout="mobile" aria-pressed="false">Mobile</button>
+      </nav>
+    </header>
+    <main>
+      <section>
+        <h2>Notification d’une proposition de lien</h2>
+        <iframe id="link-email" title="Aperçu de la notification de lien familial"></iframe>
+      </section>
+      <section>
+        <h2>Suppression d’un compte</h2>
+        <iframe id="deletion-email" title="Aperçu de l’e-mail de suppression de compte"></iframe>
+      </section>
+    </main>
+    <script type="module">
+      import { renderAccountNoticeEmail, renderFamilyLinkRequestEmail } from './supabase/functions/_shared/emailTemplate.ts';
+
+      const linkEmail = renderFamilyLinkRequestEmail({
+        childName: 'Alice MARTIN',
+        childPromo: '2024',
+        parentName: 'Noé DURAND',
+        parentPromo: '2022',
+        message: 'Ils ont été dans la même association étudiante.',
+        sentAt: '11 oct. 2026 à 12:00',
+      });
+      const deletionEmail = renderAccountNoticeEmail(
+        'Ton compte ENSGdle a été supprimé',
+        'Bonjour,\n\nTon compte ENSGdle a été supprimé par un administrateur. Les données et statistiques associées à ce compte ont également été supprimées.\n\nSi tu penses qu’il s’agit d’une erreur, contacte le BDE Géodata.',
+      );
+
+      document.querySelector('#link-email').srcdoc = linkEmail.html;
+      document.querySelector('#deletion-email').srcdoc = deletionEmail;
+      document.querySelectorAll('[data-layout]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const mobile = button.dataset.layout === 'mobile';
+          document.body.classList.toggle('is-mobile', mobile);
+          document.querySelectorAll('[data-layout]').forEach((option) => {
+            option.setAttribute('aria-pressed', String(option === button));
+          });
+        });
+      });
+    </script>
+  </body>
+</html>
