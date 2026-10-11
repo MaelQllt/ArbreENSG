@@ -575,7 +575,7 @@ export default function PlayerAccountPanel({
         onConnectionChange?.(true);
       } else {
         setMode('check-email');
-        setStatus('Compte créé. Consulte ta boîte e-mail pour confirmer ton adresse avant de te connecter.\n\nOuvre le lien de confirmation reçu par e-mail pour activer ton compte.');
+        setStatus('Compte créé. Consulte ta boîte e-mail pour confirmer ton adresse avant de te connecter.\n\nOuvre le lien de confirmation reçu par e-mail pour activer ton compte. Si tu ne vois pas le message, vérifie aussi les courriers indésirables ou les spams.');
       }
     });
   };
@@ -614,7 +614,7 @@ export default function PlayerAccountPanel({
         redirectTo: getPlayerAccountRedirectUrl('recovery'),
       });
       if (resetError) throw resetError;
-      setStatus('Si un compte correspond à cette adresse, tu recevras un lien pour choisir un nouveau mot de passe.');
+      setStatus('Si un compte correspond à cette adresse, tu recevras un lien pour choisir un nouveau mot de passe. Vérifie aussi les courriers indésirables ou les spams si le message n’apparaît pas.');
     });
   };
 

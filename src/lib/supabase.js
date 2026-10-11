@@ -103,8 +103,22 @@ async function refreshSession(session) {
 }
 
 async function ensureFreshSession(session) {
+  const authClient = await getAccountAuthClient();
+  const { data: sessionData, error: sessionError } = await authClient.auth.getSession();
+  if (sessionError) throw sessionError;
+  const accountSession = sessionData?.session;
+  if (accountSession?.user?.id && accountSession.user.id === session?.user?.id) {
+    if (accountSession.expires_at && accountSession.expires_at > Math.floor(Date.now() / 1000) + 60) {
+      return accountSession;
+    }
+    const { data, error } = await authClient.auth.refreshSession();
+    if (error) throw error;
+    if (data.session) return data.session;
+  }
+
+  // Migrate an existing pre-unification admin session if one is still around.
   const storedSession = readSession();
-  if (storedSession?.user?.id && storedSession.user.id === session?.user?.id
+  if (storedSession?.user?.id === session?.user?.id
     && storedSession.refresh_token !== session.refresh_token) {
     session = storedSession;
   }
@@ -130,47 +144,81 @@ export async function signInSuperadmin(email, password) {
     ...result,
     expires_at: Math.floor(Date.now() / 1000) + result.expires_in,
   };
-  saveSession(session);
   let allowed;
   try {
     allowed = await isSuperadmin(session);
-  } catch (error) {
-    try {
-      await signOutSuperadmin(session);
-    } catch {
-      clearSession();
-    }
+  } catch {
     throw new Error('La vérification des droits superadmin a échoué. Réessaie dans un instant.');
   }
   if (!allowed) {
-    await signOutSuperadmin(session);
     throw new Error('Ce compte n’a pas le rôle superadmin.');
   }
-  return session;
+
+  // Keep one Supabase session for both the game account and the graph admin.
+  // This also wakes GamePage's auth listener immediately after admin sign-in.
+  const authClient = await getAccountAuthClient();
+  const { data, error } = await authClient.auth.setSession({
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
+  });
+  if (error || !data.session) {
+    throw new Error('La session superadmin n’a pas pu être ouverte dans le jeu. Réessaie.');
+  }
+  clearSession();
+  return data.session;
 }
 
 export async function getSuperadminSession() {
   if (!isSupabaseConfigured()) return null;
-  let session = readSession();
+  const authClient = await getAccountAuthClient();
+  const { data: sessionData, error: sessionError } = await authClient.auth.getSession();
+  if (sessionError) return null;
+  let session = sessionData?.session ?? null;
+
+  if (session) {
+    try {
+      if (await isSuperadmin(session)) return session;
+    } catch {
+      // Try a legacy admin session below if one exists.
+    }
+  }
+
+  // Bring forward a session created by the previous admin-only storage model.
+  const legacySession = readSession();
+  if (!legacySession?.access_token || !legacySession?.user?.id) return null;
+  try {
+    const activeLegacySession = await ensureFreshSession(legacySession);
+    const { data, error } = await authClient.auth.setSession({
+      access_token: activeLegacySession.access_token,
+      refresh_token: activeLegacySession.refresh_token,
+    });
+    if (error || !data.session) throw error ?? new Error('Session Supabase indisponible.');
+    session = data.session;
+    clearSession();
+  } catch {
+    clearSession();
+    return null;
+  }
+
   if (!session?.access_token || !session?.user?.id) return null;
   try {
-    session = await ensureFreshSession(session);
     if (await isSuperadmin(session)) return session;
   } catch {
-    // Une session expirée ou révoquée ferme simplement l'interface d'administration.
+    // A stale or revoked session simply hides the administration controls.
   }
-  clearSession();
   return null;
 }
 
 export async function signOutSuperadmin(session = readSession()) {
-  try {
-    if (session?.access_token && isSupabaseConfigured()) {
-      await request('/auth/v1/logout', { method: 'POST', token: session.access_token });
-    }
-  } finally {
-    clearSession();
-  }
+  clearSession();
+  if (!isSupabaseConfigured()) return;
+  const authClient = await getAccountAuthClient();
+  const { data } = await authClient.auth.getSession();
+  const currentSession = data?.session;
+  if (!currentSession) return;
+  if (session?.user?.id && currentSession.user.id !== session.user.id) return;
+  const { error } = await authClient.auth.signOut({ scope: 'local' });
+  if (error) throw error;
 }
 
 export async function fetchSharedCsv() {
