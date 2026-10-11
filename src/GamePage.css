@@ -180,6 +180,7 @@
   color: var(--sand);
   cursor: pointer;
   transform: translateX(-6px);
+  -webkit-tap-highlight-color: transparent;
   transition: color 140ms ease, opacity 140ms ease;
 }
 
@@ -192,8 +193,8 @@
 }
 
 .game-account-indicator svg {
-  width: 13px;
-  height: 13px;
+  width: 15px;
+  height: 15px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.7;
@@ -207,7 +208,7 @@
   bottom: 2px;
   width: 5px;
   height: 5px;
-  border: 1px solid var(--blue);
+  border: 1px solid #2b317f;
   border-radius: 50%;
   background: var(--sand);
 }
@@ -2339,6 +2340,26 @@
   min-height: 44px;
 }
 
+.player-account__form--forgot .player-account__login-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 9px;
+}
+
+.player-account__form--forgot .player-account__submit {
+  order: 0;
+  width: 100%;
+  justify-self: stretch;
+}
+
+.player-account__form--forgot .player-account__text-button {
+  order: 1;
+  align-self: center;
+  max-width: none;
+  text-align: center;
+}
+
 .player-account__form--login {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px 8px;
@@ -3446,8 +3467,20 @@
   }
 
   .game-account-indicator {
-    width: 32px;
-    height: 32px;
+    width: 23px;
+    height: 28px;
+  }
+
+  .game-account-indicator svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .game-account-indicator__dot {
+    right: 4px;
+    bottom: 5px;
+    width: 4px;
+    height: 4px;
   }
 
   .game-menu__panel button {

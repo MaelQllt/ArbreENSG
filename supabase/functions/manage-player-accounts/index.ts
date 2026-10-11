@@ -1,5 +1,6 @@
 import { createClient, type User } from 'npm:@supabase/supabase-js@2';
 import nodemailer from 'npm:nodemailer@^9';
+import { escapeEmailHtml, renderBrandedEmail } from '../_shared/emailTemplate.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,6 +12,17 @@ const jsonResponse = (body: Record<string, unknown>, status = 200) => new Respon
   JSON.stringify(body),
   { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
 );
+
+function accountNoticeHtml(subject: string, text: string) {
+  const paragraphs = text.trim().split(/\n\s*\n/).map((paragraph) =>
+    `<p style="margin:0 0 18px;color:#38235b;font-size:15px;line-height:1.65;">${escapeEmailHtml(paragraph).replace(/\r?\n/g, '<br>')}</p>`
+  ).join('');
+  return renderBrandedEmail({
+    preheader: 'Information concernant ton compte ENSGdle.',
+    heading: subject,
+    content: paragraphs,
+  });
+}
 
 type EditableProfile = {
   firstName: string;
@@ -85,7 +97,7 @@ async function sendAccountNotice(to: string, subject: string, text: string): Pro
     });
     let retryTemporaryRefusal = false;
     try {
-      await transport.sendMail({ from: sender, to, subject, text });
+      await transport.sendMail({ from: sender, to, subject, text, html: accountNoticeHtml(subject, text) });
       return { sent: true };
     } catch (error) {
       const smtpError = error as { code?: string; responseCode?: number; message?: string };

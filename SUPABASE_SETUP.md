@@ -78,6 +78,16 @@ Pour activer les comptes sur le projet Supabase :
    compte Google doit avoir la validation en deux étapes activée pour créer un
    mot de passe d'application.
 
+## Adresse du site et installation PWA
+
+Le dépôt `MaelQllt/ArbreENSG` est un site GitHub Pages de projet. Son adresse est
+`https://maelqllt.github.io/ArbreENSG/` ; l'adresse courte
+`https://maelqllt.github.io/` correspond à un autre dépôt et renvoie vers la
+page 404 de GitHub tant qu'un dépôt `MaelQllt.github.io` n'existe pas. Ouvre
+l'adresse complète dans Safari ou Chrome avant d'ajouter ENSGdle à l'écran
+d'accueil. Si une ancienne icône ouvre encore la 404, supprime cette icône et
+réinstalle-la depuis l'adresse complète.
+
 Pour modifier ou supprimer les comptes depuis le menu superadmin, déploie aussi
 `supabase/functions/manage-player-accounts/index.ts` avec la commande
 `npx supabase functions deploy manage-player-accounts --project-ref <ref>`.

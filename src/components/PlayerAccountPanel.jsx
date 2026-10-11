@@ -747,7 +747,7 @@ export default function PlayerAccountPanel({
       )}
 
       {mode === 'forgot' && (
-        <form className="player-account__form" onSubmit={submitForgotPassword}>
+        <form className="player-account__form player-account__form--forgot" onSubmit={submitForgotPassword}>
           {!status && <p className="player-account__notice">Nous t’enverrons un lien pour choisir un nouveau mot de passe.</p>}
           <Field id="player-reset-email" label="Adresse e-mail" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
           <div className="player-account__login-actions">

@@ -1,4 +1,5 @@
 import nodemailer from 'npm:nodemailer@^9';
+import { escapeEmailHtml, renderBrandedEmail } from '../_shared/emailTemplate.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -102,6 +103,15 @@ Deno.serve(async (request) => {
     '',
     `Reçue le ${sentAt}`,
   ].join('\n');
+  const requestSentence = `Nouvelle proposition de lien familial : ${familyRequest.child_name} est le fillot ou la fillotte de ${familyRequest.parent_name}`;
+  const escapedMessage = familyRequest.message?.trim()
+    ? escapeEmailHtml(familyRequest.message.trim()).replace(/\r?\n/g, '<br>')
+    : '';
+  const html = renderBrandedEmail({
+    preheader: 'Une nouvelle proposition de lien familial attend la vérification du BDE.',
+    heading: 'Nouvelle proposition de lien familial',
+    content: `${escapedMessage ? `<p style="margin:0 0 8px;color:#8e6f55;font-size:13px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;">Message ajouté</p><div style="margin:0 0 24px;padding:15px 18px;background:#fff9e8;border-left:4px solid #fac18a;color:#38235b;font-size:15px;line-height:1.6;">${escapedMessage}</div>` : ''}<p style="margin:0 0 10px;color:#8e6f55;font-size:13px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;">Lien proposé</p><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f2bc" style="background:#f4f2bc;border-left:5px solid #ded41f;"><tr><td style="padding:19px 20px;color:#2b317f;font-size:17px;line-height:1.55;">${escapeEmailHtml(requestSentence)}</td></tr></table><p style="margin:20px 0 0;color:#8e6f55;font-size:14px;line-height:1.5;">Reçue le <strong style="color:#38235b;">${escapeEmailHtml(sentAt)}</strong></p>`,
+  });
 
   const transport = nodemailer.createTransport({
     host,
@@ -118,6 +128,7 @@ Deno.serve(async (request) => {
       to: recipient,
       subject: 'Nouvelle proposition de lien familial',
       text,
+      html,
     });
   } catch (error) {
     const smtpError = error as { code?: string; responseCode?: number; message?: string };
