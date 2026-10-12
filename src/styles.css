@@ -254,8 +254,6 @@ video {
   background: rgb(43 49 127 / 10%);
   content: '';
   pointer-events: none;
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
   mask-image: radial-gradient(ellipse, #000 45%, transparent 100%);
   -webkit-mask-image: radial-gradient(ellipse, #000 45%, transparent 100%);
 }

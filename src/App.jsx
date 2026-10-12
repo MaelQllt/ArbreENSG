@@ -34,18 +34,15 @@ export default function App() {
   const dockActionsRect = useRef(null);
   const dockActionsAnimation = useRef(null);
 
-  // Sur iOS en mode écran d'accueil, 100dvh peut s'arrêter avant le bord
-  // inférieur réel. Mesurer l'écran une fois évite que la page scrollable soit
-  // coupée au-dessus de la zone de l'indicateur d'accueil.
+  // En PWA iOS, la taille physique de l'écran ne correspond pas toujours à la
+  // zone réellement visible. innerHeight suit le viewport de mise en page sans
+  // agrandir la page sous la barre d'accueil; l'inset clavier reste géré plus bas.
   useLayoutEffect(() => {
     if (window.navigator.standalone !== true) return undefined;
 
     const root = document.documentElement;
     const syncStandaloneViewport = () => {
-      const screenHeight = window.innerWidth > window.innerHeight
-        ? Math.max(window.screen.width, window.screen.height)
-        : Math.min(window.screen.width, window.screen.height);
-      const height = Math.max(window.innerHeight, screenHeight);
+      const height = Math.ceil(window.innerHeight);
       root.classList.add('is-ios-standalone');
       root.style.setProperty('--ios-standalone-height', `${height}px`);
     };
@@ -53,9 +50,11 @@ export default function App() {
     syncStandaloneViewport();
     window.addEventListener('resize', syncStandaloneViewport);
     window.addEventListener('orientationchange', syncStandaloneViewport);
+    window.visualViewport?.addEventListener('resize', syncStandaloneViewport);
     return () => {
       window.removeEventListener('resize', syncStandaloneViewport);
       window.removeEventListener('orientationchange', syncStandaloneViewport);
+      window.visualViewport?.removeEventListener('resize', syncStandaloneViewport);
       root.classList.remove('is-ios-standalone');
       root.style.removeProperty('--ios-standalone-height');
     };

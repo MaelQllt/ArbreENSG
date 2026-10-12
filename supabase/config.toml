@@ -1,3 +1,6 @@
+[functions.freeze-game-challenge-archive]
+verify_jwt = false
+
 [functions.notify-family-link-request]
 verify_jwt = false
 

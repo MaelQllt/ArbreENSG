@@ -214,6 +214,6 @@ end;
 $$;
 
 revoke all on function public.get_game_challenge_archive(text, date, text) from public;
-revoke all on function public.freeze_game_challenge_archive(text, date, integer[], jsonb, jsonb) from public;
-grant execute on function public.get_game_challenge_archive(text, date, text) to anon, authenticated;
-grant execute on function public.freeze_game_challenge_archive(text, date, integer[], jsonb, jsonb) to anon, authenticated;
+revoke all on function public.freeze_game_challenge_archive(text, date, integer[], jsonb, jsonb) from public, anon, authenticated;
+grant execute on function public.get_game_challenge_archive(text, date, text) to anon, authenticated, service_role;
+grant execute on function public.freeze_game_challenge_archive(text, date, integer[], jsonb, jsonb) to service_role;

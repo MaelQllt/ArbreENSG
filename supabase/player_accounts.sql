@@ -36,8 +36,8 @@ set points = case when mode = 'daily' then 5 else 10 end
 where points = 0;
 
 alter table public.player_challenge_completions enable row level security;
-revoke all on public.player_challenge_completions from anon, authenticated;
-grant select, insert on public.player_challenge_completions to authenticated;
+revoke all on public.player_challenge_completions from public, anon, authenticated;
+grant select on public.player_challenge_completions to authenticated;
 
 drop policy if exists "Players can read their own challenge completions" on public.player_challenge_completions;
 create policy "Players can read their own challenge completions"
@@ -45,9 +45,6 @@ create policy "Players can read their own challenge completions"
   using ((select auth.uid()) = user_id);
 
 drop policy if exists "Players can record their own challenge completions" on public.player_challenge_completions;
-create policy "Players can record their own challenge completions"
-  on public.player_challenge_completions for insert to authenticated
-  with check ((select auth.uid()) = user_id);
 
 create unique index if not exists player_profiles_pseudo_lower_unique
   on public.player_profiles (lower(btrim(pseudo)));

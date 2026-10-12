@@ -64,7 +64,7 @@ async function request(path, { method = 'GET', token, body, prefer } = {}) {
   if (!response.ok) {
     const message = typeof result === 'string'
       ? result
-      : result?.message ?? result?.msg ?? result?.error_description ?? result?.hint;
+      : result?.message ?? result?.msg ?? result?.error_description ?? result?.error ?? result?.hint;
     const error = new Error(message || `Erreur ${response.status}`);
     error.status = response.status;
     error.code = result?.code;
@@ -266,16 +266,14 @@ export async function getGameChallengeArchive(mode, periodKey, promoScope) {
   });
 }
 
-export async function saveGameChallengeArchive(mode, periodKey, promoYears, challenge, graph) {
+export async function saveGameChallengeArchive(mode, periodKey, promoYears) {
   if (!isSupabaseConfigured()) return null;
-  return request('/rest/v1/rpc/freeze_game_challenge_archive', {
+  return request('/functions/v1/freeze-game-challenge-archive', {
     method: 'POST',
     body: {
-      p_mode: mode,
-      p_period_key: periodKey,
-      p_promo_years: promoYears,
-      p_challenge: challenge,
-      p_graph: graph,
+      mode,
+      period_key: periodKey,
+      promo_years: promoYears,
     },
   });
 }

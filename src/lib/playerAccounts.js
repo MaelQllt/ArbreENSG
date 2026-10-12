@@ -150,26 +150,29 @@ export async function getPlayerChallengeCompletions() {
   }
 }
 
-export async function recordPlayerChallengeCompletion(mode, periodKey, points) {
-  if (!['daily', 'weekly'].includes(mode) || !/^\d{4}-\d{2}-\d{2}$/.test(String(periodKey))) return null;
-  const basePointOptions = mode === 'daily' ? [5, 10] : [10, 20];
-  const hintPenalties = [0, 1, 2, 4];
-  if (!basePointOptions.some((basePoints) => hintPenalties.includes(basePoints - points))) return null;
+export async function recordPlayerChallengeCompletion(mode, periodKey, promoYears, path, hintsUsed) {
+  if (!['daily', 'weekly'].includes(mode)
+    || !/^\d{4}-\d{2}-\d{2}$/.test(String(periodKey))
+    || !Array.isArray(promoYears)
+    || !Array.isArray(path)
+    || !Number.isInteger(hintsUsed)) return null;
   const client = await getAccountAuthClient();
   const { data: { session }, error: sessionError } = await client.auth.getSession();
   if (sessionError) throw sessionError;
   if (!session?.user) return null;
 
-  const { error } = await client.from('player_challenge_completions').insert({
-    user_id: session.user.id,
-    mode,
-    period_key: periodKey,
-    points,
+  const promoScope = [...new Set(promoYears.map(Number))].sort((a, b) => a - b).join(',');
+  const { data, error } = await client.rpc('record_player_challenge_completion', {
+    p_mode: mode,
+    p_period_key: periodKey,
+    p_promo_scope: promoScope,
+    p_path: path.map(String),
+    p_hints_used: hintsUsed,
   });
-  if (error && error.code !== '23505') throw error;
+  if (error) throw error;
   return {
     stats: await getPlayerChallengeStats(),
-    alreadyCompleted: error?.code === '23505',
+    alreadyCompleted: Boolean(data?.already_completed),
   };
 }
 
