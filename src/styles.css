@@ -232,8 +232,8 @@ video {
 /* ========== En-tête ========== */
 .masthead {
   position: absolute;
-  top: 24px;
-  left: 28px;
+  top: max(24px, env(safe-area-inset-top, 24px));
+  left: max(28px, env(safe-area-inset-left, 28px));
   pointer-events: none;
 }
 
