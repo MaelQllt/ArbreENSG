@@ -1984,6 +1984,27 @@ export default function GamePage({ students, links }) {
   }, []);
 
   useEffect(() => {
+    if (!activePanel || !window.matchMedia('(max-width: 767px)').matches) return undefined;
+
+    const scrollContainer = document.querySelector('.game-page');
+    if (!scrollContainer) return undefined;
+
+    const scrollTop = scrollContainer.scrollTop;
+    const previousOverflow = scrollContainer.style.getPropertyValue('overflow-y');
+    const previousOverflowPriority = scrollContainer.style.getPropertyPriority('overflow-y');
+    scrollContainer.style.setProperty('overflow-y', 'hidden');
+
+    return () => {
+      if (previousOverflow) {
+        scrollContainer.style.setProperty('overflow-y', previousOverflow, previousOverflowPriority);
+      } else {
+        scrollContainer.style.removeProperty('overflow-y');
+      }
+      scrollContainer.scrollTop = scrollTop;
+    };
+  }, [activePanel]);
+
+  useEffect(() => {
     if (!activePanel) return undefined;
     const focusPanel = () => {
       const compactPanel = window.matchMedia('(max-width: 767px)').matches;

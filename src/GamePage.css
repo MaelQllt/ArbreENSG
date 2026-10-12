@@ -4600,3 +4600,14 @@
     padding-bottom: max(56px, calc(env(safe-area-inset-bottom) + 28px));
   }
 }
+
+@media (max-width: 767px) {
+  .game-help-panel {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .game-help-panel__close--solution {
+    display: grid;
+  }
+}
