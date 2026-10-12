@@ -2247,8 +2247,7 @@ export default function GamePage({ students, links }) {
     [graph, mode, practiceSeed, round, challengePeriod]
   );
   const challenge = frozenArchive?.challenge ?? generatedChallenge;
-  const awaitingChallengeArchive = isMobileViewport
-    && mode !== 'practice'
+  const awaitingChallengeArchive = mode !== 'practice'
     && Boolean(archiveKey && !frozenArchive && !resolvedChallengeArchives.has(archiveKey));
   useEffect(() => {
     let cancelled = false;
