@@ -3426,7 +3426,6 @@
 @media (max-width: 767px) {
   .game-page {
     height: 100%;
-    height: 100dvh;
     overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
     scroll-padding-block: 16px;
@@ -4548,6 +4547,12 @@
 }
 
 @media (max-width: 767px) {
+  .game-graph__viewport .game-graph__level-title {
+    transform: translateX(calc(-1 * var(--graph-title-align-offset, 0px)));
+  }
+}
+
+@media (max-width: 767px) {
   .game-help-panel--archive {
     width: 100%;
   }
@@ -4670,13 +4675,6 @@
     padding: 8px 9px;
   }
 
-}
-
-@media (max-width: 767px) and (display-mode: standalone) {
-  .game-page__content {
-    padding-top: max(52px, calc(env(safe-area-inset-top) + 16px));
-    padding-bottom: max(56px, calc(env(safe-area-inset-bottom) + 28px));
-  }
 }
 
 @media (max-width: 767px) {
@@ -5105,5 +5103,17 @@
 
   .game-help-panel--solution .game-graph__viewport {
     height: clamp(420px, 52vh, 680px);
+  }
+}
+
+/* iOS PWA : la page doit suivre la hauteur complète mesurée depuis le viewport. */
+@media (max-width: 767px) {
+  html.is-ios-standalone .game-page {
+    height: 100%;
+  }
+
+  html.is-ios-standalone .game-page__content {
+    padding-top: max(52px, calc(env(safe-area-inset-top) + 16px));
+    padding-bottom: max(56px, calc(env(safe-area-inset-bottom) + 28px));
   }
 }

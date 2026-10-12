@@ -34,6 +34,33 @@ export default function App() {
   const dockActionsRect = useRef(null);
   const dockActionsAnimation = useRef(null);
 
+  // Sur iOS en mode écran d'accueil, 100dvh peut s'arrêter avant le bord
+  // inférieur réel. Mesurer l'écran une fois évite que la page scrollable soit
+  // coupée au-dessus de la zone de l'indicateur d'accueil.
+  useLayoutEffect(() => {
+    if (window.navigator.standalone !== true) return undefined;
+
+    const root = document.documentElement;
+    const syncStandaloneViewport = () => {
+      const screenHeight = window.innerWidth > window.innerHeight
+        ? Math.max(window.screen.width, window.screen.height)
+        : Math.min(window.screen.width, window.screen.height);
+      const height = Math.max(window.innerHeight, screenHeight);
+      root.classList.add('is-ios-standalone');
+      root.style.setProperty('--ios-standalone-height', `${height}px`);
+    };
+
+    syncStandaloneViewport();
+    window.addEventListener('resize', syncStandaloneViewport);
+    window.addEventListener('orientationchange', syncStandaloneViewport);
+    return () => {
+      window.removeEventListener('resize', syncStandaloneViewport);
+      window.removeEventListener('orientationchange', syncStandaloneViewport);
+      root.classList.remove('is-ios-standalone');
+      root.style.removeProperty('--ios-standalone-height');
+    };
+  }, []);
+
   useEffect(() => {
     const syncPage = () => setShowGame(window.location.hash.startsWith('#jeu'));
     window.addEventListener('hashchange', syncPage);

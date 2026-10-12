@@ -44,6 +44,13 @@ html {
   }
 }
 
+html.is-ios-standalone,
+html.is-ios-standalone body,
+html.is-ios-standalone #root {
+  height: var(--ios-standalone-height);
+  min-height: var(--ios-standalone-height);
+}
+
 #root {
   position: relative;
   overflow: clip;
