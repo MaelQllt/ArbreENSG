@@ -90,9 +90,10 @@ $$;
 revoke all on function public.is_player_pseudo_available(text) from public;
 grant execute on function public.is_player_pseudo_available(text) to anon, authenticated;
 
--- Classement public limité aux informations déjà affichées dans le profil joueur.
--- Aucun e-mail, bio ou identifiant interne n'est renvoyé. Le booléen indique
--- uniquement au joueur connecté si une ligne correspond à son propre compte.
+-- Classement public limité aux informations de profil prévues pour être affichées.
+-- Aucun e-mail ni identifiant interne n'est renvoyé. La bio est publique dans
+-- la fiche de profil du classement. Le booléen indique uniquement au joueur
+-- connecté si une ligne correspond à son propre compte.
 drop function if exists public.get_player_leaderboard();
 create or replace function public.get_player_leaderboard()
 returns table (
@@ -102,6 +103,7 @@ returns table (
   arrival_year smallint,
   program_code text,
   filiere text,
+  bio text,
   daily_challenges bigint,
   weekly_challenges bigint,
   points bigint,
@@ -128,6 +130,7 @@ as $$
     profile.arrival_year,
     profile.program_code,
     profile.filiere,
+    profile.bio,
     coalesce(challenge_totals.daily_challenges, 0)::bigint,
     coalesce(challenge_totals.weekly_challenges, 0)::bigint,
     coalesce(challenge_totals.total_points, 0)::bigint,

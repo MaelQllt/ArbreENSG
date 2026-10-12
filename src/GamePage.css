@@ -1067,6 +1067,17 @@
   line-height: 1.2;
 }
 
+.game-leaderboard__profile-bio {
+  max-width: 60ch;
+  margin: 8px 0 0;
+  color: #8e6f55;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  text-align: left;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
 .game-help-panel--archive > h2 {
   padding-right: 42px;
 }
@@ -1245,7 +1256,9 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
+  width: min(100%, 484px);
   margin-bottom: 16px;
+  margin-inline: auto;
   padding: 4px;
   border: 1px solid rgb(142 111 85 / 30%);
   background: #fbf6ee;
@@ -1288,6 +1301,44 @@
 .game-archive__calendar {
   max-width: 460px;
   margin-inline: auto;
+}
+
+@media (min-width: 768px) {
+  .game-help-panel--archive {
+    --game-archive-calendar-width: 520px;
+    --game-archive-inline-padding: 72px;
+    width: min(
+      calc(
+        var(--game-archive-calendar-width) +
+        var(--game-archive-inline-padding) +
+        var(--game-archive-inline-padding) + 4px
+      ),
+      calc(100vw - 40px)
+    );
+    padding-inline: var(--game-archive-inline-padding);
+    padding-block: 24px;
+  }
+
+  .game-help-panel--archive .game-archive__intro {
+    margin-bottom: 12px;
+  }
+
+  .game-help-panel--archive .game-archive__modes {
+    margin-bottom: 12px;
+  }
+
+  .game-help-panel--archive .game-archive__weekdays,
+  .game-help-panel--archive .game-archive__days {
+    row-gap: 4px;
+  }
+
+  .game-archive__modes {
+    width: 100%;
+  }
+
+  .game-archive__calendar {
+    max-width: var(--game-archive-calendar-width);
+  }
 }
 
 .game-archive__month {
@@ -1953,6 +2004,22 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+
+@media (min-width: 768px) {
+  .game-graph__viewport--solution .game-node__copy strong {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: inherit;
+    line-height: 1.08;
+    text-overflow: clip;
+    white-space: nowrap;
+  }
+
+  .game-graph__viewport--solution .game-node--long-name .game-node__copy strong,
+  .game-graph__viewport--solution .game-node--very-long-name .game-node__copy strong {
+    font-size: inherit;
+  }
 }
 
 .game-empty {
@@ -4702,5 +4769,283 @@
   .game-graph__viewport--solution .game-node__copy small {
     font-size: 0.48rem;
     line-height: 1.05;
+  }
+}
+
+@media (min-width: 1800px) {
+  .game-page__content {
+    width: min(3600px, 97vw);
+  }
+
+  .game-page__header {
+    min-height: 68px;
+    gap: 16px;
+  }
+
+  .game-page__identity h1 {
+    font-size: clamp(1.65rem, 1.4vw, 1.9rem);
+  }
+
+  .game-page__identity p {
+    font-size: clamp(0.66rem, 0.6vw, 0.78rem);
+  }
+
+  .game-page__back {
+    height: 40px;
+    padding-inline: 0.72rem;
+    font-size: 0.78rem;
+  }
+
+  .game-menu__trigger {
+    width: 42px;
+    height: 40px;
+  }
+
+  .game-page__actions {
+    gap: 10px;
+  }
+
+  .game-account-indicator {
+    width: 36px;
+    height: 38px;
+    transform: none;
+  }
+
+  .game-account-indicator__person {
+    width: 24px;
+    height: 24px;
+  }
+
+  .game-account-indicator .game-account-indicator__status {
+    right: 0;
+    bottom: 1px;
+    width: 13px;
+    height: 13px;
+  }
+
+  .game-promo-mode {
+    gap: 3px;
+    min-height: 46px;
+    padding: 5px 0 5px 16px;
+  }
+
+  .game-promo-mode > span {
+    font-size: 0.58rem;
+  }
+
+  .game-promo-mode > strong {
+    font-size: 0.8rem;
+  }
+
+  .game-promo-mode__range .brand-divider {
+    width: 17px;
+    height: 8px;
+  }
+
+  .game-modes {
+    height: 42px;
+  }
+
+  .game-modes button {
+    height: 38px;
+    min-height: 38px;
+    padding-inline: 1rem;
+    font-size: 0.9rem;
+  }
+
+  .game-layout {
+    gap: 16px;
+    padding: clamp(18px, 1.8vw, 30px);
+  }
+
+  .game-challenge__heading h2,
+  .game-graph__header h2,
+  .game-empty h2 {
+    font-size: clamp(1.18rem, 1.5vw, 1.6rem);
+  }
+
+  .game-challenge__heading--constrained h2 {
+    font-size: clamp(0.95rem, 0.8vw, 1.05rem);
+  }
+
+  .game-endpoint {
+    min-height: 68px;
+    gap: 12px;
+    padding: 9px 12px;
+  }
+
+  .game-endpoint small {
+    font-size: 0.78rem;
+  }
+
+  .game-endpoint strong {
+    font-size: 0.96rem;
+  }
+
+  .game-endpoint span {
+    font-size: 0.84rem;
+  }
+
+  .game-search label,
+  .game-search__label-row > span {
+    font-size: 0.88rem;
+  }
+
+  .game-search input,
+  .game-search__submit {
+    min-height: 48px;
+    font-size: 0.92rem;
+  }
+
+  .game-graph__viewport {
+    height: clamp(400px, 44vh, 740px);
+  }
+
+  .game-graph__level {
+    grid-template-columns: 130px minmax(0, 1fr);
+    gap: 14px;
+    padding: 14px 0;
+  }
+
+  .game-graph__level-title {
+    font-size: 0.8rem;
+  }
+
+  .game-graph__nodes {
+    gap: 16px;
+    padding-inline: 40px;
+  }
+
+  .game-node {
+    height: 82px;
+    min-height: 82px;
+    max-height: 82px;
+    gap: 11px;
+    padding: 9px 12px;
+  }
+
+  .game-node__step {
+    width: 24px;
+    height: 24px;
+    font-size: 0.72rem;
+  }
+
+  .game-node__copy strong {
+    font-size: 0.88rem;
+  }
+
+  .game-node--long-name .game-node__copy strong {
+    font-size: 0.76rem;
+  }
+
+  .game-node--very-long-name .game-node__copy strong {
+    font-size: 0.7rem;
+  }
+
+  .game-node__copy small {
+    font-size: 0.74rem;
+  }
+
+  .game-graph__edge {
+    stroke-width: 2px;
+  }
+
+  .game-graph__edge--shortest {
+    stroke-width: 2.7px;
+  }
+
+  .game-graph__edge--forbidden {
+    stroke-width: 2.5px;
+  }
+
+  .game-help-panel {
+    max-height: min(1100px, 94vh);
+    padding: clamp(40px, 3vh, 56px) clamp(30px, 2vw, 44px);
+  }
+
+  .game-help-panel h2 {
+    font-size: clamp(1.75rem, 1.55vw, 2.35rem);
+  }
+
+  .game-help-panel--help {
+    width: min(920px, 72vw);
+  }
+
+  .game-help-panel--help .game-help-example .game-graph__viewport {
+    height: clamp(440px, 48vh, 640px);
+  }
+
+  .game-help-panel--game-mode {
+    width: min(720px, 64vw);
+  }
+
+  .game-help-panel--game-mode .game-promo-settings__page {
+    grid-template-rows: repeat(4, minmax(56px, auto));
+    gap: 9px;
+  }
+
+  .game-help-panel--archive {
+    width: min(800px, 68vw);
+  }
+
+  .game-help-panel--account,
+  .game-help-panel--leaderboard {
+    width: min(640px, 64vw);
+  }
+
+  .game-help-panel--player-admin {
+    width: min(900px, 72vw);
+  }
+
+  .game-archive__calendar {
+    max-width: 640px;
+  }
+
+  .game-help-panel--archive {
+    --game-archive-calendar-width: 640px;
+    --game-archive-inline-padding: 72px;
+    width: min(
+      calc(
+        var(--game-archive-calendar-width) +
+        var(--game-archive-inline-padding) +
+        var(--game-archive-inline-padding) + 4px
+      ),
+      calc(100vw - 40px)
+    );
+    padding-inline: var(--game-archive-inline-padding);
+    padding-block: 24px;
+  }
+
+  .game-archive__modes {
+    width: 100%;
+  }
+
+  .game-archive__calendar {
+    max-width: var(--game-archive-calendar-width);
+  }
+
+  .game-archive__weekdays,
+  .game-archive__days {
+    gap: 6px;
+    row-gap: 4px;
+  }
+
+  .game-archive__weekdays {
+    font-size: 0.76rem;
+  }
+
+  .game-archive__day,
+  .game-archive__empty-day {
+    min-height: 42px;
+  }
+
+  .game-help-panel--solution {
+    width: min(3000px, 82vw);
+    max-height: min(1300px, 94vh);
+    padding: clamp(40px, 3vh, 56px) clamp(30px, 2vw, 48px);
+  }
+
+  .game-help-panel--solution .game-graph__viewport {
+    height: clamp(540px, 66vh, 1000px);
   }
 }

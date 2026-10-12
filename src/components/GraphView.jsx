@@ -6,6 +6,7 @@ import { isLinkInLineage } from '../lib/lineage';
 import TopoBackground from './TopoBackground';
 
 const NODE_R = 5;
+const LARGE_SCREEN_NODE_R = 6.25;
 const MOBILE_NODE_R = 6.5;
 const MOBILE_LINEAGE_NODE_R = 12;
 const PANEL_WIDTH = 380;  // doit rester synchrone avec --panel-width en CSS
@@ -18,6 +19,7 @@ const MIN_ZOOM = 0.4;
 const MOBILE_MIN_ZOOM = 0.22;
 const MAX_ZOOM = 6;
 const MAX_FIT_ZOOM = 3.5;
+const LARGE_SCREEN_INITIAL_ZOOM_FACTOR = 1.18;
 
 // Mise en place ordonnée, puis rappel doux : les étudiants restent libres sur les deux axes.
 const ROW_PULL_LAYOUT = 0.3;
@@ -78,13 +80,16 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
   const dragBounceFrames = useRef(new Map());
   const hoveredId = useRef(null);
   const labelWidths = useRef(new Map());
+  const initialLargeZoomApplied = useRef(false);
+  const initialLargeZoomPending = useRef(false);
   const size = useElementSize(containerRef);
   const ready = size.width > 0 && size.height > 0;
   const [reducedMotion, setReducedMotion] = useState(() => (
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   ));
   const isMobile = size.width <= 767;
-  const nodeRadius = isMobile ? MOBILE_NODE_R : NODE_R;
+  const isLargeScreen = size.width >= 1800;
+  const nodeRadius = isMobile ? MOBILE_NODE_R : isLargeScreen ? LARGE_SCREEN_NODE_R : NODE_R;
   const minZoom = size.width <= 767 ? MOBILE_MIN_ZOOM : MIN_ZOOM;
   const disableGraphAnimations = reducedMotion || size.width <= 767;
 
@@ -174,6 +179,20 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
     [minZoom, size, reducedMotion, isMobile]
   );
 
+  const adjustInitialLargeZoom = useCallback(() => {
+    if (!isLargeScreen || initialLargeZoomApplied.current || initialLargeZoomPending.current) return;
+    initialLargeZoomPending.current = true;
+    requestAnimationFrame(() => {
+      const fg = fgRef.current;
+      const currentZoom = fg?.zoom();
+      if (Number.isFinite(currentZoom) && currentZoom > 0) {
+        fg.zoom(Math.min(MAX_ZOOM, currentZoom * LARGE_SCREEN_INITIAL_ZOOM_FACTOR), 450);
+        initialLargeZoomApplied.current = true;
+      }
+      initialLargeZoomPending.current = false;
+    });
+  }, [isLargeScreen]);
+
   // Au clic : on cadre la lignée entière
   useEffect(() => {
     if (lineage) fitTo((n) => lineage.nodeIds.has(n.id), true, true);
@@ -219,8 +238,11 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
 
   const paintPointerArea = useCallback((node, color, ctx) => {
     const radius = getNodeRadius(node, lineage, nodeRadius, isMobile);
+    // Les petits noeuds sont difficiles à toucher sur mobile : agrandir la
+    // zone interactive sans changer leur apparence.
+    const hitRadius = isMobile ? Math.max(radius + 5, 14) : radius + 5;
     ctx.fillStyle = color;
-    ctx.fillRect(node.x - radius - 5, node.y - radius - 5, (radius + 5) * 2, (radius + 5) * 2);
+    ctx.fillRect(node.x - hitRadius, node.y - hitRadius, hitRadius * 2, hitRadius * 2);
   }, [lineage, nodeRadius, isMobile]);
 
   // Étiquettes dessinées après les noeuds, avec anti-chevauchement :
@@ -384,6 +406,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
           autoPauseRedraw={reducedMotion}
           warmupTicks={size.width <= 767 ? 36 : 80}
           cooldownTicks={size.width <= 767 ? 150 : 250}
+          onEngineTick={adjustInitialLargeZoom}
           onEngineStop={() => {
             // La caméra garde son cadrage initial quand la simulation s'arrête.
             hasFitted.current = true;

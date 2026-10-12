@@ -745,6 +745,27 @@ function getStudentInitials(name) {
     .join(' ');
 }
 
+const gameNodeNameMeasureContext = typeof document !== 'undefined'
+  ? document.createElement('canvas').getContext('2d')
+  : null;
+
+function getSolutionNodeNameFontSize(name, nodeWidth, hasStep) {
+  const rootFontSize = typeof document !== 'undefined'
+    ? Number.parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16
+    : 16;
+  const largeNode = nodeWidth >= 250;
+  const maxFontSize = rootFontSize * (name.length >= 26
+    ? largeNode ? 0.7 : 0.62
+    : name.length >= 18 ? largeNode ? 0.76 : 0.68 : largeNode ? 0.88 : 0.79);
+  const availableWidth = Math.max(1, nodeWidth - (largeNode
+    ? hasStep ? 92 : 57
+    : hasStep ? 83 : 52));
+  if (!gameNodeNameMeasureContext) return maxFontSize;
+  gameNodeNameMeasureContext.font = `700 ${maxFontSize}px Roboto, sans-serif`;
+  const textWidth = gameNodeNameMeasureContext.measureText(name).width;
+  return Math.max(6, Math.min(maxFontSize, (maxFontSize * availableWidth) / Math.max(1, textWidth)));
+}
+
 function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId, requiredId, forbiddenId = null, weeklyMode = false, practiceMode = false, shortestIds, shortestEdgeKeys, possibleIds, orderedIds, solutionLayout = false, elasticDrag = false, ariaLabel = 'Graphe des personnes trouvées' }) {
   const viewportRef = useRef(null);
   const canvasRef = useRef(null);
@@ -1167,19 +1188,20 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
       const availableWidth = Math.max(1, viewport.clientWidth);
       const availableHeight = Math.max(1, viewport.clientHeight);
       const compact = window.innerWidth <= 767;
+      const largeScreen = window.innerWidth >= 1800;
       const compactSolution = solutionLayout && window.innerWidth <= 767;
       const mobileSolution = compactSolution && compact;
-      const titleColumnWidth = mobileSolution ? 0 : compactSolution ? 84 : compact ? 0 : 128;
-      const titleGap = mobileSolution ? 0 : compactSolution ? 6 : compact ? 0 : 12;
-      const edgeGutter = compact ? 40 : 72;
-      const columnGap = compact || compactSolution ? 8 : 14;
+      const titleColumnWidth = mobileSolution ? 0 : compactSolution ? 84 : compact ? 0 : largeScreen ? 142 : 128;
+      const titleGap = mobileSolution ? 0 : compactSolution ? 6 : compact ? 0 : largeScreen ? 14 : 12;
+      const edgeGutter = compact ? 40 : largeScreen ? 80 : 72;
+      const columnGap = compact || compactSolution ? 8 : largeScreen ? 16 : 14;
       const mobileNodeMinWidth = 112;
       const mobileNodeMaxWidth = 128;
       const mobileFitNodeWidth = (availableWidth - edgeGutter - Math.max(0, widestPromoRow - 1) * columnGap) / widestPromoRow;
       const horizontalScroll = mobileSolution && mobileFitNodeWidth < mobileNodeMinWidth;
       const nodeSlotWidth = mobileSolution
         ? horizontalScroll ? mobileNodeMaxWidth : Math.min(mobileNodeMaxWidth, mobileFitNodeWidth)
-        : compactSolution ? 150 : compact ? 112 : 238;
+        : compactSolution ? 150 : compact ? 112 : largeScreen ? 266 : 238;
       plane.style.setProperty('--game-node-width', `${nodeSlotWidth}px`);
       const nodeAreaWidth = widestPromoRow * nodeSlotWidth
         + Math.max(0, widestPromoRow - 1) * columnGap
@@ -1712,16 +1734,18 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
                           } : undefined}
                         >
                           {stepIndex > 0 && <span className="game-node__step" aria-hidden="true">{stepIndex}</span>}
-                          <ShapeSwatch promo={student.promo} size={20} />
+                          <ShapeSwatch promo={student.promo} size={layout.nodeWidth >= 250 ? 22 : 20} />
                           <span className="game-node__copy">
                             <strong
-                              style={mobileSolutionLayout
-                                ? {
-                                  '--mobile-game-node-name-size': `${Math.max(
-                                    6,
-                                    Math.min(10.5, ((layout.nodeWidth - 48) * 1.75) / Math.max(1, displayedName.length))
-                                  )}px`,
-                                }
+                              style={solutionLayout
+                                ? mobileSolutionLayout
+                                  ? {
+                                    '--mobile-game-node-name-size': `${Math.max(
+                                      6,
+                                      Math.min(10.5, ((layout.nodeWidth - 48) * 1.75) / Math.max(1, displayedName.length))
+                                    )}px`,
+                                  }
+                                  : { fontSize: `${getSolutionNodeNameFontSize(displayedName, layout.nodeWidth, stepIndex > 0)}px` }
                                 : undefined}
                             >
                               {displayedName}
@@ -1954,6 +1978,7 @@ export default function GamePage({ students, links }) {
           lastName: player.last_name,
           promo: String(player.program_code ?? '') + String(player.arrival_year ?? '').slice(-2),
           filiere: String(player.filiere ?? '').trim().replace(/^filière non renseignée$/i, ''),
+          bio: String(player.bio ?? '').trim(),
           daily: Number(player.daily_challenges ?? 0),
           weekly: Number(player.weekly_challenges ?? 0),
           score: Number(player.points ?? 0),
@@ -2337,21 +2362,17 @@ export default function GamePage({ students, links }) {
     const byId = new Map(shortestNodes.map((student) => [student.id, student]));
     const ruleNode = challenge?.constraint ? graph.byId.get(challenge.constraint.studentId) : null;
     if (ruleNode && !byId.has(ruleNode.id)) byId.set(ruleNode.id, ruleNode);
-    if (isMobileViewport && ruleNode && challenge.constraint.type === 'avoid') {
-      (graph.adjacency.get(ruleNode.id) ?? []).forEach((studentId) => {
-        const relative = graph.byId.get(studentId);
-        if (relative) byId.set(relative.id, relative);
-      });
-    }
     return [...byId.values()];
-  }, [challenge, graph.adjacency, graph.byId, isMobileViewport, shortestNodes]);
+  }, [challenge, graph.byId, shortestNodes]);
   const solutionGraph = useMemo(() => {
     const edgeKeys = new Set(shortestPathEdgeKeys);
-    if (isMobileViewport && forbiddenStudentId) {
-      const visibleIds = new Set(solutionNodes.map((student) => student.id));
+    if (forbiddenStudentId) {
+      const pathIds = new Set(shortestPath);
       graph.edges.forEach((edge) => {
-        if ((edge.source === forbiddenStudentId || edge.target === forbiddenStudentId)
-          && visibleIds.has(edge.source) && visibleIds.has(edge.target)) {
+        const pathNeighborId = edge.source === forbiddenStudentId
+          ? edge.target
+          : edge.target === forbiddenStudentId ? edge.source : null;
+        if (pathNeighborId && pathIds.has(pathNeighborId)) {
           edgeKeys.add([edge.source, edge.target].sort().join('|'));
         }
       });
@@ -2360,7 +2381,7 @@ export default function GamePage({ students, links }) {
       ...graph,
       edges: graph.edges.filter((edge) => edgeKeys.has([edge.source, edge.target].sort().join('|'))),
     };
-  }, [forbiddenStudentId, graph, isMobileViewport, shortestPathEdgeKeys, solutionNodes]);
+  }, [forbiddenStudentId, graph, shortestPath, shortestPathEdgeKeys]);
   const solutionPossibleIds = useMemo(() => new Set(shortestPath), [shortestPath]);
   const hintedNodes = useMemo(() => hintsUsed >= 3
     ? shortestNodes
@@ -3276,7 +3297,9 @@ export default function GamePage({ students, links }) {
                         </>
                       )}
                     </div>
-                    <p className="game-leaderboard__intro">Statistiques des défis enregistrés · profil en lecture seule</p>
+                    {selectedLeaderboardPlayer.bio && (
+                      <p className="game-leaderboard__profile-bio">{selectedLeaderboardPlayer.bio}</p>
+                    )}
                     <div className="game-leaderboard__profile-stats" aria-label={'Statistiques de ' + selectedLeaderboardPlayer.pseudo}>
                       <div><strong>{selectedLeaderboardPlayer.daily}</strong><span>Défis quotidiens</span></div>
                       <div><strong>{selectedLeaderboardPlayer.weekly}</strong><span>Défis hebdomadaires</span></div>

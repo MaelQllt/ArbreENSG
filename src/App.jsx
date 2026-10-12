@@ -3,6 +3,7 @@ import GraphView from './components/GraphView';
 import Legend from './components/Legend';
 import StudentCard from './components/StudentCard';
 import StudentSearch from './components/StudentSearch';
+import BrandDivider from './components/BrandDivider';
 import AdminPanel from './components/AdminPanel';
 import FamilyLinkRequestForm from './components/FamilyLinkRequestForm';
 import GamePage from './GamePage';
@@ -136,6 +137,20 @@ export default function App() {
 
   // Calculé une seule fois par jeu de données : react-force-graph mute les objets qu'on lui passe
   const graph = useMemo(() => (loaded ? prepareGraph(loaded.data) : null), [loaded]);
+  const graphStats = useMemo(() => {
+    if (!graph) return { students: 0, links: 0 };
+    const uniqueLinks = new Set();
+    graph.graphData.links.forEach(({ source, target }) => {
+      const sourceId = String(typeof source === 'object' ? source.id : source);
+      const targetId = String(typeof target === 'object' ? target.id : target);
+      if (sourceId === targetId) return;
+      const [firstId, secondId] = sourceId < targetId
+        ? [sourceId, targetId]
+        : [targetId, sourceId];
+      uniqueLinks.add(JSON.stringify([firstId, secondId]));
+    });
+    return { students: graph.graphData.nodes.length, links: uniqueLinks.size };
+  }, [graph]);
 
   useLayoutEffect(() => {
     const actions = dockActionsRef.current;
@@ -293,13 +308,25 @@ export default function App() {
       />
 
       <header className="masthead">
-        <h1 className="masthead__title">
-          <span className="masthead__light">Les familles de</span>
-          <span className="masthead__bold">Géodata Paris</span>
-        </h1>
-        <p className="masthead__hint">
-          Cliquez sur un étudiant pour voir sa lignée.
-        </p>
+        <div className="masthead__identity">
+          <h1 className="masthead__title">
+            <span className="masthead__light">Les familles de</span>
+            <span className="masthead__bold">Géodata Paris</span>
+          </h1>
+          <p className="masthead__hint">
+            Cliquez sur un étudiant pour voir sa lignée.
+          </p>
+          <p
+            className="masthead__stats"
+            aria-label={`${graphStats.students} étudiant${graphStats.students === 1 ? '' : 's'}, ${graphStats.links} lien${graphStats.links === 1 ? '' : 's'} familiaux`}
+          >
+            <span className="masthead__stats-number">{graphStats.students.toLocaleString('fr-FR')}</span>
+            <span>étudiant{graphStats.students === 1 ? '' : 's'}</span>
+            <BrandDivider />
+            <span className="masthead__stats-number">{graphStats.links.toLocaleString('fr-FR')}</span>
+            <span>lien{graphStats.links === 1 ? '' : 's'}</span>
+          </p>
+        </div>
         <StudentSearch
           students={loaded.data.nodes}
           onSelect={setSelectedId}
