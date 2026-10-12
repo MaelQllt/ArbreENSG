@@ -242,7 +242,7 @@ video {
 html.is-ios-standalone .masthead__identity,
 html.is-ios-standalone .controls__actions,
 html.is-ios-standalone .app--card-open .controls__actions:not(:has(.admin-scrim)) {
-  top: calc(env(safe-area-inset-top, 0px) + 40px);
+  top: calc(env(safe-area-inset-top, 0px) + 35px);
 }
 
 .masthead__title {
@@ -262,6 +262,8 @@ html.is-ios-standalone .app--card-open .controls__actions:not(:has(.admin-scrim)
   background: rgb(43 49 127 / 10%);
   content: '';
   pointer-events: none;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   mask-image: radial-gradient(ellipse, #000 45%, transparent 100%);
   -webkit-mask-image: radial-gradient(ellipse, #000 45%, transparent 100%);
 }
