@@ -1,7 +1,23 @@
 -- Les scores ne doivent plus être insérés directement depuis le navigateur.
--- La fonction ne crédite que des chemins valides dans une archive existante.
+-- La fonction ne crédite que des chemins valides et une fois par archive,
+-- identifiée par le mode, la période et la sélection de promos.
 
 begin;
+
+-- Les anciennes réussites ne stockaient pas la sélection de promos. On les
+-- garde sous une portée legacy et elles restent comptées comme déjà réalisées.
+alter table public.player_challenge_completions
+  add column if not exists promo_scope text;
+update public.player_challenge_completions
+set promo_scope = 'legacy'
+where promo_scope is null;
+alter table public.player_challenge_completions
+  alter column promo_scope set not null;
+alter table public.player_challenge_completions
+  drop constraint if exists player_challenge_completions_pkey;
+alter table public.player_challenge_completions
+  add constraint player_challenge_completions_pkey
+  primary key (user_id, mode, period_key, promo_scope);
 
 drop policy if exists "Players can record their own challenge completions"
   on public.player_challenge_completions;
@@ -54,11 +70,9 @@ begin
     raise exception 'Mode de défi invalide.' using errcode = '22023';
   end if;
   if p_period_key is null
-    or (p_mode = 'daily' and p_period_key <> current_paris_date)
-    or (p_mode = 'weekly' and (
-      p_period_key <> date_trunc('week', current_paris_date::timestamp)::date
-      or extract(isodow from p_period_key) <> 1
-    )) then
+    or p_period_key < date '2026-09-01'
+    or p_period_key > current_paris_date
+    or (p_mode = 'weekly' and extract(isodow from p_period_key) <> 1) then
     raise exception 'Période de défi invalide.' using errcode = '22023';
   end if;
   if p_promo_scope is null or char_length(p_promo_scope) > 300 then
@@ -145,9 +159,20 @@ begin
   calculated_points := greatest(0, base_points - case p_hints_used
     when 0 then 0 when 1 then 1 when 2 then 2 else 4 end);
 
-  insert into public.player_challenge_completions (user_id, mode, period_key, points)
-  values (authenticated_user, p_mode, p_period_key, calculated_points)
-  on conflict (user_id, mode, period_key) do nothing;
+  if exists (
+    select 1
+    from public.player_challenge_completions
+    where user_id = authenticated_user
+      and mode = p_mode
+      and period_key = p_period_key
+      and promo_scope = 'legacy'
+  ) then
+    return jsonb_build_object('already_completed', true, 'points', 0);
+  end if;
+
+  insert into public.player_challenge_completions (user_id, mode, period_key, promo_scope, points)
+  values (authenticated_user, p_mode, p_period_key, p_promo_scope, calculated_points)
+  on conflict (user_id, mode, period_key, promo_scope) do nothing;
   get diagnostics inserted_rows = row_count;
 
   return jsonb_build_object(

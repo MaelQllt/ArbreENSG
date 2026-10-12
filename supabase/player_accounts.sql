@@ -15,15 +15,15 @@ create table if not exists public.player_profiles (
 alter table public.player_profiles
   add column if not exists filiere text check (filiere is null or char_length(filiere) <= 100);
 
--- Une réussite par joueur, par défi quotidien ou hebdomadaire. La clé primaire
--- empêche de recompter le même défi sur une période.
+-- Une réussite par joueur et par archive (mode, période et promos sélectionnées).
 create table if not exists public.player_challenge_completions (
   user_id uuid not null references auth.users (id) on delete cascade,
   mode text not null check (mode in ('daily', 'weekly')),
   period_key date not null,
+  promo_scope text not null,
   points integer not null default 0 check (points >= 0),
   completed_at timestamptz not null default now(),
-  primary key (user_id, mode, period_key)
+  primary key (user_id, mode, period_key, promo_scope)
 );
 
 alter table public.player_challenge_completions

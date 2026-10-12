@@ -1669,7 +1669,9 @@ export default function GamePage({ students, links }) {
       .then((completions) => {
         if (!active) return;
         setCompletedChallengePeriods(new Set(
-          completions.map(({ mode: completedMode, period_key: periodKey }) => `${completedMode}:${periodKey}`)
+          completions.map(({ mode: completedMode, period_key: periodKey, promo_scope: promoScope }) => (
+            `${completedMode}:${periodKey}:${promoScope}`
+          ))
         ));
       })
       .catch((error) => {
@@ -1972,7 +1974,8 @@ export default function GamePage({ students, links }) {
       day: day.getUTCDate(),
       available,
       isToday: periodKey === todayKey,
-      completed: completedChallengePeriods.has(`${archiveMode}:${periodKey}`),
+      completed: completedChallengePeriods.has(challengeArchiveKey(archiveMode, periodKey, playablePromoYears))
+        || completedChallengePeriods.has(`${archiveMode}:${periodKey}:legacy`),
     };
   });
   const currentArchiveMonth = new Date(todayKey + 'T12:00:00Z');
@@ -2244,13 +2247,10 @@ export default function GamePage({ students, links }) {
     + (hintsUsed >= 2 ? 1 : 0)
     + (hintsUsed >= 3 ? 2 : 0);
   const completionPoints = Math.max(0, baseCompletionPoints - hintPenalty);
-  const isCurrentChallengePeriod = mode === 'daily'
-    ? challengePeriod === currentDailyPeriod
-    : mode === 'weekly' && challengePeriod === currentWeeklyPeriod;
   const trackableCompletion = accountConnected
     && accountAuthUser?.id
-    && isCurrentChallengePeriod
-    ? accountAuthUser.id + ':' + mode + ':' + challengePeriod
+    && (mode === 'daily' || mode === 'weekly')
+    ? accountAuthUser.id + ':' + challengeArchiveKey(mode, challengePeriod, challengePromoYears)
     : null;
   const currentCompletionRecord = completionRecord?.key === trackableCompletion
     ? completionRecord
@@ -2267,7 +2267,7 @@ export default function GamePage({ students, links }) {
         }
         setCompletedChallengePeriods((current) => {
           const next = new Set(current);
-          next.add(`${mode}:${challengePeriod}`);
+          next.add(challengeArchiveKey(mode, challengePeriod, challengePromoYears));
           return next;
         });
         if (result.stats && accountAuthUser?.id) updatePlayerAccountStatsCache(accountAuthUser.id, result.stats);

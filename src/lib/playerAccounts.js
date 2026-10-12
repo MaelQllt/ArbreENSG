@@ -139,10 +139,11 @@ export async function getPlayerChallengeCompletions() {
   for (let offset = 0; ; offset += pageSize) {
     const { data, error } = await client
       .from('player_challenge_completions')
-      .select('mode, period_key')
+      .select('mode, period_key, promo_scope')
       .eq('user_id', session.user.id)
       .order('period_key', { ascending: true })
       .order('mode', { ascending: true })
+      .order('promo_scope', { ascending: true })
       .range(offset, offset + pageSize - 1);
     if (error) throw error;
     completions.push(...(data ?? []));
