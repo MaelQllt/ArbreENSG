@@ -47,14 +47,26 @@ export default function App() {
       root.style.setProperty('--ios-standalone-height', `${height}px`);
     };
 
+    const syncWhenVisible = () => {
+      if (!document.hidden) syncStandaloneViewport();
+    };
+
     syncStandaloneViewport();
+    // Comme dans BeMap, iOS peut encore ajuster le viewport après le premier rendu PWA.
+    const startupSyncs = [0, 100, 500, 1000, 3000]
+      .map((delay) => window.setTimeout(syncStandaloneViewport, delay));
     window.addEventListener('resize', syncStandaloneViewport);
     window.addEventListener('orientationchange', syncStandaloneViewport);
     window.visualViewport?.addEventListener('resize', syncStandaloneViewport);
+    window.addEventListener('pageshow', syncStandaloneViewport);
+    document.addEventListener('visibilitychange', syncWhenVisible);
     return () => {
+      startupSyncs.forEach((timer) => window.clearTimeout(timer));
       window.removeEventListener('resize', syncStandaloneViewport);
       window.removeEventListener('orientationchange', syncStandaloneViewport);
       window.visualViewport?.removeEventListener('resize', syncStandaloneViewport);
+      window.removeEventListener('pageshow', syncStandaloneViewport);
+      document.removeEventListener('visibilitychange', syncWhenVisible);
       root.classList.remove('is-ios-standalone');
       root.style.removeProperty('--ios-standalone-height');
     };
