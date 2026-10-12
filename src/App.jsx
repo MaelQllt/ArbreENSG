@@ -304,6 +304,7 @@ export default function App() {
           students={loaded.data.nodes}
           onSelect={setSelectedId}
           onActivate={closeCardFromMobileSearch}
+          keyboardOpen={keyboardOpen}
         />
       </header>
 

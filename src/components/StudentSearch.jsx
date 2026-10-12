@@ -18,13 +18,15 @@ function SearchOption({ student }) {
   );
 }
 
-export default function StudentSearch({ students, onSelect, onActivate }) {
+export default function StudentSearch({ students, onSelect, onActivate, keyboardOpen = false }) {
   const rootRef = useRef(null);
   const inputRef = useRef(null);
   const focusAfterTouchRef = useRef(false);
+  const handoffTimerRef = useRef(null);
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [cardHandoff, setCardHandoff] = useState(false);
   const listId = 'student-search-options';
   const normalizedQuery = normalizeStudentSearch(query);
 
@@ -43,11 +45,20 @@ export default function StudentSearch({ students, onSelect, onActivate }) {
     return () => document.removeEventListener('pointerdown', handlePointerDown);
   }, []);
 
+  useEffect(() => {
+    if (!keyboardOpen) return;
+    setCardHandoff(false);
+    window.clearTimeout(handoffTimerRef.current);
+  }, [keyboardOpen]);
+
+  useEffect(() => () => window.clearTimeout(handoffTimerRef.current), []);
+
   const choose = (student) => {
     if (!student) return;
     onSelect(student.id);
     setQuery('');
     setOpen(false);
+    setCardHandoff(false);
     inputRef.current?.blur();
   };
 
@@ -56,6 +67,11 @@ export default function StudentSearch({ students, onSelect, onActivate }) {
     if (!isClosingCard) return;
 
     setOpen(true);
+    window.clearTimeout(handoffTimerRef.current);
+    setCardHandoff(!keyboardOpen);
+    if (!keyboardOpen) {
+      handoffTimerRef.current = window.setTimeout(() => setCardHandoff(false), 1400);
+    }
     if (event.pointerType === 'touch') {
       // Sur iOS, attendre la fin du toucher évite que le déplacement de la
       // barre pendant la fermeture de la fiche annule l’ouverture du clavier.
@@ -89,7 +105,7 @@ export default function StudentSearch({ students, onSelect, onActivate }) {
   };
 
   return (
-    <div className="student-search" ref={rootRef}>
+    <div className={'student-search' + (cardHandoff ? ' student-search--card-handoff' : '')} ref={rootRef}>
       <div
         className="student-search__field"
         onPointerDown={handleFieldPointerDown}
@@ -112,6 +128,7 @@ export default function StudentSearch({ students, onSelect, onActivate }) {
           aria-controls={listId}
           aria-activedescendant={open && results[activeIndex] ? `${listId}-${results[activeIndex].id}` : undefined}
           onFocus={() => setOpen(true)}
+          onBlur={() => setCardHandoff(false)}
           onChange={(event) => {
             setQuery(event.target.value);
             setActiveIndex(0);

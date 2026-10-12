@@ -1171,10 +1171,10 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
       const mobileSolution = compactSolution && compact;
       const titleColumnWidth = mobileSolution ? 0 : compactSolution ? 84 : compact ? 0 : 128;
       const titleGap = mobileSolution ? 0 : compactSolution ? 6 : compact ? 0 : 12;
-      const edgeGutter = mobileSolution ? 16 : compact ? 40 : 72;
+      const edgeGutter = compact ? 40 : 72;
       const columnGap = compact || compactSolution ? 8 : 14;
-      const mobileNodeMinWidth = 96;
-      const mobileNodeMaxWidth = 120;
+      const mobileNodeMinWidth = 112;
+      const mobileNodeMaxWidth = 128;
       const mobileFitNodeWidth = (availableWidth - edgeGutter - Math.max(0, widestPromoRow - 1) * columnGap) / widestPromoRow;
       const horizontalScroll = mobileSolution && mobileFitNodeWidth < mobileNodeMinWidth;
       const nodeSlotWidth = mobileSolution
@@ -1714,7 +1714,18 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
                           {stepIndex > 0 && <span className="game-node__step" aria-hidden="true">{stepIndex}</span>}
                           <ShapeSwatch promo={student.promo} size={20} />
                           <span className="game-node__copy">
-                            <strong>{displayedName}</strong>
+                            <strong
+                              style={mobileSolutionLayout
+                                ? {
+                                  '--mobile-game-node-name-size': `${Math.max(
+                                    6,
+                                    Math.min(10.5, ((layout.nodeWidth - 48) * 1.75) / Math.max(1, displayedName.length))
+                                  )}px`,
+                                }
+                                : undefined}
+                            >
+                              {displayedName}
+                            </strong>
                             {isRequired && <small>Passage obligatoire</small>}
                             {isForbidden && <small>Interdit</small>}
                             {(isStart || isEnd) && <small>{isStart ? 'Départ' : 'Arrivée'}</small>}
@@ -1749,6 +1760,7 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
 
 export default function GamePage({ students, links }) {
   const [entryAccountState] = useState(getInitialAccountPanelState);
+  const [isMobileViewport, setIsMobileViewport] = useState(() => window.matchMedia('(max-width: 767px)').matches);
   const [mode, setMode] = useState('daily');
   const [round, setRound] = useState(0);
   const [attemptCount, setAttemptCount] = useState(1);
@@ -1796,6 +1808,7 @@ export default function GamePage({ students, links }) {
   const [archiveDate, setArchiveDate] = useState(null);
   const [archiveSelection, setArchiveSelection] = useState(null);
   const [frozenChallengeArchives, setFrozenChallengeArchives] = useState({});
+  const [resolvedChallengeArchives, setResolvedChallengeArchives] = useState(() => new Set());
   const menuRef = useRef(null);
   const helpButtonRef = useRef(null);
   const promoModeButtonRef = useRef(null);
@@ -1803,6 +1816,14 @@ export default function GamePage({ students, links }) {
   const panelRef = useRef(null);
   const panelCloseRef = useRef(null);
   const recordedCompletionRef = useRef(null);
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px)');
+    const updateViewport = (event) => setIsMobileViewport(event.matches);
+    setIsMobileViewport(media.matches);
+    media.addEventListener?.('change', updateViewport);
+    return () => media.removeEventListener?.('change', updateViewport);
+  }, []);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return undefined;
@@ -2226,12 +2247,18 @@ export default function GamePage({ students, links }) {
     [graph, mode, practiceSeed, round, challengePeriod]
   );
   const challenge = frozenArchive?.challenge ?? generatedChallenge;
+  const awaitingChallengeArchive = isMobileViewport
+    && mode !== 'practice'
+    && Boolean(archiveKey && !frozenArchive && !resolvedChallengeArchives.has(archiveKey));
   useEffect(() => {
     let cancelled = false;
     const persistChallenge = async (snapshotMode, periodKey) => {
-      const candidate = getChallenge(currentGraph, snapshotMode, 0, 0, periodKey);
-      if (!candidate) return;
       const key = challengeArchiveKey(snapshotMode, periodKey, playablePromoYears);
+      const candidate = getChallenge(currentGraph, snapshotMode, 0, 0, periodKey);
+      if (!candidate) {
+        setResolvedChallengeArchives((current) => new Set(current).add(key));
+        return;
+      }
       if (frozenChallengeArchives[key]) return;
       try {
         const record = await getOrFreezeChallengeArchive(
@@ -2244,8 +2271,14 @@ export default function GamePage({ students, links }) {
         if (!cancelled && record) {
           setFrozenChallengeArchives((current) => ({ ...current, [key]: record }));
         }
+        if (!cancelled) {
+          setResolvedChallengeArchives((current) => new Set(current).add(key));
+        }
       } catch (error) {
         console.warn('[défis] Impossible de charger ou figer l’archive :', error.message);
+        if (!cancelled) {
+          setResolvedChallengeArchives((current) => new Set(current).add(key));
+        }
       }
     };
     void Promise.all([
@@ -2297,21 +2330,38 @@ export default function GamePage({ students, links }) {
     () => new Set(shortestPath.slice(1).map((target, index) => [shortestPath[index], target].sort().join('|'))),
     [shortestPath]
   );
-  const shortestGraph = useMemo(() => ({
-    ...graph,
-    edges: graph.edges.filter((edge) => shortestPathEdgeKeys.has([edge.source, edge.target].sort().join('|'))),
-  }), [graph, shortestPathEdgeKeys]);
   const shortestNodes = useMemo(
     () => shortestPath.map((id) => graph.byId.get(id)).filter(Boolean),
     [shortestPath, graph.byId]
   );
   const solutionNodes = useMemo(() => {
-    const ruleNode = challenge?.constraint
-      ? graph.byId.get(challenge.constraint.studentId)
-      : null;
-    if (!ruleNode || shortestNodes.some((student) => student.id === ruleNode.id)) return shortestNodes;
-    return [...shortestNodes, ruleNode];
-  }, [challenge, graph.byId, shortestNodes]);
+    const byId = new Map(shortestNodes.map((student) => [student.id, student]));
+    const ruleNode = challenge?.constraint ? graph.byId.get(challenge.constraint.studentId) : null;
+    if (ruleNode && !byId.has(ruleNode.id)) byId.set(ruleNode.id, ruleNode);
+    if (isMobileViewport && ruleNode && challenge.constraint.type === 'avoid') {
+      (graph.adjacency.get(ruleNode.id) ?? []).forEach((studentId) => {
+        const relative = graph.byId.get(studentId);
+        if (relative) byId.set(relative.id, relative);
+      });
+    }
+    return [...byId.values()];
+  }, [challenge, graph.adjacency, graph.byId, isMobileViewport, shortestNodes]);
+  const solutionGraph = useMemo(() => {
+    const edgeKeys = new Set(shortestPathEdgeKeys);
+    if (isMobileViewport && forbiddenStudentId) {
+      const visibleIds = new Set(solutionNodes.map((student) => student.id));
+      graph.edges.forEach((edge) => {
+        if ((edge.source === forbiddenStudentId || edge.target === forbiddenStudentId)
+          && visibleIds.has(edge.source) && visibleIds.has(edge.target)) {
+          edgeKeys.add([edge.source, edge.target].sort().join('|'));
+        }
+      });
+    }
+    return {
+      ...graph,
+      edges: graph.edges.filter((edge) => edgeKeys.has([edge.source, edge.target].sort().join('|'))),
+    };
+  }, [forbiddenStudentId, graph, isMobileViewport, shortestPathEdgeKeys, solutionNodes]);
   const solutionPossibleIds = useMemo(() => new Set(shortestPath), [shortestPath]);
   const hintedNodes = useMemo(() => hintsUsed >= 3
     ? shortestNodes
@@ -2796,7 +2846,11 @@ export default function GamePage({ students, links }) {
           </div>
         </header>
 
-        {challenge && start && end ? (
+        {awaitingChallengeArchive ? (
+          <div className="game-layout">
+            <p className="game-challenge-loading" role="status">Préparation du défi…</p>
+          </div>
+        ) : challenge && start && end ? (
           <div className="game-layout">
             <section className="game-challenge" aria-labelledby="game-challenge-title">
               <div className={'game-challenge__heading'
@@ -3430,7 +3484,7 @@ export default function GamePage({ students, links }) {
                     </div>
                   )}
                   <GameGraph
-                    graph={shortestGraph}
+                    graph={solutionGraph}
                     nodes={solutionNodes}
                     startId={startId}
                     endId={endId}
