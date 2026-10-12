@@ -34,9 +34,9 @@ export default function App() {
   const dockActionsRect = useRef(null);
   const dockActionsAnimation = useRef(null);
 
-  // En PWA iOS, la hauteur du viewport doit être prise telle quelle.
-  // On ne double-compte pas la safe area (env(safe-area-inset-top)) pour éviter
-  // que le contenu du haut ne passe sous la barre d'état floue.
+  // En PWA iOS, innerHeight peut exclure la zone sûre du haut alors que la barre
+  // d'état est translucide. La hauteur CSS réintègre cette zone; l'inset clavier
+  // reste géré séparément plus bas.
   useLayoutEffect(() => {
     if (window.navigator.standalone !== true) return undefined;
 
