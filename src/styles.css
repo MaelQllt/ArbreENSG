@@ -237,9 +237,12 @@ video {
   pointer-events: none;
 }
 
-/* PWA iOS : décaler le bloc titre/stats pour qu'il ne passe pas sous la barre d'état floue */
-html.is-ios-standalone .masthead__identity {
-  top: calc(env(safe-area-inset-top, 0px) + 60px);
+/* PWA iOS : décaler le bloc titre/stats et les boutons Jouer/Admin
+   pour qu'ils ne passent pas sous la barre d'état floue */
+html.is-ios-standalone .masthead__identity,
+html.is-ios-standalone .controls__actions,
+html.is-ios-standalone .app--card-open .controls__actions:not(:has(.admin-scrim)) {
+  top: calc(env(safe-area-inset-top, 0px) + 40px);
 }
 
 .masthead__title {
