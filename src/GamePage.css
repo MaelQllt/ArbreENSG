@@ -1542,7 +1542,7 @@
 }
 
 .game-help-example .game-graph__edge--off-path {
-  stroke-opacity: 0.75;
+  stroke-opacity: 1;
 }
 
 .game-help-panel__close {
@@ -1756,18 +1756,19 @@
   fill: none;
   stroke: var(--sand);
   stroke-width: 1.8;
-  stroke-opacity: 0.75;
+  stroke-opacity: 1;
   stroke-linecap: round;
 }
 
 .game-graph__edge--shortest {
   stroke: #ded41f;
   stroke-width: 2.35;
-  stroke-opacity: 0.9;
+  stroke-opacity: 1;
 }
 
 .game-graph__edge--off-path {
-  stroke-opacity: 0.16;
+  stroke: var(--sand);
+  stroke-opacity: 1;
 }
 
 .game-graph__edge--forbidden {
@@ -1905,21 +1906,13 @@
 }
 
 .game-node--off-path {
+  filter: none;
+  opacity: 1;
+}
+
+.game-node--off-path.game-node--hinted {
   filter: grayscale(0.7);
   opacity: 0.44;
-}
-
-.game-graph__viewport--weekly .game-node--off-path:not(.game-node--hinted) {
-  opacity: 1;
-}
-
-.game-graph__viewport--practice .game-node--off-path:not(.game-node--hinted) {
-  opacity: 1;
-}
-
-.game-graph__viewport--weekly .game-graph__edge--off-path,
-.game-graph__viewport--practice .game-graph__edge--off-path {
-  stroke-opacity: 0.75;
 }
 
 .game-node--required:not(.game-node--start):not(.game-node--end) {
@@ -4906,14 +4899,18 @@
   }
 
   .game-graph__viewport:not(.game-graph__viewport--solution) .game-graph__level {
-    padding-block: 9px;
+    padding-block: var(--game-level-padding, 9px);
+  }
+
+  .game-graph__viewport .game-graph__nodes--empty {
+    min-height: var(--game-empty-level-height, 56px);
   }
 
   .game-graph__viewport:not(.game-graph__viewport--solution) .game-node__copy strong {
     display: block;
     width: 100%;
     overflow: hidden;
-    font-size: 1.02rem;
+    font-size: calc(var(--game-node-text-scale, 1) * 1.02rem);
     line-height: 1.12;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -4922,15 +4919,15 @@
   }
 
   .game-graph__viewport:not(.game-graph__viewport--solution) .game-node--long-name .game-node__copy strong {
-    font-size: 0.92rem;
+    font-size: calc(var(--game-node-text-scale, 1) * 0.92rem);
   }
 
   .game-graph__viewport:not(.game-graph__viewport--solution) .game-node--very-long-name .game-node__copy strong {
-    font-size: 0.84rem;
+    font-size: calc(var(--game-node-text-scale, 1) * 0.84rem);
   }
 
   .game-graph__viewport:not(.game-graph__viewport--solution) .game-node__copy small {
-    font-size: 0.8rem;
+    font-size: calc(var(--game-node-text-scale, 1) * 0.8rem);
   }
 
   .game-graph__viewport--solution .game-graph__levels {
@@ -4938,29 +4935,36 @@
   }
 
   .game-graph__viewport--solution .game-graph__level {
-    padding-block: 9px;
+    padding-block: var(--game-level-padding, 9px);
   }
 
   .game-graph__viewport--solution .game-node__copy strong {
-    font-size: 1.02rem;
+    font-size: calc(var(--game-node-text-scale, 1) * 1.02rem);
   }
 
   .game-graph__viewport--solution .game-node--long-name .game-node__copy strong {
-    font-size: 0.94rem;
+    font-size: calc(var(--game-node-text-scale, 1) * 0.94rem);
   }
 
   .game-graph__viewport--solution .game-node--very-long-name .game-node__copy strong {
-    font-size: 0.84rem;
+    font-size: calc(var(--game-node-text-scale, 1) * 0.84rem);
   }
 
   .game-graph__viewport--solution .game-node__copy small {
-    font-size: 0.8rem;
+    font-size: calc(var(--game-node-text-scale, 1) * 0.8rem);
   }
 
   .game-graph__level {
     grid-template-columns: 130px minmax(0, 1fr);
     gap: 14px;
-    padding: 14px 0;
+    align-items: center;
+    padding: var(--game-level-padding, 14px) 0;
+  }
+
+  .game-graph__level:not(:last-child) .game-graph__level-title,
+  .game-graph__level:not(:last-child) .game-graph__nodes {
+    position: relative;
+    top: var(--game-level-center-offset, 0px);
   }
 
   .game-graph__level-title {
@@ -4968,16 +4972,20 @@
   }
 
   .game-graph__nodes {
+    align-self: center;
+    align-items: center;
     gap: 16px;
     padding-inline: 40px;
   }
 
   .game-node {
+    align-self: center;
+    justify-self: center;
     height: var(--game-node-height, 72px);
     min-height: var(--game-node-height, 72px);
     max-height: var(--game-node-height, 72px);
     gap: 9px;
-    padding: 5px 10px;
+    padding: clamp(2px, calc(var(--game-node-height, 60px) * 0.07), 5px) 10px;
   }
 
   .game-node__step {

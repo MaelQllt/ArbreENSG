@@ -953,15 +953,33 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
       const nodeSlotWidth = mobileSolution
         ? horizontalScroll ? mobileNodeMaxWidth : Math.min(mobileNodeMaxWidth, mobileFitNodeWidth)
         : compactSolution ? 150 : compact ? 112 : largeScreen ? largeScreenNodeWidth : 238;
-      const largeScreenLevelPadding = 18;
-      const largeScreenLevelGap = Math.min(40, Math.max(32, availableHeight * 0.075));
-      const largeScreenNodeHeight = Math.max(44, Math.min(
-        60,
-        (availableHeight - Math.max(0, groups.length - 1) * largeScreenLevelGap - groups.length * largeScreenLevelPadding - 4) / Math.max(1, groups.length)
-      ));
+      const largeScreenLevelCount = Math.max(1, groups.length);
+      const largeScreenLevelPadding = 6;
+      const largeScreenTargetGap = Math.min(18, Math.max(4, availableHeight * 0.035));
+      const largeScreenVerticalRoom = Math.max(
+        0,
+        availableHeight - 4 - largeScreenLevelCount * largeScreenLevelPadding * 2
+      );
+      const largeScreenMinNodeHeight = 36;
+      const largeScreenMaxGap = largeScreenLevelCount > 1
+        ? Math.max(0, (largeScreenVerticalRoom - largeScreenLevelCount * largeScreenMinNodeHeight) / (largeScreenLevelCount - 1))
+        : largeScreenTargetGap;
+      const largeScreenLevelGap = Math.min(largeScreenTargetGap, largeScreenMaxGap);
+      const largeScreenNodeHeight = Math.max(
+        largeScreenMinNodeHeight,
+        Math.min(
+          52,
+          (largeScreenVerticalRoom - Math.max(0, largeScreenLevelCount - 1) * largeScreenLevelGap) / largeScreenLevelCount
+        )
+      );
+      const largeScreenTextScale = Math.max(0.78, Math.min(1, largeScreenNodeHeight / 52));
       plane.style.setProperty('--game-node-width', `${nodeSlotWidth}px`);
       plane.style.setProperty('--game-node-height', `${largeScreen ? largeScreenNodeHeight : 82}px`);
       plane.style.setProperty('--game-level-gap', `${largeScreenLevelGap}px`);
+      plane.style.setProperty('--game-level-padding', `${largeScreenLevelPadding}px`);
+      plane.style.setProperty('--game-level-center-offset', `${largeScreen ? largeScreenLevelGap / 2 : 0}px`);
+      plane.style.setProperty('--game-empty-level-height', `${largeScreen ? largeScreenNodeHeight : 56}px`);
+      plane.style.setProperty('--game-node-text-scale', `${largeScreenTextScale}`);
       const nodeAreaWidth = widestPromoRow * nodeSlotWidth
         + Math.max(0, widestPromoRow - 1) * columnGap
         + edgeGutter;
