@@ -34,9 +34,9 @@ export default function App() {
   const dockActionsRect = useRef(null);
   const dockActionsAnimation = useRef(null);
 
-  // En PWA iOS, la taille physique de l'écran ne correspond pas toujours à la
-  // zone réellement visible. innerHeight suit le viewport de mise en page sans
-  // agrandir la page sous la barre d'accueil; l'inset clavier reste géré plus bas.
+  // En PWA iOS, innerHeight peut exclure la zone sûre du haut alors que la barre
+  // d'état est translucide. La hauteur CSS réintègre cette zone; l'inset clavier
+  // reste géré séparément plus bas.
   useLayoutEffect(() => {
     if (window.navigator.standalone !== true) return undefined;
 
