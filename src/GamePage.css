@@ -1882,7 +1882,7 @@
 
 .game-node--shortest {
   border: 2px solid var(--yellow);
-  background: #f4f2bc;
+  background: #fff3a6;
   color: var(--blue);
 }
 
@@ -4775,6 +4775,7 @@
 @media (min-width: 1800px) {
   .game-page__content {
     width: min(3600px, 97vw);
+    padding-top: max(12px, env(safe-area-inset-top));
   }
 
   .game-page__header {
@@ -4825,6 +4826,7 @@
 
   .game-promo-mode {
     gap: 3px;
+    justify-content: center;
     min-height: 46px;
     padding: 5px 0 5px 16px;
   }
@@ -4898,7 +4900,63 @@
   }
 
   .game-graph__viewport {
-    height: clamp(400px, 44vh, 740px);
+    height: clamp(420px, 48vh, 660px);
+  }
+
+  .game-graph__viewport:not(.game-graph__viewport--solution) .game-graph__levels {
+    gap: var(--game-level-gap, 32px);
+  }
+
+  .game-graph__viewport:not(.game-graph__viewport--solution) .game-graph__level {
+    padding-block: 9px;
+  }
+
+  .game-graph__viewport:not(.game-graph__viewport--solution) .game-node__copy strong {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    font-size: 1.02rem;
+    line-height: 1.12;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  .game-graph__viewport:not(.game-graph__viewport--solution) .game-node--long-name .game-node__copy strong {
+    font-size: 0.92rem;
+  }
+
+  .game-graph__viewport:not(.game-graph__viewport--solution) .game-node--very-long-name .game-node__copy strong {
+    font-size: 0.84rem;
+  }
+
+  .game-graph__viewport:not(.game-graph__viewport--solution) .game-node__copy small {
+    font-size: 0.8rem;
+  }
+
+  .game-graph__viewport--solution .game-graph__levels {
+    gap: var(--game-level-gap, 32px);
+  }
+
+  .game-graph__viewport--solution .game-graph__level {
+    padding-block: 9px;
+  }
+
+  .game-graph__viewport--solution .game-node__copy strong {
+    font-size: 1.02rem;
+  }
+
+  .game-graph__viewport--solution .game-node--long-name .game-node__copy strong {
+    font-size: 0.94rem;
+  }
+
+  .game-graph__viewport--solution .game-node--very-long-name .game-node__copy strong {
+    font-size: 0.84rem;
+  }
+
+  .game-graph__viewport--solution .game-node__copy small {
+    font-size: 0.8rem;
   }
 
   .game-graph__level {
@@ -4917,11 +4975,11 @@
   }
 
   .game-node {
-    height: 82px;
-    min-height: 82px;
-    max-height: 82px;
-    gap: 11px;
-    padding: 9px 12px;
+    height: var(--game-node-height, 72px);
+    min-height: var(--game-node-height, 72px);
+    max-height: var(--game-node-height, 72px);
+    gap: 9px;
+    padding: 5px 10px;
   }
 
   .game-node__step {
@@ -5041,11 +5099,11 @@
 
   .game-help-panel--solution {
     width: min(3000px, 82vw);
-    max-height: min(1300px, 94vh);
-    padding: clamp(40px, 3vh, 56px) clamp(30px, 2vw, 48px);
+    max-height: min(1180px, 90vh);
+    padding: clamp(36px, 2.6vh, 46px) clamp(30px, 2vw, 48px);
   }
 
   .game-help-panel--solution .game-graph__viewport {
-    height: clamp(540px, 66vh, 1000px);
+    height: clamp(420px, 52vh, 680px);
   }
 }

@@ -183,6 +183,33 @@ function findPath(adjacency, startId, endId, allowedIds) {
   return path.reverse();
 }
 
+function findHintPath(adjacency, startId, endId, edgeKeys, checkpoints, distanceLimit) {
+  if (!startId || !endId || !edgeKeys?.size || !Number.isFinite(distanceLimit)) return [];
+  const requiredIds = [...new Set(checkpoints.filter((id) => id && id !== startId && id !== endId))];
+  const queue = [{ id: startId, path: [startId], visited: new Set([startId]) }];
+
+  for (let cursor = 0; cursor < queue.length; cursor += 1) {
+    const current = queue[cursor];
+    const usedEdges = current.path.length - 1;
+    if (current.id === endId) {
+      if (usedEdges === distanceLimit && requiredIds.every((id) => current.visited.has(id))) {
+        return current.path;
+      }
+      continue;
+    }
+    if (usedEdges >= distanceLimit) continue;
+
+    for (const next of [...(adjacency.get(current.id) ?? [])].sort(compareIds)) {
+      const edgeKey = [current.id, next].sort(compareIds).join('|');
+      if (!edgeKeys.has(edgeKey) || current.visited.has(next)) continue;
+      const visited = new Set(current.visited);
+      visited.add(next);
+      queue.push({ id: next, path: [...current.path, next], visited });
+    }
+  }
+  return [];
+}
+
 function findPathThrough(adjacency, startId, viaId, endId, allowedIds) {
   const canUse = (id) => !allowedIds || allowedIds.has(id);
   if (![startId, viaId, endId].every(canUse)) return [];
@@ -753,10 +780,13 @@ function getSolutionNodeNameFontSize(name, nodeWidth, hasStep) {
   const rootFontSize = typeof document !== 'undefined'
     ? Number.parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16
     : 16;
+  const largeScreen = typeof window !== 'undefined' && window.innerWidth >= 1800;
   const largeNode = nodeWidth >= 250;
   const maxFontSize = rootFontSize * (name.length >= 26
-    ? largeNode ? 0.7 : 0.62
-    : name.length >= 18 ? largeNode ? 0.76 : 0.68 : largeNode ? 0.88 : 0.79);
+    ? largeNode ? largeScreen ? 0.74 : 0.7 : largeScreen ? 0.7 : 0.62
+    : name.length >= 18
+      ? largeNode ? largeScreen ? 0.8 : 0.76 : largeScreen ? 0.78 : 0.68
+      : largeNode ? largeScreen ? 0.92 : 0.88 : largeScreen ? 0.9 : 0.79);
   const availableWidth = Math.max(1, nodeWidth - (largeNode
     ? hasStep ? 92 : 57
     : hasStep ? 83 : 52));
@@ -1174,6 +1204,7 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
   }, [nodes, renderedNodes, graph.edges, graph.adjacency, graph.byId, orderedIds]);
 
   const widestPromoRow = Math.max(1, ...groups.map(([, members]) => members.length));
+  const largeScreenLayout = typeof window !== 'undefined' && window.innerWidth >= 1800;
   const mobileSolutionLayout = solutionLayout
     && typeof window !== 'undefined'
     && window.innerWidth <= 767;
@@ -1199,17 +1230,28 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
       const mobileNodeMaxWidth = 128;
       const mobileFitNodeWidth = (availableWidth - edgeGutter - Math.max(0, widestPromoRow - 1) * columnGap) / widestPromoRow;
       const horizontalScroll = mobileSolution && mobileFitNodeWidth < mobileNodeMinWidth;
+      const largeScreenFitNodeWidth = (availableWidth - titleColumnWidth - titleGap - edgeGutter
+        - Math.max(0, widestPromoRow - 1) * columnGap) / widestPromoRow;
+      const largeScreenNodeWidth = Math.max(1, Math.min(230, largeScreenFitNodeWidth));
       const nodeSlotWidth = mobileSolution
         ? horizontalScroll ? mobileNodeMaxWidth : Math.min(mobileNodeMaxWidth, mobileFitNodeWidth)
-        : compactSolution ? 150 : compact ? 112 : largeScreen ? 266 : 238;
+        : compactSolution ? 150 : compact ? 112 : largeScreen ? largeScreenNodeWidth : 238;
+      const largeScreenLevelPadding = 18;
+      const largeScreenLevelGap = Math.min(40, Math.max(32, availableHeight * 0.075));
+      const largeScreenNodeHeight = Math.max(44, Math.min(
+        60,
+        (availableHeight - Math.max(0, groups.length - 1) * largeScreenLevelGap - groups.length * largeScreenLevelPadding - 4) / Math.max(1, groups.length)
+      ));
       plane.style.setProperty('--game-node-width', `${nodeSlotWidth}px`);
+      plane.style.setProperty('--game-node-height', `${largeScreen ? largeScreenNodeHeight : 82}px`);
+      plane.style.setProperty('--game-level-gap', `${largeScreenLevelGap}px`);
       const nodeAreaWidth = widestPromoRow * nodeSlotWidth
         + Math.max(0, widestPromoRow - 1) * columnGap
         + edgeGutter;
       const planeWidth = Math.max(availableWidth, titleColumnWidth + titleGap + nodeAreaWidth);
       const width = Math.max(1, mobileSolution ? availableWidth : plane.offsetWidth, planeWidth);
       const height = Math.max(1, plane.offsetHeight);
-      const scale = mobileSolution ? 1 : Math.min(1, availableWidth / width, availableHeight / height);
+      const scale = mobileSolution || largeScreen ? 1 : Math.min(1, availableWidth / width, availableHeight / height);
       const centeredInset = Math.max(0, (availableWidth - width * scale) / 2);
       plane.style.setProperty(
         '--graph-title-align-offset',
@@ -1746,7 +1788,9 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
                                     )}px`,
                                   }
                                   : { fontSize: `${getSolutionNodeNameFontSize(displayedName, layout.nodeWidth, stepIndex > 0)}px` }
-                                : undefined}
+                                : largeScreenLayout
+                                  ? { fontSize: `${getSolutionNodeNameFontSize(displayedName, layout.nodeWidth, stepIndex > 0)}px` }
+                                  : undefined}
                             >
                               {displayedName}
                             </strong>
@@ -1793,6 +1837,7 @@ export default function GamePage({ students, links }) {
   const [foundIds, setFoundIds] = useState([]);
   const [hintsUsed, setHintsUsed] = useState(0);
   const [hintedStudentIds, setHintedStudentIds] = useState([]);
+  const [hintPathIds, setHintPathIds] = useState([]);
   const [completionRecord, setCompletionRecord] = useState(null);
   const [completedChallengePeriods, setCompletedChallengePeriods] = useState(() => new Set());
   const [query, setQuery] = useState('');
@@ -2254,6 +2299,7 @@ export default function GamePage({ students, links }) {
     setFoundIds([]);
     setHintsUsed(0);
     setHintedStudentIds([]);
+    setHintPathIds([]);
     setAttemptCount(1);
     setQuery('');
     setFeedback('');
@@ -2341,15 +2387,6 @@ export default function GamePage({ students, links }) {
     () => challenge?.solutionPath ?? [],
     [challenge]
   );
-  const nextHintStudent = shortestPath
-    .slice(1, -1)
-    .map((id) => graph.byId.get(id))
-    .find((student) => student && !visibleIds.has(student.id));
-  const previousHintStudent = shortestPath
-    .slice(1, -1)
-    .reverse()
-    .map((id) => graph.byId.get(id))
-    .find((student) => student && !visibleIds.has(student.id));
   const shortestPathEdgeKeys = useMemo(
     () => new Set(shortestPath.slice(1).map((target, index) => [shortestPath[index], target].sort().join('|'))),
     [shortestPath]
@@ -2423,6 +2460,40 @@ export default function GamePage({ students, links }) {
   }, [graph.adjacency, graph.edges, challenge, startId, endId]);
   const shortestIds = shortestPathData.nodeIds;
   const shortestEdgeKeys = shortestPathData.edgeKeys;
+  const suggestedHintPath = useMemo(() => {
+    if (!challenge || shortestPath.length < 2) return shortestPath;
+    const candidateIds = foundIds.slice().reverse().filter((id) => shortestIds.has(id));
+    for (const candidateId of candidateIds) {
+      const path = findHintPath(
+        graph.adjacency,
+        startId,
+        endId,
+        shortestEdgeKeys,
+        [requiredStudentId, candidateId],
+        challenge.distance
+      );
+      if (path.length) return path;
+    }
+    const path = findHintPath(
+      graph.adjacency,
+      startId,
+      endId,
+      shortestEdgeKeys,
+      [requiredStudentId],
+      challenge.distance
+    );
+    return path.length ? path : shortestPath;
+  }, [challenge, shortestPath, foundIds, shortestIds, graph.adjacency, startId, endId, shortestEdgeKeys, requiredStudentId]);
+  const hintPath = hintPathIds.length ? hintPathIds : suggestedHintPath;
+  const nextHintStudent = hintPath
+    .slice(1, -1)
+    .map((id) => graph.byId.get(id))
+    .find((student) => student && !visibleIds.has(student.id));
+  const previousHintStudent = hintPath
+    .slice(1, -1)
+    .reverse()
+    .map((id) => graph.byId.get(id))
+    .find((student) => student && !visibleIds.has(student.id));
   const possibleIds = useMemo(() => {
     const ids = new Set([startId, endId, requiredStudentId].filter(Boolean));
     const avoidId = challenge?.constraint?.type === 'avoid'
@@ -2523,6 +2594,7 @@ export default function GamePage({ students, links }) {
     setFoundIds([]);
     setHintsUsed(0);
     setHintedStudentIds([]);
+    setHintPathIds([]);
     setAttemptCount(1);
     setQuery('');
     setFeedback('');
@@ -2541,6 +2613,7 @@ export default function GamePage({ students, links }) {
     setFoundIds([]);
     setHintsUsed(0);
     setHintedStudentIds([]);
+    setHintPathIds([]);
     setAttemptCount(1);
     setQuery('');
     setFeedback('');
@@ -2623,6 +2696,7 @@ export default function GamePage({ students, links }) {
     setFoundIds([]);
     setHintsUsed(0);
     setHintedStudentIds([]);
+    setHintPathIds([]);
     setAttemptCount(1);
     setQuery('');
     setFeedback('');
@@ -2946,7 +3020,7 @@ export default function GamePage({ students, links }) {
                 </div>
                 <div className="game-graph__legend">
                   <span className="game-graph__legend-item"><i aria-hidden="true" /> Lien de famille</span>
-                  <span className="game-graph__legend-item"><i className="game-graph__legend-shortest" /> Chemin le plus court</span>
+                  <span className="game-graph__legend-item"><i className="game-graph__legend-shortest" /> Chemins les plus courts</span>
                   <span className="game-graph__legend-item"><i className="game-graph__legend-off-path" /> Hors chemin</span>
                 </div>
               </header>
@@ -3071,6 +3145,7 @@ export default function GamePage({ students, links }) {
                         'Chemin complet en initiales',
                       ][hintIndex - 1]}
                       onClick={() => {
+                        if (hintIndex < 3 && hintPath.length) setHintPathIds(hintPath);
                         if (hintIndex === 1 && nextHintStudent) {
                           setHintedStudentIds([nextHintStudent.id]);
                         }
@@ -3167,7 +3242,7 @@ export default function GamePage({ students, links }) {
                       <div><h3 id="game-help-example-title">Exemple de parcours</h3></div>
                       <div className="game-graph__legend" aria-label="Légende de l'exemple">
                         <span className="game-graph__legend-item"><i aria-hidden="true" /> Lien de famille</span>
-                        <span className="game-graph__legend-item"><i className="game-graph__legend-shortest" aria-hidden="true" /> Chemin le plus court</span>
+                        <span className="game-graph__legend-item"><i className="game-graph__legend-shortest" aria-hidden="true" /> Chemins les plus courts</span>
                         <span className="game-graph__legend-item"><i className="game-graph__legend-off-path" aria-hidden="true" /> Hors chemin</span>
                       </div>
                     </header>
