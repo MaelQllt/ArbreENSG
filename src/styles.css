@@ -245,13 +245,30 @@ html.is-ios-standalone .app--card-open .controls__actions:not(:has(.admin-scrim)
   top: calc(env(safe-area-inset-top, 0px) + 35px);
 }
 
-/* PWA iOS : le halo flou du titre remonte jusqu'aux bords haut et gauche */
+/* PWA iOS : le halo flou remonte jusqu'aux bords haut et gauche,
+   limité à la largeur du bloc titre/stats. */
+html.is-ios-standalone .masthead__identity {
+  isolation: isolate;
+}
+
 html.is-ios-standalone .masthead__title::before {
-  position: fixed;
-  inset: 0 0 auto 0;
-  height: calc(env(safe-area-inset-top, 0px) + 35px + 72px);
-  mask-image: linear-gradient(to bottom, #000 0 72%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, #000 0 72%, transparent 100%);
+  content: none;
+}
+
+html.is-ios-standalone .masthead__identity::before {
+  position: absolute;
+  z-index: -1;
+  top: calc(-1 * (env(safe-area-inset-top, 0px) + 35px));
+  left: calc(-1 * max(12px, env(safe-area-inset-left, 0px)));
+  right: -12px;
+  bottom: -6px;
+  background: rgb(43 49 127 / 10%);
+  content: '';
+  pointer-events: none;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  mask-image: linear-gradient(to bottom, #000 0 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0 85%, transparent 100%);
 }
 
 .masthead__title {
