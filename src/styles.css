@@ -239,7 +239,7 @@ video {
 
 /* PWA iOS : décaler le contenu du haut pour qu'il ne passe pas sous la barre d'état floue */
 html.is-ios-standalone .masthead {
-  top: calc(env(safe-area-inset-top, 0px) + 24px);
+  top: calc(env(safe-area-inset-top, 0px) + 40px);
 }
 
 .masthead__title {
