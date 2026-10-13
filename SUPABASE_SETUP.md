@@ -208,7 +208,10 @@ visiteur limite donc à une **notification** par heure, et un plafond global de 
 notifications par jour s'applique à tous les visiteurs confondus.
 
 Le navigateur garde la révélation pour la session : les réouvertures sont donc
-instantanées, sans attente. Il prévient tout de même le serveur en tâche de fond,
+instantanées, sans attente. Cette mémoire est indexée sur le nom de l'étudiant
+et non sur son identifiant, car l'identifiant change dès que l'administration
+modifie la base ; un nom différent ne peut donc pas hériter de la révélation
+d'un autre. Il prévient tout de même le serveur en tâche de fond,
 car c'est lui qui tient le compteur des découvertes et décide seul s'il doit
 envoyer un e-mail. Une même personne qui rouvre au bout de quelques minutes est
 donc comptée une seule fois ; si elle revient plus tard, le compteur repart et

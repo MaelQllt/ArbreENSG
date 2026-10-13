@@ -312,7 +312,8 @@ export async function notifyFamilyLinkRequestByEmail(requestId, child, parent, r
 // L'ensemble est supprimé du build de production.
 const easterEggNameKey = (value) => String(value ?? '')
   .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  .toLowerCase().replace(/[^a-z0-9]+/g, ' ')
+  .split(' ').filter(Boolean).sort().join(' ');
 
 // Le panneau s'ouvre autant de fois que nécessaire : le garde-fou anti-spam ne
 // concerne que le mail, et le serveur répond donc `found: true` à chaque tentative
@@ -355,9 +356,12 @@ export async function revealEasterEgg(studentId, studentName, clickCount) {
   if (!isSupabaseConfigured()) throw new Error('L’easter egg n’est pas configuré.');
 
   const cached = readCachedEasterEgg();
-  if (cached) {
+  // Le cache est indexé sur le NOM et non sur l'identifiant : celui-ci change dès
+  // que l'administration modifie la base, le nom non. Sans cette comparaison, la
+  // révélation mémorisée s'ouvrait pour n'importe quel étudiant.
+  if (cached && easterEggNameKey(cached.studentName) === easterEggNameKey(studentName)) {
     notifyEasterEggFound(studentId, clickCount);
-    return cached;
+    return { found: true, photoUrl: cached.photoUrl, text: cached.text, signature: cached.signature };
   }
 
   try {
@@ -368,6 +372,7 @@ export async function revealEasterEgg(studentId, studentName, clickCount) {
     if (!result?.found) return { found: false };
     const revealed = {
       found: true,
+      studentName: easterEggNameKey(studentName),
       photoUrl: result.photoUrl,
       text: result.text,
       signature: result.signature,
