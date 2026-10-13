@@ -202,9 +202,12 @@ Rien ne se passe si le geste n'est pas complet — ni son, ni animation, ni indi
 Le SMTP est celui configuré pour les autres notifications
 (`ACCOUNT_ADMIN_SMTP_*`).
 
-Le garde-fou anti-spam est double : une empreinte salée de l'adresse IP du
-visiteur limite à une notification par heure, et un plafond global de 20 par jour
-s'applique à tous les visiteurs confondus. La fenêtre d'une heure, plutôt que
+Le garde-fou anti-spam ne concerne que le mail, jamais l'affichage : le panneau
+s'ouvre à chaque tentative réussie. Une empreinte salée de l'adresse IP du
+visiteur limite donc à une **notification** par heure, et un plafond global de 20
+notifications par jour s'applique à tous les visiteurs confondus. Le navigateur
+qui a déjà reçu la révélation la conserve pour la session, si bien que les
+ouvertures suivantes sont instantanées et sans appel réseau. La fenêtre d'une heure, plutôt que
 six, est délibérée : sur le Wi-Fi du campus de nombreux étudiants partagent la
 même adresse IP, et un verrou long n'en laisserait qu'un seul/aboutir. Si l'envoi
 SMTP échoue, la ligne du visiteur est effacée pour qu'un incident ne le bloque

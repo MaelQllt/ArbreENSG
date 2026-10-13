@@ -314,6 +314,20 @@ const easterEggNameKey = (value) => String(value ?? '')
   .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
+// Une fois le panneau ouvert, le serveur le renvoie autant de fois que nécessaire :
+// le garde-fou anti-spam ne concerne que le mail. On garde donc la révélation en
+// session pour que les réouvertures suivantes n'aient aucun aller-retour.
+const EASTER_EGG_CACHE_KEY = 'geodata-easter-egg';
+
+function readCachedEasterEgg() {
+  try {
+    const raw = window.sessionStorage.getItem(EASTER_EGG_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function revealEasterEgg(studentId, studentName, clickCount) {
   if (import.meta.env.DEV) {
     if (!easterEggNameKey(import.meta.env.VITE_EASTER_EGG_NAME)
@@ -328,11 +342,28 @@ export async function revealEasterEgg(studentId, studentName, clickCount) {
     };
   }
   if (!isSupabaseConfigured()) throw new Error('L’easter egg n’est pas configuré.');
+
+  const cached = readCachedEasterEgg();
+  if (cached) return cached;
+
   try {
-    return await request('/functions/v1/notify-easter-egg', {
+    const result = await request('/functions/v1/notify-easter-egg', {
       method: 'POST',
       body: { studentId, clickCount },
     });
+    if (!result?.found) return { found: false };
+    const revealed = {
+      found: true,
+      photoUrl: result.photoUrl,
+      text: result.text,
+      signature: result.signature,
+    };
+    try {
+      window.sessionStorage.setItem(EASTER_EGG_CACHE_KEY, JSON.stringify(revealed));
+    } catch {
+      // sessionStorage indisponible (navigation privée) : on retentera.
+    }
+    return revealed;
   } catch {
     return { found: false };
   }

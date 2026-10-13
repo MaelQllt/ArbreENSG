@@ -29,10 +29,26 @@ const RETENTION_DAYS = 180;
 // Le panneau doit s'ouvrir sans délai. La connexion SMTP seule coûte plusieurs
 // centaines de millisecondes : on n'attend donc que la vérification et la journal,
 // puis on répond au visiteur et on envoie le mail en tâche de fond.
-const GRAPH_CACHE_MS = 60 * 1000;
+const GRAPH_CACHE_MS = 5 * 60 * 1000;
 
-let cachedGraph: { nodes: Record<string, unknown>[] } | null = null;
-let cachedGraphAt = 0;
+// Une seule chose est résolue et conservée en mémoire : l'identifiant de
+// l'étudiant visé. Ensuite, tester si un identifiant est le bon ne coûte plus
+// qu'une comparaison de chaînes — plus aucun téléchargement ni analyse de CSV
+// sur le chemin chaud.
+let cachedTargetId: string | null = null;
+let cachedTargetAt = 0;
+
+async function resolveTargetId(admin: ReturnType<typeof createClient>, expectedNameKey: string) {
+  if (cachedTargetId && Date.now() - cachedTargetAt <= GRAPH_CACHE_MS) return cachedTargetId;
+  const { data, error } = await admin
+    .from('family_data').select('csv').eq('id', true).single();
+  if (error) throw error;
+  const target = parseCanonicalCsv(String(data.csv)).nodes
+    .find((node) => nameKey(String(node.name)) === expectedNameKey);
+  cachedTargetId = target ? String(target.id) : null;
+  cachedTargetAt = Date.now();
+  return cachedTargetId;
+}
 
 const jsonResponse = (body: Record<string, unknown>, status = 200) => new Response(
   JSON.stringify(body),
@@ -102,59 +118,51 @@ Deno.serve(async (request) => {
 
     admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
 
-    ipHash = await fingerprintIp(request, salt);
-    // Les deux garde-fous sont des lectures indépendantes : les faire en parallèle
-    // évite d'ajouter un aller-retour au chemin critique.
-    const [perIpQuery, globalQuery] = await Promise.all([
-      ipHash
-        ? admin.from('easter_egg_findings').select('id', { count: 'exact', head: true })
-          .eq('ip_hash', ipHash)
-          .gte('created_at', new Date(Date.now() - PER_IP_WINDOW_MS).toISOString())
-        : Promise.resolve({ count: 0, error: null }),
-      admin.from('easter_egg_findings').select('id', { count: 'exact', head: true })
-        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
-    ]);
-    if (perIpQuery.error) throw perIpQuery.error;
-    if (globalQuery.error) throw globalQuery.error;
-    if ((perIpQuery.count ?? 0) >= PER_IP_MAX) return notFound();
-    if ((globalQuery.count ?? 0) >= GLOBAL_DAILY_MAX) return notFound();
+    // Chemin critique : une comparaison d'identifiants, Rien d'autre.
+    const targetId = await resolveTargetId(admin, expectedNameKey);
+    if (!targetId || targetId !== studentId) return notFound();
 
-    // Le CSV est téléchargé et analysé à chaque appel ; l'instance edge le garde
-    // en mémoire une minute, ce qui suffit pour absorber plusieurs discoveries
-    // rapprochées.
-    if (!cachedGraph || Date.now() - cachedGraphAt > GRAPH_CACHE_MS) {
-      const { data: familyData, error: familyError } = await admin
-        .from('family_data').select('csv').eq('id', true).single();
-      if (familyError) throw familyError;
-      cachedGraph = parseCanonicalCsv(String(familyData.csv));
-      cachedGraphAt = Date.now();
-    }
-    const student = cachedGraph.nodes.find((node) => node.id === studentId);
-    if (!student || nameKey(String(student.name)) !== expectedNameKey) return notFound();
-
-    // Journal d'abord : une découverte qui rate l'envoi reste comptée, et le
-    // garde-fou anti-spam s'applique même quand le SMTP est en panne.
-    const { data: finding, error: insertError } = await admin
-      .from('easter_egg_findings')
-      .insert({ ip_hash: ipHash ?? 'inconnue' })
-      .select('id')
-      .single();
-    if (insertError) throw insertError;
-    findingId = finding.id;
-
-    // Ménage opportuniste : aucun cron n'est requis pour purger les empreintes.
-    admin.from('easter_egg_findings')
-      .delete()
-      .lt('created_at', new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString())
-      .then(({ error: purgeError }) => {
-        if (purgeError) console.error('[notify-easter-egg] purge failed', purgeError.message);
-      });
-
+    // Le panneau part ici, sans condition de quota : ce qui a été trouvé est rendu
+    // à chaque fois. Le garde-fou anti-spam ne concerne que le mail, et passe donc
+    // en tâche de fond avec lui.
     const response = jsonResponse({ found: true, photoUrl, text: message, signature });
 
     const notify = async () => {
-      // Le décompte ne sert qu'au texte du mail : il est donc fait ici, après la
-      // réponse au visiteur, et non sur le chemin critique.
+      ipHash = await fingerprintIp(request, salt);
+      const [perIpQuery, globalQuery] = await Promise.all([
+        ipHash
+          ? admin.from('easter_egg_findings').select('id', { count: 'exact', head: true })
+            .eq('ip_hash', ipHash)
+            .gte('created_at', new Date(Date.now() - PER_IP_WINDOW_MS).toISOString())
+          : Promise.resolve({ count: 0, error: null }),
+        admin.from('easter_egg_findings').select('id', { count: 'exact', head: true })
+          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
+      ]);
+      if (perIpQuery.error) throw perIpQuery.error;
+      if (globalQuery.error) throw globalQuery.error;
+
+      // Déjà notifié, ou plafond global atteint : le panneau est ouvert, on
+      // n'écrit rien et on n'envoie rien.
+      if ((perIpQuery.count ?? 0) >= PER_IP_MAX) return;
+      if ((globalQuery.count ?? 0) >= GLOBAL_DAILY_MAX) return;
+
+      const { data: finding, error: insertError } = await admin
+        .from('easter_egg_findings')
+        .insert({ ip_hash: ipHash ?? 'inconnue' })
+        .select('id')
+        .single();
+      if (insertError) throw insertError;
+      findingId = finding.id;
+
+      // Ménage opportuniste : aucun cron n'est requis pour purger les empreintes.
+      admin.from('easter_egg_findings')
+        .delete()
+        .lt('created_at', new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString())
+        .then(({ error: purgeError }) => {
+          if (purgeError) console.error('[notify-easter-egg] purge failed', purgeError.message);
+        });
+
+      // Le décompte ne sert qu'au texte du mail.
       const { count: discoveries } = await admin
         .from('easter_egg_findings')
         .select('id', { count: 'exact', head: true });
