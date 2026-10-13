@@ -668,6 +668,53 @@ html.is-ios-standalone .masthead__identity::before {
   display: none;
 }
 
+/* ========== Easter egg ========== */
+.easter-egg {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(380px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: var(--paper);
+  color: var(--violet);
+}
+
+/* La règle globale dessine un contour jaune au focus ; il n'y a ici aucun
+   contrôle à atteindre, donc rien à souligner. */
+.easter-egg:focus,
+.easter-egg:focus-visible {
+  outline: none;
+}
+
+.easter-egg__photo {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.easter-egg__body {
+  padding: 1.1rem 1.25rem 1.15rem;
+}
+
+.easter-egg__text {
+  margin: 0;
+  font-family: var(--font-text);
+  font-weight: 400;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.easter-egg__signature {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--blue);
+  text-align: right;
+}
+
 .card__scroll-hint {
   display: none;
 }
@@ -2367,6 +2414,11 @@ html.is-ios-standalone .masthead__identity::before {
   .contact-info__modal p {
     font-size: clamp(0.95rem, 3.6vw, 1.1rem);
     line-height: 1.4;
+  }
+
+  .easter-egg {
+    width: min(380px, calc(100vw - 32px));
+    max-height: calc(100dvh - 32px);
   }
 
   .dock--legend-open > .legend-disclosure,

@@ -158,3 +158,58 @@ Les secrets Edge Functions sont partagés par les fonctions du projet et sont
 pris en compte immédiatement après leur enregistrement. Une mise à jour de
 secret ne nécessite donc pas de redéploiement ; une modification du code de la
 fonction, elle, nécessite le déploiement indiqué ci-dessus.
+
+## Easter egg
+
+Le graphe contient un easter egg caché. Le geste : ouvrir la fiche d'un étudiant
+dans le graphe, puis cliquer trois fois sur son nœud en moins de 2,5 secondes.
+Rien ne se passe si le geste n'est pas complet — ni son, ni animation, ni indice.
+
+1. Dépose la photo dans `public/` sous un nom non devinable (par exemple
+   `7c1f4a92e6b3.jpg`).
+
+   Pour tester le geste en développement sans déployer, ajoute dans `.env.local`,
+   qui est ignoré par Git :
+
+       VITE_EASTER_EGG_NAME=<Prénom NOM de l'étudiant visé>
+
+   `npm run dev` ouvre alors le panneau sur ce seul étudiant, et sur personne
+   d'autre. Cette branche de code disparaît entièrement du build de production,
+   comme le nom lui-même : ni le nom, ni la photo, ni le message ne figurent dans
+   le JavaScript déployé.
+2. Dans **SQL Editor**, exécute `supabase/easter_egg_findings.sql`. Le script est
+   idempotent. Aucune policy RLS n'est créée : la table n'est accessible qu'à la
+   clé serveur, donc aucun RPC n'est nécessaire.
+3. Dans **Edge Functions > Secrets**, configure :
+
+- `EASTER_EGG_NAME_KEY` : la clé de rapprochement de l'étudiant visé, calculée
+  comme `src/lib/csv.js` la calcule — minuscules, sans accents ni ponctuation,
+  mots séparés par une espace et **triés par ordre alphabétique**. Pour citer un
+  exemple qui n'a rien à voir : « Jean Dupont » donne `dupont jean`. Le dépôt Git
+  est public : n'écris jamais le nom réel dans ce fichier, uniquement dans le
+  secret.
+- `EASTER_EGG_TO_EMAIL` : l'adresse qui reçoit la notification.
+- `EASTER_EGG_PHOTO_URL` : l'URL publique complète de la photo, servie depuis
+  `public/`.
+- `EASTER_EGG_TEXT` : le message affiché sous la photo.
+- `EASTER_EGG_SIGNATURE` : la signature affichée sous le message.
+- `EASTER_EGG_IP_SALT` : une chaîne aléatoire, par exemple
+  `openssl rand -hex 32`.
+
+4. Déploie la fonction :
+   `npx supabase functions deploy notify-easter-egg --project-ref <ref>`.
+
+Le SMTP est celui configuré pour les autres notifications
+(`ACCOUNT_ADMIN_SMTP_*`).
+
+Le garde-fou anti-spam est double : une empreinte salée de l'adresse IP du
+visiteur limite à une notification toutes les six heures, et un plafond global de
+20 par jour s'applique à tous les visiteurs confondus. L'adresse IP n'est jamais
+stockée en clair ni mentionnée dans un e-mail ; seule son empreinte est conservée,
+et les lignes de plus de six mois sont purgées au passage. La notification ne
+contient aucune donnée personnelle : uniquement la date et le numéro de la
+découverte.
+
+Pour que la boucle reste discrète, la fonction répond `{ found: false }` de façon
+indiscernable pour un mauvais décompte, un mauvais étudiant et un visiteur déjà
+servi.

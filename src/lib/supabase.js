@@ -304,6 +304,40 @@ export async function notifyFamilyLinkRequestByEmail(requestId, child, parent, r
   });
 }
 
+// Easter egg : le client n'envoie qu'un identifiant d'étudiant et un décompte de
+// clics. Il ignore totalement qui est visé — c'est la fonction edge qui compare le
+// nom à un secret. En développement, la révélation est court-circuitée pour le seul
+// étudiant visé, afin de pouvoir tester le geste sans déployer ; la cible vient de
+// VITE_EASTER_EGG_NAME, définie dans .env.local et donc absente du dépôt.
+// L'ensemble est supprimé du build de production.
+const easterEggNameKey = (value) => String(value ?? '')
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+export async function revealEasterEgg(studentId, studentName, clickCount) {
+  if (import.meta.env.DEV) {
+    if (!easterEggNameKey(import.meta.env.VITE_EASTER_EGG_NAME)
+      || easterEggNameKey(studentName) !== easterEggNameKey(import.meta.env.VITE_EASTER_EGG_NAME)) {
+      return { found: false };
+    }
+    return {
+      found: true,
+      photoUrl: '/7c1f4a92e6b3.jpg',
+      text: 'Merci à la meilleure famille de l’ENSG, je vous aime.',
+      signature: 'Maël',
+    };
+  }
+  if (!isSupabaseConfigured()) throw new Error('L’easter egg n’est pas configuré.');
+  try {
+    return await request('/functions/v1/notify-easter-egg', {
+      method: 'POST',
+      body: { studentId, clickCount },
+    });
+  } catch {
+    return { found: false };
+  }
+}
+
 export async function fetchFamilyLinkRequests(session) {
   if (!isSupabaseConfigured()) throw new Error('La sauvegarde Supabase n’est pas configurée.');
   const activeSession = await ensureFreshSession(session);

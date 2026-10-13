@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import GraphView from './components/GraphView';
 import Legend from './components/Legend';
 import StudentCard from './components/StudentCard';
@@ -9,6 +9,8 @@ import FamilyLinkRequestForm from './components/FamilyLinkRequestForm';
 import GamePage from './GamePage';
 import { loadData } from './lib/loadData';
 import { getLineage, prepareGraph } from './lib/lineage';
+import EasterEgg from './components/EasterEgg';
+import { revealEasterEgg } from './lib/supabase';
 
 export default function App() {
   const isAdminPage = window.location.pathname.replace(/\/+$/, '').endsWith('/admin');
@@ -24,6 +26,9 @@ export default function App() {
   const [showContactInfo, setShowContactInfo] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [resetTick, setResetTick] = useState(0);
+  const [easterEgg, setEasterEgg] = useState(null);
+  const easterEggModalRef = useRef(null);
+  const easterEggSequence = useRef(0);
   const quickAddSequence = useRef(0);
   const deleteStudentSequence = useRef(0);
   const contactInfoRef = useRef(null);
@@ -138,6 +143,32 @@ export default function App() {
       window.removeEventListener('keydown', handleModalKeyDown);
     };
   }, [showContactInfo]);
+
+  // Easter egg : le serveur répond `found: false` aussi bien pour un mauvais
+  // étudiant que pour un visiteur déjà servi. Seule une vraie découverte change
+  // l'écran, donc une réponse négative est ignorée.
+  const handleEasterEggAttempt = useCallback(async (studentId, studentName, clickCount) => {
+    const attempt = ++easterEggSequence.current;
+    const result = await revealEasterEgg(studentId, studentName, clickCount);
+    if (easterEggSequence.current !== attempt || !result?.found) return;
+    setEasterEgg({ photoUrl: result.photoUrl, text: result.text, signature: result.signature });
+  }, []);
+
+  useEffect(() => {
+    if (!easterEgg) return undefined;
+
+    easterEggModalRef.current?.focus();
+    // Aucun contrôle à atteindre dans ce panneau : seul Échap est à traiter.
+    const handleEasterEggKeyDown = (event) => {
+      if (event.key === 'Escape' || event.key === 'Tab') event.preventDefault();
+      if (event.key === 'Escape') setEasterEgg(null);
+    };
+
+    window.addEventListener('keydown', handleEasterEggKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleEasterEggKeyDown);
+    };
+  }, [easterEgg]);
 
   useEffect(() => {
     let cancelled = false;
@@ -343,6 +374,7 @@ export default function App() {
           setQuickAddRequest({ id: quickAddSequence.current, anchorId, relatedId });
         }}
         resetTick={resetTick}
+        onEasterEggAttempt={handleEasterEggAttempt}
       />
 
       <header className="masthead">
@@ -469,6 +501,16 @@ export default function App() {
             <FamilyLinkRequestForm students={loaded.data.nodes} links={loaded.data.links} />
           </section>
         </div>
+      )}
+
+      {easterEgg && (
+        <EasterEgg
+          photoUrl={easterEgg.photoUrl}
+          text={easterEgg.text}
+          signature={easterEgg.signature}
+          onClose={() => setEasterEgg(null)}
+          modalRef={easterEggModalRef}
+        />
       )}
 
       <StudentCard

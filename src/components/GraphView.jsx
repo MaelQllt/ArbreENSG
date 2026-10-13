@@ -34,6 +34,11 @@ const LABEL_MIN_ZOOM = 0.8; // en dessous, seulement le noeud survolé / sélect
 const LABEL_MAX = 90;      // plafond d'étiquettes affichées en même temps
 const LABEL_ALL_ZOOM = 1.6; // à ce niveau, on tente d'afficher tous les noms
 
+// Easter egg : nombre de clics et fenêtre entre deux clics pour considérer que
+// l'utilisateur a « insisted ». Volontairement générique, voir onNodeClick.
+const EASTER_EGG_CLICKS = 3;
+const EASTER_EGG_WINDOW_MS = 2500;
+
 function useElementSize(ref) {
   const [size, setSize] = useState({ width: 0, height: 0 });
   useEffect(() => {
@@ -70,7 +75,7 @@ function getNodeRadius(node, lineage, nodeRadius, isMobile) {
   return isMobile && lineage?.nodeIds.has(node.id) ? MOBILE_LINEAGE_NODE_R : nodeRadius;
 }
 
-export default function GraphView({ graphData, selectedId, lineage, onSelect, isAdmin, onQuickAdd, resetTick }) {
+export default function GraphView({ graphData, selectedId, lineage, onSelect, isAdmin, onQuickAdd, resetTick, onEasterEggAttempt }) {
   const containerRef = useRef(null);
   const fgRef = useRef(null);
   const hasFitted = useRef(false);
@@ -82,6 +87,7 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
   const labelWidths = useRef(new Map());
   const initialLargeZoomApplied = useRef(false);
   const initialLargeZoomPending = useRef(false);
+  const sameNodeClicks = useRef({ id: null, count: 0, at: 0 });
   const size = useElementSize(containerRef);
   const ready = size.width > 0 && size.height > 0;
   const [reducedMotion, setReducedMotion] = useState(() => (
@@ -353,6 +359,21 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
             if (isAdmin && event?.shiftKey && selectedId && node.id !== selectedId) {
               onQuickAdd(selectedId, node.id);
               return;
+            }
+            // Trois clics rapprochés sur un nœud *déjà sélectionné* déclenchent une
+            // demande au serveur ; le clic qui ouvre la fiche ne compte pas. La
+            // règle est volontairement générique : ce composant ne sait pas quel
+            // étudiant est visé, seul la fonction edge le sait, via un secret.
+            if (selectedId === node.id) {
+              const now = performance.now();
+              const clicks = sameNodeClicks.current;
+              clicks.count = clicks.id === node.id && now - clicks.at < EASTER_EGG_WINDOW_MS ? clicks.count + 1 : 1;
+              clicks.id = node.id;
+              clicks.at = now;
+              if (clicks.count >= EASTER_EGG_CLICKS) {
+                clicks.count = 0;
+                onEasterEggAttempt?.(node.id, node.name, EASTER_EGG_CLICKS);
+              }
             }
             onSelect(node.id);
           }}
