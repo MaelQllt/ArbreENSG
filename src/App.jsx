@@ -152,12 +152,11 @@ export default function App() {
   // Easter egg : le serveur répond `found: false` aussi bien pour un mauvais
   // étudiant que pour un visiteur déjà servi. Seule une vraie découverte change
   // l'écran, donc une réponse négative est ignorée.
-  //
   // La réponse arrive après plusieurs centaines de millisecondes : pendant ce
   // temps, un utilisateur qui reclique déclenche une seconde requête. Si l'on ne
-  // retenait que la dernière, la première réponse — celle qui a envoyé le mail —
-  // serait jetée et le panneau ne s'ouvrirait jamais. On garde donc la première
-  // réponse positive, et le délai évite d'empiler des requêtes.
+  // retenait que la dernière, la première réponse positive serait jetée et le
+  // panneau n'ouvrirait jamais. On garde donc la première réponse positive, et le
+  // délai évite d'empiler des requêtes.
   const handleEasterEggAttempt = useCallback(async (studentId, studentName, clickCount) => {
     if (easterEggShown.current || Date.now() - easterEggLastAttemptAt.current < EASTER_EGG_COOLDOWN_MS) return;
     easterEggLastAttemptAt.current = Date.now();
@@ -167,6 +166,13 @@ export default function App() {
     setEasterEgg({ photoUrl: result.photoUrl, text: result.text, signature: result.signature });
   }, []);
 
+  // Le verrou doit être relâché à la fermeture, sinon le panneau ne s'ouvrirait
+  // qu'une fois par rechargement de page.
+  const closeEasterEgg = useCallback(() => {
+    easterEggShown.current = false;
+    setEasterEgg(null);
+  }, []);
+
   useEffect(() => {
     if (!easterEgg) return undefined;
 
@@ -174,7 +180,7 @@ export default function App() {
     // Aucun contrôle à atteindre dans ce panneau : seul Échap est à traiter.
     const handleEasterEggKeyDown = (event) => {
       if (event.key === 'Escape' || event.key === 'Tab') event.preventDefault();
-      if (event.key === 'Escape') setEasterEgg(null);
+      if (event.key === 'Escape') closeEasterEgg();
     };
 
     window.addEventListener('keydown', handleEasterEggKeyDown);
@@ -521,7 +527,7 @@ export default function App() {
           photoUrl={easterEgg.photoUrl}
           text={easterEgg.text}
           signature={easterEgg.signature}
-          onClose={() => setEasterEgg(null)}
+          onClose={closeEasterEgg}
           modalRef={easterEggModalRef}
         />
       )}
