@@ -158,17 +158,35 @@ export default function App() {
   // panneau n'ouvrirait jamais. On garde donc la première réponse positive, et le
   // délai évite d'empiler des requêtes.
   const handleEasterEggAttempt = useCallback(async (studentId, studentName, clickCount) => {
-    if (easterEggShown.current || Date.now() - easterEggLastAttemptAt.current < EASTER_EGG_COOLDOWN_MS) return;
+    console.log('[easter-egg] tentative reçue', {
+      noeud: studentId,
+      clics: clickCount,
+      verrou: easterEggShown.current,
+      depuisDernierEssaiMs: Date.now() - easterEggLastAttemptAt.current,
+    });
+    if (easterEggShown.current || Date.now() - easterEggLastAttemptAt.current < EASTER_EGG_COOLDOWN_MS) {
+      console.log('[easter-egg] ignorée (déjà ouvert, ou moins de 4 s depuis le dernier essai)');
+      return;
+    }
     easterEggLastAttemptAt.current = Date.now();
     const result = await revealEasterEgg(studentId, studentName, clickCount);
-    if (easterEggShown.current || !result?.found) return;
+    console.log('[easter-egg] résultat', result);
+    if (easterEggShown.current || !result?.found) {
+      console.log('[easter-egg] pas de panneau', {
+        verrou: easterEggShown.current,
+        trouve: Boolean(result?.found),
+      });
+      return;
+    }
     easterEggShown.current = true;
+    console.log('[easter-egg] panneau ouvert');
     setEasterEgg({ photoUrl: result.photoUrl, text: result.text, signature: result.signature });
   }, []);
 
   // Le verrou doit être relâché à la fermeture, sinon le panneau ne s'ouvrirait
   // qu'une fois par rechargement de page.
   const closeEasterEgg = useCallback(() => {
+    console.log('[easter-egg] fermeture, verrou relâché', { avant: easterEggShown.current });
     easterEggShown.current = false;
     setEasterEgg(null);
   }, []);

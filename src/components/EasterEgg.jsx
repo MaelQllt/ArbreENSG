@@ -20,6 +20,7 @@ function renderMessage(text) {
 }
 
 export default function EasterEgg({ photoUrl, text, signature, onClose, modalRef }) {
+  console.log('[easter-egg] composant affiché', { photoUrl, signature, debutTexte: text?.slice(0, 20) });
   return (
     <div
       className="contact-info__overlay easter-egg-overlay"

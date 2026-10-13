@@ -364,16 +364,22 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
             // demande au serveur ; le clic qui ouvre la fiche ne compte pas. La
             // règle est volontairement générique : ce composant ne sait pas quel
             // étudiant est visé, seul la fonction edge le sait, via un secret.
-            if (selectedId === node.id) {
-              const now = performance.now();
-              const clicks = sameNodeClicks.current;
-              clicks.count = clicks.id === node.id && now - clicks.at < EASTER_EGG_WINDOW_MS ? clicks.count + 1 : 1;
-              clicks.id = node.id;
-              clicks.at = now;
-              if (clicks.count >= EASTER_EGG_CLICKS) {
-                clicks.count = 0;
-                onEasterEggAttempt?.(node.id, node.name, EASTER_EGG_CLICKS);
-              }
+            const now = performance.now();
+            const clicks = sameNodeClicks.current;
+            clicks.count = clicks.id === node.id && now - clicks.at < EASTER_EGG_WINDOW_MS ? clicks.count + 1 : 1;
+            clicks.id = node.id;
+            clicks.at = now;
+            console.log('[easter-egg] clic', {
+              noeud: node.id,
+              selectionEnCours: selectedId,
+              memeNoeud: selectedId === node.id,
+              compte: clicks.count,
+              besoin: EASTER_EGG_CLICKS,
+            });
+            if (selectedId === node.id && clicks.count >= EASTER_EGG_CLICKS) {
+              clicks.count = 0;
+              console.log('[easter-egg] geste complet, envoi au serveur', { noeud: node.id });
+              onEasterEggAttempt?.(node.id, node.name, EASTER_EGG_CLICKS);
             }
             onSelect(node.id);
           }}

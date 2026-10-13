@@ -344,13 +344,16 @@ export async function revealEasterEgg(studentId, studentName, clickCount) {
   if (!isSupabaseConfigured()) throw new Error('L’easter egg n’est pas configuré.');
 
   const cached = readCachedEasterEgg();
+  console.log('[easter-egg] cache de session', cached ? 'trouvé (aucun appel réseau)' : 'vide');
   if (cached) return cached;
 
   try {
+    console.log('[easter-egg] appel réseau', { studentId, clickCount });
     const result = await request('/functions/v1/notify-easter-egg', {
       method: 'POST',
       body: { studentId, clickCount },
     });
+    console.log('[easter-egg] réponse du serveur', result);
     if (!result?.found) return { found: false };
     const revealed = {
       found: true,
@@ -360,11 +363,13 @@ export async function revealEasterEgg(studentId, studentName, clickCount) {
     };
     try {
       window.sessionStorage.setItem(EASTER_EGG_CACHE_KEY, JSON.stringify(revealed));
+      console.log('[easter-egg] révélation mémorisée pour la session');
     } catch {
-      // sessionStorage indisponible (navigation privée) : on retentera.
+      console.log('[easter-egg] sessionStorage indisponible, on retentera');
     }
     return revealed;
-  } catch {
+  } catch (error) {
+    console.log('[easter-egg] erreur réseau', error?.message ?? error, error?.status);
     return { found: false };
   }
 }
