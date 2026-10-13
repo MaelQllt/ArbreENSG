@@ -205,9 +205,15 @@ Le SMTP est celui configuré pour les autres notifications
 Le garde-fou anti-spam ne concerne que le mail, jamais l'affichage : le panneau
 s'ouvre à chaque tentative réussie. Une empreinte salée de l'adresse IP du
 visiteur limite donc à une **notification** par heure, et un plafond global de 20
-notifications par jour s'applique à tous les visiteurs confondus. Le navigateur
-qui a déjà reçu la révélation la conserve pour la session, si bien que les
-ouvertures suivantes sont instantanées et sans appel réseau. La fenêtre d'une heure, plutôt que
+notifications par jour s'applique à tous les visiteurs confondus.
+
+Le navigateur garde la révélation pour la session : les réouvertures sont donc
+instantanées, sans attente. Il prévient tout de même le serveur en tâche de fond,
+car c'est lui qui tient le compteur des découvertes et décide seul s'il doit
+envoyer un e-mail. Une même personne qui rouvre au bout de quelques minutes est
+donc comptée une seule fois ; si elle revient plus tard, le compteur repart et
+l'e-mail suivant indiquera la nouvelle valeur — le décompte compte des
+découvertures, pas forcément des personnes différentes. La fenêtre d'une heure, plutôt que
 six, est délibérée : sur le Wi-Fi du campus de nombreux étudiants partagent la
 même adresse IP, et un verrou long n'en laisserait qu'un seul/aboutir. Si l'envoi
 SMTP échoue, la ligne du visiteur est effacée pour qu'un incident ne le bloque

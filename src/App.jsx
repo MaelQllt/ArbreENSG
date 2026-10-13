@@ -12,10 +12,6 @@ import { getLineage, prepareGraph } from './lib/lineage';
 import EasterEgg from './components/EasterEgg';
 import { revealEasterEgg } from './lib/supabase';
 
-// Deux clics qui suivent le geste trop vite déclencheraient une seconde requête,
-// dont la réponse — nécessairement « déjà servi » — écraserait la bonne.
-const EASTER_EGG_COOLDOWN_MS = 4000;
-
 export default function App() {
   const isAdminPage = window.location.pathname.replace(/\/+$/, '').endsWith('/admin');
   const [loaded, setLoaded] = useState(null);
@@ -33,7 +29,7 @@ export default function App() {
   const [easterEgg, setEasterEgg] = useState(null);
   const easterEggModalRef = useRef(null);
   const easterEggShown = useRef(false);
-  const easterEggLastAttemptAt = useRef(0);
+  const easterEggPending = useRef(false);
   const quickAddSequence = useRef(0);
   const deleteStudentSequence = useRef(0);
   const contactInfoRef = useRef(null);
@@ -149,44 +145,31 @@ export default function App() {
     };
   }, [showContactInfo]);
 
-  // Easter egg : le serveur répond `found: false` aussi bien pour un mauvais
-  // étudiant que pour un visiteur déjà servi. Seule une vraie découverte change
-  // l'écran, donc une réponse négative est ignorée.
-  // La réponse arrive après plusieurs centaines de millisecondes : pendant ce
-  // temps, un utilisateur qui reclique déclenche une seconde requête. Si l'on ne
-  // retenait que la dernière, la première réponse positive serait jetée et le
-  // panneau n'ouvrirait jamais. On garde donc la première réponse positive, et le
-  // délai évite d'empiler des requêtes.
+  // Easter egg : le serveur répond `found: false` pour un mauvais étudiant, et
+  // `found: true` à chaque tentative pour le bon. Seule une réponse positive change
+  // l'écran.
+  //
+  // Le verrou n sert qu'à ignorer un second résultat pendant que le panneau est
+  // déjà affiché ; il est relâché à la fermeture. Le garde `pending` évite juste
+  // qu'une seconde requête parte pendant que la première n'a pas répondu. Il ne
+  // doit surtout pas délaier la réouverture : c'était un reste de l'époque où le
+  // serveur bloquait l'affichage après un envoi.
   const handleEasterEggAttempt = useCallback(async (studentId, studentName, clickCount) => {
-    console.log('[easter-egg] tentative reçue', {
-      noeud: studentId,
-      clics: clickCount,
-      verrou: easterEggShown.current,
-      depuisDernierEssaiMs: Date.now() - easterEggLastAttemptAt.current,
-    });
-    if (easterEggShown.current || Date.now() - easterEggLastAttemptAt.current < EASTER_EGG_COOLDOWN_MS) {
-      console.log('[easter-egg] ignorée (déjà ouvert, ou moins de 4 s depuis le dernier essai)');
-      return;
+    if (easterEggShown.current || easterEggPending.current) return;
+    easterEggPending.current = true;
+    try {
+      const result = await revealEasterEgg(studentId, studentName, clickCount);
+      if (easterEggShown.current || !result?.found) return;
+      easterEggShown.current = true;
+      setEasterEgg({ photoUrl: result.photoUrl, text: result.text, signature: result.signature });
+    } finally {
+      easterEggPending.current = false;
     }
-    easterEggLastAttemptAt.current = Date.now();
-    const result = await revealEasterEgg(studentId, studentName, clickCount);
-    console.log('[easter-egg] résultat', result);
-    if (easterEggShown.current || !result?.found) {
-      console.log('[easter-egg] pas de panneau', {
-        verrou: easterEggShown.current,
-        trouve: Boolean(result?.found),
-      });
-      return;
-    }
-    easterEggShown.current = true;
-    console.log('[easter-egg] panneau ouvert');
-    setEasterEgg({ photoUrl: result.photoUrl, text: result.text, signature: result.signature });
   }, []);
 
   // Le verrou doit être relâché à la fermeture, sinon le panneau ne s'ouvrirait
   // qu'une fois par rechargement de page.
   const closeEasterEgg = useCallback(() => {
-    console.log('[easter-egg] fermeture, verrou relâché', { avant: easterEggShown.current });
     easterEggShown.current = false;
     setEasterEgg(null);
   }, []);

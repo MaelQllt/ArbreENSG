@@ -314,9 +314,10 @@ const easterEggNameKey = (value) => String(value ?? '')
   .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
-// Une fois le panneau ouvert, le serveur le renvoie autant de fois que nécessaire :
-// le garde-fou anti-spam ne concerne que le mail. On garde donc la révélation en
-// session pour que les réouvertures suivantes n'aient aucun aller-retour.
+// Le panneau s'ouvre autant de fois que nécessaire : le garde-fou anti-spam ne
+// concerne que le mail, et le serveur répond donc `found: true` à chaque tentative
+// pour la bonne cible. On garde la révélation en session pour que les
+// réouvertures soient instantanées.
 const EASTER_EGG_CACHE_KEY = 'geodata-easter-egg';
 
 function readCachedEasterEgg() {
@@ -326,6 +327,16 @@ function readCachedEasterEgg() {
   } catch {
     return null;
   }
+}
+
+// Le serveur doit tout de même savoir que l'easter egg a été trouvé à nouveau :
+// c'est lui qui tient le compteur des découvertes et décide s'il envoie un mail.
+// Cet appel n'a pas à faire attendre le panneau, donc il n'est pas attendu.
+function notifyEasterEggFound(studentId, clickCount) {
+  request('/functions/v1/notify-easter-egg', {
+    method: 'POST',
+    body: { studentId, clickCount },
+  }).catch(() => {});
 }
 
 export async function revealEasterEgg(studentId, studentName, clickCount) {
@@ -344,16 +355,16 @@ export async function revealEasterEgg(studentId, studentName, clickCount) {
   if (!isSupabaseConfigured()) throw new Error('L’easter egg n’est pas configuré.');
 
   const cached = readCachedEasterEgg();
-  console.log('[easter-egg] cache de session', cached ? 'trouvé (aucun appel réseau)' : 'vide');
-  if (cached) return cached;
+  if (cached) {
+    notifyEasterEggFound(studentId, clickCount);
+    return cached;
+  }
 
   try {
-    console.log('[easter-egg] appel réseau', { studentId, clickCount });
     const result = await request('/functions/v1/notify-easter-egg', {
       method: 'POST',
       body: { studentId, clickCount },
     });
-    console.log('[easter-egg] réponse du serveur', result);
     if (!result?.found) return { found: false };
     const revealed = {
       found: true,
@@ -363,13 +374,11 @@ export async function revealEasterEgg(studentId, studentName, clickCount) {
     };
     try {
       window.sessionStorage.setItem(EASTER_EGG_CACHE_KEY, JSON.stringify(revealed));
-      console.log('[easter-egg] révélation mémorisée pour la session');
     } catch {
-      console.log('[easter-egg] sessionStorage indisponible, on retentera');
+      // sessionStorage indisponible (navigation privée) : on retentera.
     }
     return revealed;
-  } catch (error) {
-    console.log('[easter-egg] erreur réseau', error?.message ?? error, error?.status);
+  } catch {
     return { found: false };
   }
 }

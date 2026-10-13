@@ -162,14 +162,19 @@ Deno.serve(async (request) => {
           if (purgeError) console.error('[notify-easter-egg] purge failed', purgeError.message);
         });
 
-      // Le décompte ne sert qu'au texte du mail.
+      // Le décompte ne sert qu'au texte du mail. La ligne du visiteur vient
+      // d'être insérée, le total la compte donc déjà.
       const { count: discoveries } = await admin
         .from('easter_egg_findings')
         .select('id', { count: 'exact', head: true });
       // Un compteur absent ne doit pas laisser croire à une première découverte.
       const ordinal = discoveries == null
         ? 'Nouvelle découverte.'
-        : discoveries === 1 ? 'Première découverte.' : `${discoveries}e découverte.`;
+        : discoveries === 1
+          ? 'Première découverte.'
+          : discoveries === 2
+            ? 'Seconde découverte.'
+            : `${discoveries}e découverte.`;
 
       const transport = nodemailer.createTransport({
         host, port, secure,
