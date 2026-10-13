@@ -676,6 +676,7 @@ html.is-ios-standalone .masthead__identity::before {
   width: min(380px, calc(100vw - 48px));
   max-height: calc(100vh - 48px);
   overflow-y: auto;
+  border: 1px solid var(--sand);
   background: var(--paper);
   color: var(--violet);
 }
@@ -713,6 +714,11 @@ html.is-ios-standalone .masthead__identity::before {
   font-size: 0.8rem;
   color: var(--blue);
   text-align: right;
+}
+
+/* Coupure après la virgule : uniquement sur mobile, voir le bloc @media plus bas. */
+.easter-egg__break {
+  display: none;
 }
 
 .card__scroll-hint {
@@ -2419,6 +2425,10 @@ html.is-ios-standalone .masthead__identity::before {
   .easter-egg {
     width: min(380px, calc(100vw - 32px));
     max-height: calc(100dvh - 32px);
+  }
+
+  .easter-egg__break {
+    display: block;
   }
 
   .dock--legend-open > .legend-disclosure,
