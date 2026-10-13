@@ -203,8 +203,12 @@ Le SMTP est celui configuré pour les autres notifications
 (`ACCOUNT_ADMIN_SMTP_*`).
 
 Le garde-fou anti-spam est double : une empreinte salée de l'adresse IP du
-visiteur limite à une notification toutes les six heures, et un plafond global de
-20 par jour s'applique à tous les visiteurs confondus. L'adresse IP n'est jamais
+visiteur limite à une notification par heure, et un plafond global de 20 par jour
+s'applique à tous les visiteurs confondus. La fenêtre d'une heure, plutôt que
+six, est délibérée : sur le Wi-Fi du campus de nombreux étudiants partagent la
+même adresse IP, et un verrou long n'en laisserait qu'un seul/aboutir. Si l'envoi
+SMTP échoue, la ligne du visiteur est effacée pour qu'un incident ne le bloque
+pas. L'adresse IP n'est jamais
 stockée en clair ni mentionnée dans un e-mail ; seule son empreinte est conservée,
 et les lignes de plus de six mois sont purgées au passage. La notification ne
 contient aucune donnée personnelle : uniquement la date et le numéro de la

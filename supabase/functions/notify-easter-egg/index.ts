@@ -20,7 +20,9 @@ const corsHeaders = {
 };
 
 const REQUIRED_CLICKS = 3;
-const PER_IP_WINDOW = '6 hours';
+// Une heure, pas six : sur le Wi-Fi du campus beaucoup d'étudiants partagent la
+// même adresse IP, et un verrou de six heures n'en laisserait qu'un passer.
+const PER_IP_WINDOW_MS = 60 * 60 * 1000;
 const PER_IP_MAX = 1;
 const GLOBAL_DAILY_MAX = 20;
 const RETENTION_DAYS = 180;
@@ -99,7 +101,7 @@ Deno.serve(async (request) => {
         .from('easter_egg_findings')
         .select('id', { count: 'exact', head: true })
         .eq('ip_hash', ipHash)
-        .gte('created_at', new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString());
+        .gte('created_at', new Date(Date.now() - PER_IP_WINDOW_MS).toISOString());
       if (recentError) throw recentError;
       if ((recentForIp ?? 0) >= PER_IP_MAX) return notFound();
     }
@@ -172,9 +174,10 @@ Deno.serve(async (request) => {
         }
       }
     } catch (error) {
-      // Le visiteur a gagné : on lui montre quand même son panneau. Seule la
-      // notification est perdue, et elle reste journalisée pour être comptée.
+      // Le visiteur a gagné : on lui montre quand même son panneau, et on
+      // efface sa ligne pour qu'un incident SMTP ne le verrouille pas six heures.
       console.error('[notify-easter-egg] send failed', error);
+      await admin.from('easter_egg_findings').delete().eq('id', findingId);
       return jsonResponse({ found: true, photoUrl, text: message, signature, emailed: false });
     } finally {
       transport.close();
