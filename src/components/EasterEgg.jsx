@@ -3,8 +3,10 @@
 // d'où le `alt` vide. Aucun bouton : on ferme avec Échap ou en touchant le fond.
 
 // Sur mobile la phrase est coupée après la virgule. Le retour à la ligne est un
-// <br> masqué sur grand écran, et le texte reste parfaitement lisible même s'il
-// change et ne contient plus de virgule.
+// <br> masqué sur grand écran ; l'espace qui suit la virgule reste dans le texte
+// et disparaît de lui-même en début de ligne. Le même rendu donne donc
+// « ENSG, je vous aime » sur desktop et deux lignes sur mobile. Si le message
+// change et ne contient plus de virgule, il s'affiche tel quel.
 function renderMessage(text) {
   const separator = text.indexOf(',');
   if (separator < 0) return text;
@@ -12,7 +14,7 @@ function renderMessage(text) {
     <>
       {text.slice(0, separator + 1)}
       <br className="easter-egg__break" />
-      {text.slice(separator + 1).trimStart()}
+      {text.slice(separator + 1)}
     </>
   );
 }

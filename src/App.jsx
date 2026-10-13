@@ -12,6 +12,10 @@ import { getLineage, prepareGraph } from './lib/lineage';
 import EasterEgg from './components/EasterEgg';
 import { revealEasterEgg } from './lib/supabase';
 
+// Deux clics qui suivent le geste trop vite déclencheraient une seconde requête,
+// dont la réponse — nécessairement « déjà servi » — écraserait la bonne.
+const EASTER_EGG_COOLDOWN_MS = 4000;
+
 export default function App() {
   const isAdminPage = window.location.pathname.replace(/\/+$/, '').endsWith('/admin');
   const [loaded, setLoaded] = useState(null);
@@ -28,7 +32,8 @@ export default function App() {
   const [resetTick, setResetTick] = useState(0);
   const [easterEgg, setEasterEgg] = useState(null);
   const easterEggModalRef = useRef(null);
-  const easterEggSequence = useRef(0);
+  const easterEggShown = useRef(false);
+  const easterEggLastAttemptAt = useRef(0);
   const quickAddSequence = useRef(0);
   const deleteStudentSequence = useRef(0);
   const contactInfoRef = useRef(null);
@@ -147,10 +152,18 @@ export default function App() {
   // Easter egg : le serveur répond `found: false` aussi bien pour un mauvais
   // étudiant que pour un visiteur déjà servi. Seule une vraie découverte change
   // l'écran, donc une réponse négative est ignorée.
+  //
+  // La réponse arrive après plusieurs centaines de millisecondes : pendant ce
+  // temps, un utilisateur qui reclique déclenche une seconde requête. Si l'on ne
+  // retenait que la dernière, la première réponse — celle qui a envoyé le mail —
+  // serait jetée et le panneau ne s'ouvrirait jamais. On garde donc la première
+  // réponse positive, et le délai évite d'empiler des requêtes.
   const handleEasterEggAttempt = useCallback(async (studentId, studentName, clickCount) => {
-    const attempt = ++easterEggSequence.current;
+    if (easterEggShown.current || Date.now() - easterEggLastAttemptAt.current < EASTER_EGG_COOLDOWN_MS) return;
+    easterEggLastAttemptAt.current = Date.now();
     const result = await revealEasterEgg(studentId, studentName, clickCount);
-    if (easterEggSequence.current !== attempt || !result?.found) return;
+    if (easterEggShown.current || !result?.found) return;
+    easterEggShown.current = true;
     setEasterEgg({ photoUrl: result.photoUrl, text: result.text, signature: result.signature });
   }, []);
 
