@@ -12,12 +12,6 @@
   --panel-width: 380px; /* synchrone avec PANEL_WIDTH dans GraphView.jsx */
   --legend-button-height: 2.35rem;
   --slide: cubic-bezier(0.22, 1, 0.36, 1);
-
-  /* Hauteur du panneau superadmin sur ordinateur. Fixe, quelle que soit la taille
-     de l'écran : seule une fenêtre plus basse la réduit. Sur mobile la hauteur est
-     imposée par le media query dédié (clavier, encoches) et cette variable n'est
-     pas utilisée. */
-  --admin-panel-height: 720px;
 }
 
 /* Règle stricte : aucun angle arrondi, nulle part */
@@ -1127,7 +1121,7 @@ html.is-ios-standalone .masthead__identity::before {
 
 .admin-panel {
   width: min(680px, 100%);
-  max-height: calc(100vh - 48px);
+  max-height: min(860px, calc(100vh - 48px));
   padding: 1.4rem 1.5rem 1.5rem;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -1137,7 +1131,7 @@ html.is-ios-standalone .masthead__identity::before {
 }
 
 .admin-panel:not(.admin-panel--login) {
-  height: var(--admin-panel-height);
+  height: min(720px, calc(100vh - 48px));
 }
 
 .admin-panel--login {
@@ -1272,6 +1266,30 @@ html.is-ios-standalone .masthead__identity::before {
   color: var(--paper);
   font-size: 0.9rem;
   font-weight: 700;
+}
+
+/* « Créer un étudiant » n'a pas d'étudiant concerné. On garde quand même la hauteur
+   du sélecteur pour que la rangée d'onglets ne bouge pas d'une page à l'autre, et on
+   remplit ce vide d'une courbe topographique : purement décorative, elle rappelle le
+   logo sans rien ajouter à l'interface. Le contenu reste dans le flux — c'est lui
+   qui impose la hauteur — mais il est invisible ; `visibility` le retire aussi de
+   la navigation au clavier. */
+.admin-selection--placeholder {
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-selection--placeholder > .admin-selection__title,
+.admin-selection--placeholder > .admin-student-select {
+  visibility: hidden;
+}
+
+.admin-selection__topo {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .admin-form input,
@@ -1679,15 +1697,17 @@ html.is-ios-standalone .masthead__identity::before {
   margin-top: 0.35rem;
 }
 
-/* Ordinateur uniquement : sur mobile les trois boutons font 44 px de haut et se
-   replient, les figer mangerait une part importante de la hauteur utile.
-   Le panneau devient une colonne afin que le formulaire occupe la hauteur restante.
-   Le pied est alors poussé en bas de deux façons complémentaires :
-   - `margin-top: auto` quand le contenu est plus court que le panneau, pour qu'il
-     se pose en bas même sans défilement (c'est `sticky` seul qui ne suffit pas :
-     quand le pied est déjà visible, il reste à sa place naturelle, en haut) ;
-   - `position: sticky` quand le contenu déborde, pour qu'il reste atteignable.
-   Le fond identique à celui du panneau évite que le contenu transparaisse. */
+/* Ordinateur uniquement. Le panneau a une hauteur fixe : quand le contenu est
+   plus court, il restait du bleu vide sous le pied. Le formulaire passe en colonne
+   flex pour que `margin-top: auto` sur le pied recueille tout l'espace libre d'un
+   seul bloc. En grille, cet espace se répartirait à parts égales entre toutes les
+   rangées `auto` et écarterait les champs entre eux, au lieu de pousser le pied
+   vers le bas. Le sélecteur est une colonne flex et non `display: contents` : sinon
+   l'axe principal serait horizontal, la hauteur du panneau ne contraindrait plus
+   rien, et `margin-top: auto` tallerait le pied au lieu de le descendre.
+   Pas de `min-height: 0` : un élément flex ne descend jamais sous la hauteur de son
+   contenu, donc quand le formulaire déborde le panneau défile au lieu d'écraser les
+   champs. Le pied suit le contenu, sans `sticky` ni fond. */
 @media (min-width: 768px) {
 
 .admin-panel:not(.admin-panel--login) {
@@ -1695,20 +1715,14 @@ html.is-ios-standalone .masthead__identity::before {
   flex-direction: column;
 }
 
-/* Pas de `min-height: 0` : le formulaire doit rester au moins aussi haut que son
-   contenu, sinon le pied sortirait de son bloc englobant et ne pourrait plus se
-   coller. */
 .admin-panel:not(.admin-panel--login) .admin-form {
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
 }
 
 .admin-form__footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 5;
   margin-top: auto;
-  padding: 0.6rem 0 0;
-  background: var(--blue);
 }
 }
 

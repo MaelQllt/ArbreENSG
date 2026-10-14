@@ -4,7 +4,12 @@
  *   nodes: [{ id, name, promo, code?, filiere?, bio? }],
  *   links: [{ source: <id du parrain/de la marraine>, target: <id du fillot/de la fillotte> }]
  * }
- * Un étudiant peut avoir plusieurs parrains et plusieurs fillots : graphe orienté acyclique.
+ * Un étudiant peut avoir plusieurs parrains et plusieurs fillots.
+ * Les liens forment en principe une hiérarchie, mais une boucle reste possible :
+ * elle est signalée par une confirmation à la création, jamais bloquée. Les
+ * ensembles `up` et `down` peuvent alors se recouvrir, et `isLinkInLineage` reste
+ * correct puisqu'il accepte l'un ou l'autre. Seuls les deux compteurs de la fiche
+ * se recoupent, ce qui est assumé.
  * (Le plus simple pour alimenter l'app : un CSV, voir lib/csv.js et public/students.example.csv.)
  */
 

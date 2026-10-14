@@ -55,6 +55,61 @@ function buildLines() {
   });
 }
 
+// Étendue verticale réelle d'une bande, lue dans les points générés plutôt qu'à
+// partir des bases : les courbes oscillent de plusieurs dizaines de pixels autour
+// de leur base, si bien qu'un cadrage calculé sur les bases seul les rognerait. On
+// garde en plus une marge, les courbes partant des bords gauche et droit.
+function bandBounds(lines) {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const line of lines) {
+    for (const point of line.points.split(' ')) {
+      const y = Number(point.slice(point.indexOf(',') + 1));
+      if (y < min) min = y;
+      if (y > max) max = y;
+    }
+  }
+  const margin = (max - min) * 0.15;
+  return { viewY: min - margin, viewHeight: (max - min) + margin * 2 };
+}
+
+// Bande de plusieurs lignes consécutives, cadrées serrement les unes contre les
+// autres. Toutes les lignes partagent la même courbe `ridge`, elles sont donc
+// parallèles : en prenant un petit intervalle d'indices et en réduisant la fenêtre
+// de vision, elles se rapprochent au lieu de garder l'espacement d'origine d'environ
+// 51 px. `vectorEffect="non-scaling-stroke" conserve l'épaisseur des traits :
+// l'écrasement vertical ne les épaissit pas.
+export function TopoBand({ className, lineIndex = 3, count = 5, fade = 0.5 }) {
+  const { lines, viewY, viewHeight } = useMemo(() => {
+    const selected = buildLines().slice(lineIndex, lineIndex + count);
+    return { lines: selected, ...bandBounds(selected) };
+  }, [lineIndex, count]);
+
+  return (
+    <svg
+      className={className}
+      viewBox={`0 ${viewY} ${W} ${viewHeight}`}
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {lines.map((line, i) => (
+        <polyline
+          key={lineIndex + i}
+          points={line.points}
+          fill="none"
+          stroke={line.stroke}
+          strokeWidth={line.width}
+          strokeOpacity={line.opacity * fade}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      ))}
+    </svg>
+  );
+}
+
 export function TopoDivider({ className, lineIndex = 7 }) {
   const line = useMemo(() => buildLines()[lineIndex], [lineIndex]);
   const viewHeight = 200;

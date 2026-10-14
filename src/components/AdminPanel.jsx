@@ -16,6 +16,7 @@ import {
 import { accountErrorMessage } from '../lib/playerAccounts';
 import BrandDivider from './BrandDivider';
 import FamilyLinkRequestInbox from './FamilyLinkRequestInbox';
+import { TopoBand } from './TopoBackground';
 import PasswordInput from './PasswordInput';
 import {
   createFamilyDataVersion,
@@ -39,7 +40,15 @@ const normalizeName = (value) =>
     .join(' ');
 
 const endpointId = (value) => (typeof value === 'object' ? value.id : value);
-const wouldCreateFamilyCycle = (links, parentId, childId) => {
+
+// Une boucle est autorisée mais toujours signalée : renvoyer le chemin qui la ferme
+// permet de la nommer dans la confirmation. `null` quand aucun chemin n'existe de
+// l'enfant proposé vers le parent proposé. Le pointeur `via` relie chaque nœud à
+// celui situé au-dessus de lui : en remontant de `parentId` vers `childId`, la
+// chaîne rendue va donc de l'enfant proposé au parent proposé, dans le sens de la
+// descente. Chaque flèche se lit « est le parrain de ». Le lien à créer ferme donc
+// la boucle en reliant la fin de la chaîne à son début.
+const findFamilyPath = (links, parentId, childId) => {
   const childrenByParent = new Map();
   links.forEach((link) => {
     const sourceId = endpointId(link.source);
@@ -49,16 +58,29 @@ const wouldCreateFamilyCycle = (links, parentId, childId) => {
   });
 
   const pending = [childId];
-  const visited = new Set();
+  const visited = new Set([childId]);
+  const via = new Map([[childId, null]]);
   while (pending.length) {
     const currentId = pending.pop();
-    if (currentId === parentId) return true;
-    if (visited.has(currentId)) continue;
-    visited.add(currentId);
-    pending.push(...(childrenByParent.get(currentId) ?? []));
+    if (currentId === parentId) break;
+    (childrenByParent.get(currentId) ?? []).forEach((nextId) => {
+      if (visited.has(nextId)) return;
+      visited.add(nextId);
+      via.set(nextId, currentId);
+      pending.push(nextId);
+    });
   }
-  return false;
+  if (!visited.has(parentId)) return null;
+
+  const chain = [];
+  for (let id = parentId; id != null; id = via.get(id)) chain.unshift(id);
+  return chain;
 };
+
+// Libellé unique des deux confirmations (validation d'une demande, ajout manuel).
+// `lines` décrit chaque lien qui boucle, la chaîne étant donnée entre parenthèses.
+const loopWarningText = (lines) => `${lines.length === 1 ? 'Ce lien ferme une boucle' : `${lines.length} liens ferment une boucle`} dans le graphe :\n\n`
+  + `${lines.map((line) => `• ${line}`).join('\n')}\n\nValider quand même ?`;
 const normalizeOptionText = (value) => value
   .normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '')
@@ -960,6 +982,25 @@ export default function AdminPanel({
         return setError(`Un lien existe déjà pour : ${duplicatePeople.map((person) => person.name).join(', ')}.`);
       }
 
+      // Plusieurs personnes peuvent être ajoutées d'un coup : chaque lien est testé
+      // puis ajouté à la liste de travail, sinon deux liens du même envoi ne se
+      // verraient pas mutuellement. Une seule confirmation, tous les cas listés.
+      if (relationAction === 'add') {
+        const workingLinks = [...data.links];
+        const nameOf = (id) => data.nodes.find((node) => node.id === id)?.name ?? id;
+        const loops = [];
+        for (const link of linksToAdd) {
+          const parentId = endpointId(link.source);
+          const childId = endpointId(link.target);
+          const loopPath = findFamilyPath(workingLinks, parentId, childId);
+          if (loopPath) {
+            loops.push(`${nameOf(childId)} deviendrait ascendant et descendant de ${nameOf(parentId)} (${loopPath.map(nameOf).join(' → ')}).`);
+          }
+          workingLinks.push(link);
+        }
+        if (loops.length && !window.confirm(loopWarningText(loops))) return;
+      }
+
       if (relationAction === 'remove') {
         const { source, target } = linksToAdd[0];
         removedLinkToRestore = { source, target };
@@ -1039,8 +1080,13 @@ export default function AdminPanel({
     );
     if (linkAlreadyExists) return { session: activeSession };
 
-    if (wouldCreateFamilyCycle(data.links, parent.id, child.id)) {
-      throw new Error('Ce lien créerait une boucle dans le graphe ; la proposition reste à traiter.');
+    const loopPath = findFamilyPath(data.links, parent.id, child.id);
+    if (loopPath) {
+      const names = loopPath.map((id) => data.nodes.find((node) => node.id === id)?.name ?? id);
+      const line = `${child.name} deviendrait ascendant et descendant de ${parent.name} (${names.join(' → ')}).`;
+      if (!window.confirm(loopWarningText([line]))) {
+        throw new Error('Boucle non confirmée : la proposition reste à traiter.');
+      }
     }
 
     const nextData = {
@@ -1152,7 +1198,26 @@ export default function AdminPanel({
                 />
               ) : (
               <form className="admin-form" onSubmit={handleSave}>
-                {relationAction !== 'create' && (
+                {relationAction === 'create' ? (
+                  // « Créer un étudiant » n'a pas d'étudiant concerné, mais sans
+                  // cette réserve les onglets d'action remontent d'un cran quand on
+                  // quitte cette page. Le sélecteur réel est rendu puis masqué : sa
+                  // hauteur suit donc les mêmes media queries que le vrai, sans
+                  // valeur codée en dur à maintenir. Le vide laissé est occupé par une
+                  // bande de courbes topographiques, qui rappelle le logo sans rien
+                  // ajouter.
+                  <div className="admin-selection admin-selection--placeholder" aria-hidden="true">
+                    <TopoBand className="admin-selection__topo" lineIndex={3} count={5} />
+                    <span className="admin-selection__title">Étudiant.e concerné.e</span>
+                    <StudentSelect
+                      id="anchor-student-placeholder"
+                      label="Étudiant.e concerné.e"
+                      students={students}
+                      value={anchorId}
+                      onChange={setAnchorId}
+                    />
+                  </div>
+                ) : (
                   <div className="admin-selection">
                     <span className="admin-selection__title">Étudiant.e concerné.e</span>
                     <StudentSelect
