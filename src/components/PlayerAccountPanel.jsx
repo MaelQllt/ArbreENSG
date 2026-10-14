@@ -575,7 +575,7 @@ export default function PlayerAccountPanel({
         onConnectionChange?.(true);
       } else {
         setMode('check-email');
-        setStatus('Compte créé. Consulte ta boîte e-mail pour confirmer ton adresse avant de te connecter.\n\nOuvre le lien de confirmation reçu par e-mail pour activer ton compte. Si tu ne vois pas le message, vérifie aussi les courriers indésirables ou les spams.');
+        setStatus('Compte créé. Consulte ta boîte e-mail pour confirmer ton adresse avant de te connecter.\n\nOuvre le lien de confirmation reçu par e-mail pour activer ton compte. Si tu ne vois pas le message, vérifie aussi les courriers indésirables ou les spams.\n\nLes messages envoyés à une adresse @edu.geodata-paris.fr peuvent mettre plusieurs minutes à arriver.');
       }
     });
   };
