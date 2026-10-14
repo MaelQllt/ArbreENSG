@@ -12,6 +12,12 @@
   --panel-width: 380px; /* synchrone avec PANEL_WIDTH dans GraphView.jsx */
   --legend-button-height: 2.35rem;
   --slide: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Hauteur du panneau superadmin sur ordinateur. Fixe, quelle que soit la taille
+     de l'écran : seule une fenêtre plus basse la réduit. Sur mobile la hauteur est
+     imposée par le media query dédié (clavier, encoches) et cette variable n'est
+     pas utilisée. */
+  --admin-panel-height: 720px;
 }
 
 /* Règle stricte : aucun angle arrondi, nulle part */
@@ -1121,7 +1127,7 @@ html.is-ios-standalone .masthead__identity::before {
 
 .admin-panel {
   width: min(680px, 100%);
-  max-height: min(860px, calc(100vh - 48px));
+  max-height: calc(100vh - 48px);
   padding: 1.4rem 1.5rem 1.5rem;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -1131,7 +1137,7 @@ html.is-ios-standalone .masthead__identity::before {
 }
 
 .admin-panel:not(.admin-panel--login) {
-  height: min(620px, calc(100vh - 48px));
+  height: var(--admin-panel-height);
 }
 
 .admin-panel--login {
@@ -1671,6 +1677,39 @@ html.is-ios-standalone .masthead__identity::before {
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.35rem;
+}
+
+/* Ordinateur uniquement : sur mobile les trois boutons font 44 px de haut et se
+   replient, les figer mangerait une part importante de la hauteur utile.
+   Le panneau devient une colonne afin que le formulaire occupe la hauteur restante.
+   Le pied est alors poussé en bas de deux façons complémentaires :
+   - `margin-top: auto` quand le contenu est plus court que le panneau, pour qu'il
+     se pose en bas même sans défilement (c'est `sticky` seul qui ne suffit pas :
+     quand le pied est déjà visible, il reste à sa place naturelle, en haut) ;
+   - `position: sticky` quand le contenu déborde, pour qu'il reste atteignable.
+   Le fond identique à celui du panneau évite que le contenu transparaisse. */
+@media (min-width: 768px) {
+
+.admin-panel:not(.admin-panel--login) {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Pas de `min-height: 0` : le formulaire doit rester au moins aussi haut que son
+   contenu, sinon le pied sortirait de son bloc englobant et ne pourrait plus se
+   coller. */
+.admin-panel:not(.admin-panel--login) .admin-form {
+  flex: 1 1 auto;
+}
+
+.admin-form__footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin-top: auto;
+  padding: 0.6rem 0 0;
+  background: var(--blue);
+}
 }
 
 .admin-form__footer > button {
