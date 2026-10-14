@@ -64,6 +64,14 @@ body {
   overflow: hidden;
 }
 
+/* La sélection de texte reprend le jaune d'accent, déjà utilisé pour les nœuds
+   et les cases sélectionnés du jeu : le bleu du navigateur sortait de la
+   charte. Contraste 7.3:1, au-delà d'AA. */
+::selection {
+  background: var(--yellow);
+  color: var(--blue);
+}
+
 button {
   font: inherit;
   cursor: pointer;
