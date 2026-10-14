@@ -202,29 +202,59 @@ Rien ne se passe si le geste n'est pas complet — ni son, ni animation, ni indi
 Le SMTP est celui configuré pour les autres notifications
 (`ACCOUNT_ADMIN_SMTP_*`).
 
+### Remettre le compteur à zéro
+
+Le compteur des découvertes est simplement le nombre de lignes dans
+`public.easter_egg_findings`. Pour repartir de « Première découverte », vide la
+table dans **SQL Editor** :
+
+```sql
+delete from public.easter_egg_findings;
+```
+
+C'est sans risque : ces lignes ne servent qu'au compteur et au garde-fou anti-spam.
+Une fois vidée, la prochaine découverte déclenchera de nouveau un e-mail et
+annoncer « Première découverte ».
+
+Pour tout voir d'un coup, sans rien modifier :
+
+```sql
+select count(*) as decouverties,
+       count(*) filter (where sent_at is not null) as notifiees,
+       max(created_at) as derniere
+  from public.easter_egg_findings;
+```
+
+Si tu veux repartir de zéro sans rendre la découverte aux mêmes visiteurs, vide la
+table **et** change `EASTER_EGG_IP_SALT` : les anciennes empreintes d'adresse IP
+ne correspondront plus.
+
+### Fonctionnement
+
 Le garde-fou anti-spam ne concerne que le mail, jamais l'affichage : le panneau
 s'ouvre à chaque tentative réussie. Une empreinte salée de l'adresse IP du
 visiteur limite donc à une **notification** par heure, et un plafond global de 20
-notifications par jour s'applique à tous les visiteurs confondus.
+notifications par jour s'applique à tous les visiteurs confondus. La fenêtre
+d'une heure, plutôt que six, est délibérée : sur le Wi-Fi du campus de nombreux
+étudiants partagent la même adresse IP, et un verrou long n'en laisserait
+qu'un seul aboutir.
 
 Le navigateur garde la révélation pour la session : les réouvertures sont donc
 instantanées, sans attente. Cette mémoire est indexée sur le nom de l'étudiant
 et non sur son identifiant, car l'identifiant change dès que l'administration
 modifie la base ; un nom différent ne peut donc pas hériter de la révélation
-d'un autre. Il prévient tout de même le serveur en tâche de fond,
-car c'est lui qui tient le compteur des découvertes et décide seul s'il doit
-envoyer un e-mail. Une même personne qui rouvre au bout de quelques minutes est
-donc comptée une seule fois ; si elle revient plus tard, le compteur repart et
-l'e-mail suivant indiquera la nouvelle valeur — le décompte compte des
-découvertures, pas forcément des personnes différentes. La fenêtre d'une heure, plutôt que
-six, est délibérée : sur le Wi-Fi du campus de nombreux étudiants partagent la
-même adresse IP, et un verrou long n'en laisserait qu'un seul/aboutir. Si l'envoi
-SMTP échoue, la ligne du visiteur est effacée pour qu'un incident ne le bloque
-pas. L'adresse IP n'est jamais
-stockée en clair ni mentionnée dans un e-mail ; seule son empreinte est conservée,
-et les lignes de plus de six mois sont purgées au passage. La notification ne
-contient aucune donnée personnelle : uniquement la date et le numéro de la
-découverte.
+d'un autre. Il prévient tout de même le serveur en tâche de fond, car c'est lui
+qui tient le compteur des découvertes et décide seul s'il doit envoyer un
+e-mail. Une même personne qui rouvre au bout de quelques minutes est donc comptée
+une seule fois ; si elle revient plus tard, le compteur repart et l'e-mail suivant
+indiquera la nouvelle valeur — le décompte compte des découvertes, pas forcément
+des personnes différentes.
+
+Si l'envoi SMTP échoue, la ligne du visiteur est effacée pour qu'un incident ne
+le bloque pas. L'adresse IP n'est jamais stockée en clair ni mentionnée dans un
+e-mail ; seule son empreinte est conservée, et les lignes de plus de six mois
+sont purgées au passage. La notification ne contient aucune donnée personnelle :
+uniquement la date et le numéro de la découverte.
 
 Pour que la boucle reste discrète, la fonction répond `{ found: false }` de façon
 indiscernable pour un mauvais décompte, un mauvais étudiant et un visiteur déjà

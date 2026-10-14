@@ -2273,6 +2273,15 @@ export default function GamePage({ students, links }) {
   const currentCompletionRecord = completionRecord?.key === trackableCompletion
     ? completionRecord
     : null;
+  // Un visiteur sans compte ne peut rien enregistrer : la fonction serveur refuse
+  // l'appel (secure_player_challenge_scores.sql). Annoncer « +X points » serait
+  // donc faux — aucun point n'est écrit nulle part. On l'invite à se connecter.
+  // Tant que la session n'est pas résolue, on affiche l'état d'attente plutôt que
+  // de faire clignoter un message qui changera.
+  const anonymousCompletion = mode !== 'practice'
+    && !accountConnected
+    && (accountAuthReady || !isSupabaseConfigured());
+  const awaitingSession = mode !== 'practice' && !accountConnected && !anonymousCompletion;
   useEffect(() => {
     if (!won || !trackableCompletion || recordedCompletionRef.current === trackableCompletion) return;
     recordedCompletionRef.current = trackableCompletion;
@@ -2837,16 +2846,22 @@ export default function GamePage({ students, links }) {
                 ? <>
                     <span>Bravo ! Tu as trouvé une chaîne de {Math.max(0, winningPath.length - 1)} liens.</span>
                     {mode !== 'practice' && (
-                      <strong className={'game-feedback__points' + (currentCompletionRecord?.status === 'duplicate' ? ' game-feedback__points--duplicate' : '')}>
-                        {!trackableCompletion
-                          ? `+${completionPoints} points`
-                          : currentCompletionRecord?.status === 'recorded'
-                            ? `+${completionPoints} points`
-                            : currentCompletionRecord?.status === 'duplicate'
-                              ? 'Défi déjà réalisé'
-                              : currentCompletionRecord?.status === 'failed'
-                                ? 'Points non confirmés'
-                                : 'Vérification…'}
+                      <strong className={'game-feedback__points' + (anonymousCompletion
+                        ? ' game-feedback__points--anonymous'
+                        : currentCompletionRecord?.status === 'duplicate' ? ' game-feedback__points--duplicate' : '')}>
+                        {anonymousCompletion
+                          ? 'Connecte-toi pour gagner des points.'
+                          : awaitingSession
+                            ? 'Vérification…'
+                            : !trackableCompletion
+                              ? `+${completionPoints} points`
+                              : currentCompletionRecord?.status === 'recorded'
+                                ? `+${completionPoints} points`
+                                : currentCompletionRecord?.status === 'duplicate'
+                                  ? 'Défi déjà réalisé'
+                                  : currentCompletionRecord?.status === 'failed'
+                                    ? 'Points non confirmés'
+                                    : 'Vérification…'}
                       </strong>
                     )}
                   </>

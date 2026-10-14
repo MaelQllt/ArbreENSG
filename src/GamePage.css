@@ -694,6 +694,13 @@
   text-align: right;
 }
 
+/* L'invitation à se connecter est une phrase, pas un score : elle doit pouvoir
+   passer à la ligne sur les écrans étroits, comme « Défi déjà réalisé ». */
+.game-feedback__points--anonymous {
+  white-space: normal;
+  text-align: right;
+}
+
 .game-feedback--lost {
   border-color: var(--sand);
   font-weight: 700;
