@@ -2196,12 +2196,14 @@ html.is-ios-standalone .masthead__identity::before {
   opacity: 0.7;
 }
 
+/* La liste n'est pas plafonnée : la fiche occupe toute la hauteur de la fenêtre
+   (`top: 0; bottom: 0`), donc un `max-height` la tronquait au profit d'un ascenseur
+   imbriqué et laissait un grand blanc sous les familles sur les écrans hauts.
+   C'est la fiche elle-même qui défile, d'un seul geste. */
 .card__list {
   margin: 0;
   padding: 0;
   list-style: none;
-  max-height: 270px;
-  overflow-y: auto;
 }
 
 /* Trait de promo toujours visible ; la ligne entière se colore au survol. */
