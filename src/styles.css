@@ -2227,6 +2227,18 @@ html.is-ios-standalone .masthead__identity::before {
   z-index: 1;
 }
 
+/* Le nom doit pouvoir céder de la place à la promo. Sans `min-width: 0`, un
+   élément flex refuse de descendre sous la largeur de son plus long mot, et le
+   nom le plus long de la base repousse alors la promo hors du bord droit de la
+   fiche. `overflow-wrap: anywhere` garantit la coupure même sur un mot unique.
+   Valable sur tous les écrans : ces règles n'agissent que lorsqu'il n'y a pas la
+   place, et l'alignement vertical reste centré, si bien que le repli d'un nom long
+   ne décale pas la promo par rapport aux autres lignes de la liste. */
+.card__link > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .card__link::before {
   content: '';
   position: absolute;
@@ -2286,6 +2298,11 @@ html.is-ios-standalone .masthead__identity::before {
 }
 
 .card__link-promo {
+  /* `flex: none` : la promo ne se fait jamais écraser par un nom long et reste
+     plaquée au bord droit, `margin-left` garantissant l'écart même quand c'est
+     serré. L'alignement vertical, lui, reste centré comme avant. */
+  flex: none;
+  margin-left: 0.5rem;
   opacity: 0.65;
   white-space: nowrap;
 }
