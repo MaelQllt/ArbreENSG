@@ -1094,6 +1094,15 @@
   color: #8e6f55;
 }
 
+/* Le défi se joue sur le graphe d’époque : un lien renseigné plus tard ne
+   change pas un défi déjà figé. Corps réduit pour rester discrète. */
+.game-archive__note {
+  margin: 0 0 18px;
+  color: #8e6f55;
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
 .game-promo-settings__intro {
   margin: 8px 0 14px;
   color: #8e6f55;
@@ -1327,6 +1336,10 @@
   }
 
   .game-help-panel--archive .game-archive__intro {
+    margin-bottom: 12px;
+  }
+
+  .game-help-panel--archive .game-archive__note {
     margin-bottom: 12px;
   }
 
@@ -4559,6 +4572,11 @@
 
   .game-archive__intro {
     font-size: 0.82rem;
+  }
+
+  .game-archive__note {
+    font-size: 0.7rem;
+    margin-bottom: 14px;
   }
 
   .game-archive__modes {

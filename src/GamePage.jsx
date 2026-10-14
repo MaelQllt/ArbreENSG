@@ -3173,6 +3173,10 @@ export default function GamePage({ students, links }) {
                   <p className="game-section-kicker">Archives</p>
                   <h2 id="game-panel-title">Anciens défis</h2>
                   <p className="game-archive__intro">Choisis un défi quotidien ou hebdomadaire à rejouer.</p>
+                  <p className="game-archive__note">
+                    Chaque défi se joue sur le graphe d’époque : un lien renseigné aujourd’hui
+                    n’existait pas forcément à la date de l’archive.
+                  </p>
 
                   <div className="game-archive__modes" role="group" aria-label="Type de défi archivé">
                     <button
