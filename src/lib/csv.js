@@ -64,7 +64,9 @@ export function parseStudentsCsv(rawText) {
   const col = {
     prenom: find((h) => ['prenom', 'first name', 'firstname'].includes(h)),
     nom: find((h) => ['nom', 'nom de famille', 'last name', 'lastname'].includes(h)),
-    full: find((h) => ['nom complet', 'nom prenom', 'prenom nom', 'name', 'etudiant', 'eleve'].includes(h)),
+    // « Étudiant·e » se normalise en « etudiant e » : le point médian devient une
+    // espace. Les deux graphies sont acceptées.
+    full: find((h) => ['nom complet', 'nom prenom', 'prenom nom', 'name', 'etudiant', 'etudiant e', 'eleve'].includes(h)),
     promo: find((h) => h.includes('promo') || h.includes('annee')),
     code: find((h) => h === 'code'),
     additionalAffiliations: find((h) => h.includes('appartenance') || h.includes('additional affiliation')),
