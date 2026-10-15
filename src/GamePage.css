@@ -1094,11 +1094,112 @@
   color: #8e6f55;
 }
 
-/* Le défi se joue sur le graphe d’époque : un lien renseigné plus tard ne
+/* Réservé aux lecteurs d'écran : le texte reste dans l'arbre d'accessibilité
+   mais ne prend aucune place à l'écran. Même technique que la règle locale
+   déjà employée pour le champ de recherche de l'administration. */
+.sr-only {
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Le défi se joue sur le graphe d'époque : un lien renseigné plus tard ne
    change pas un défi déjà figé. Corps réduit pour rester discrète. */
 .game-archive__note {
   margin: 0 0 18px;
   color: #8e6f55;
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+/* Repliée : mêmes propriétés que `.sr-only`, redéclarées ici pour l'emporter sur
+   la marge de la note ci-dessus, qui laissait 18px de vide une fois le texte caché. */
+.game-archive__note.is-collapsed {
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Déclencheur de la note d'archive, posé dans le titre du panneau : un simple
+   cercle cerclé, sans icône et sans cadre carré. Le `border-radius` l'emporte sur
+   la règle « aucun angle arrondi » de styles.css : le sélecteur de classe est plus
+   spécifique que `*`.
+
+   `inline-block` et non `inline-flex` : le bouton ne contient plus qu'un glyphe
+   absolument positionné, donc aucune boîte de ligne ne vient perturber la synthèse
+   de la ligne de base — c'est elle qui commandait l'alignement vertical. */
+.game-archive__info {
+  position: relative;
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* Le « i » est dessiné (pied + point) plutôt qu'écrit : sa géométrie est fixe et ne
+   dépend donc d'aucune métrique de police. Placé en absolu, il est centré sur le
+   cercle par construction, sans dépendre du flex ni d'un frère invisible.
+
+   Le cercle fait 16px, bordure de 1px comprise (box-sizing: border-box), donc
+   14px de boîte de contenu. `top/left: 50%` tombent sur 7px, la marge de -1px
+   remonte le pied à 7px ; le point occupe alors 3→5px et le pied 7→13px.
+   L'ensemble couvre 3→13px, soit un centre à 8px : exactement le milieu du cercle. */
+.game-archive__info-glyph {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 6px;
+  margin: -1px 0 0 -1px;
+  background: currentColor;
+}
+
+.game-archive__info-glyph::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 0;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Le cercle est une boîte `inline-block` de 16px sans contenu en flux : sa ligne de
+   base est donc son bord inférieur, ce qui le pose 8px au-dessus de la ligne de base
+   du titre. Or « Anciens défis » s'étend de 0 (ligne de base) à 23px (hauteur de
+   capitale, 0.72em) : son centre optique est à 11.5px. Il manque 3.5px, soit
+   3.5/32 = 0.11em sur grand écran.
+
+   La valeur est en `em` : le `h2` valant `clamp(1.5rem, 4vw, 2rem)`, le même réglage
+   vaut 0.055 × 32 = 1.8px sur desktop et 0.055 × 24 = 1.3px sur mobile, sans
+   requête média. Un cran de 0.025em représente donc 0.8px puis 0.6px. */
+.game-archive__info-tooltip {
+  margin-left: 0.6rem;
+  vertical-align: 0.0001em;
+}
+
+/* La bulle existante s'ouvre au-dessus de son bouton ; ici il faut l'ouvrir vers
+   le bas, sous le titre, sinon `overflow-y: auto` du panneau la rogne. */
+.game-archive__info-tooltip[data-tooltip]::after {
+  top: calc(100% + 8px);
+  right: auto;
+  bottom: auto;
+  left: -0.25rem;
+  max-width: min(260px, calc(100vw - 48px));
+  padding: 0.5rem 0.6rem;
   font-size: 0.74rem;
   line-height: 1.4;
 }

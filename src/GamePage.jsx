@@ -1610,6 +1610,9 @@ export default function GamePage({ students, links }) {
     return new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), 1));
   });
   const [archiveDate, setArchiveDate] = useState(null);
+  // La note « graphe d'époque » est repliée par défaut : elle se déplie au clic sur
+  // le cercle, reste lisible au survol, et demeure dans l'arbre d'accessibilité.
+  const [archiveNoteOpen, setArchiveNoteOpen] = useState(false);
   const [archiveSelection, setArchiveSelection] = useState(null);
   const [frozenChallengeArchives, setFrozenChallengeArchives] = useState({});
   const [resolvedChallengeArchives, setResolvedChallengeArchives] = useState(() => new Set());
@@ -3171,9 +3174,26 @@ export default function GamePage({ students, links }) {
               ) : activePanel === 'archive' ? (
                 <>
                   <p className="game-section-kicker">Archives</p>
-                  <h2 id="game-panel-title">Anciens défis</h2>
+                  <h2 id="game-panel-title">
+                    Anciens défis
+                    <span
+                      className="game-help-link-tooltip game-archive__info-tooltip"
+                      data-tooltip="Chaque défi se joue sur le graphe d’époque : un lien renseigné aujourd’hui n’existait pas forcément à la date de l’archive."
+                    >
+                      <button
+                        type="button"
+                        className="game-archive__info"
+                        aria-label="Pourquoi le graphe d’époque ?"
+                        aria-expanded={archiveNoteOpen}
+                        aria-controls="game-archive-note"
+                        onClick={() => setArchiveNoteOpen((value) => !value)}
+                      >
+                        <span className="game-archive__info-glyph" aria-hidden="true" />
+                      </button>
+                    </span>
+                  </h2>
                   <p className="game-archive__intro">Choisis un défi quotidien ou hebdomadaire à rejouer.</p>
-                  <p className="game-archive__note">
+                  <p id="game-archive-note" className={'game-archive__note' + (archiveNoteOpen ? '' : ' is-collapsed')}>
                     Chaque défi se joue sur le graphe d’époque : un lien renseigné aujourd’hui
                     n’existait pas forcément à la date de l’archive.
                   </p>
