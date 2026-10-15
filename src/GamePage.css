@@ -1085,7 +1085,19 @@
   overflow-wrap: anywhere;
 }
 
+/* Le titre du panneau archives est un conteneur flex : `align-items: center` centre
+   le cercle sur la ligne de texte selon une règle définie à l'identique dans Blink
+   et WebKit.
+
+   `vertical-align` sur une boîte en ligne dépendait, elle, de la synthèse de ligne
+   de base — et les deux moteurs ne la calculent pas au même endroit dès qu'aucun
+   élément ne participe à cet alignement, le nôtre n'étant qu'un glyphe en
+   position absolue. Le cercle et sa bulle se déplaçant ensemble, c'est cette
+   position de la boîte qui divergent, d'où un décalage global sur Safari. */
 .game-help-panel--archive > h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   padding-right: 42px;
 }
 
@@ -1148,6 +1160,23 @@
   cursor: pointer;
 }
 
+/* Le cercle reste 16px à l'œil, mais le doigt a besoin de plus : cette zone
+   invisible porte la cible tactile à 44×44px, la taille que le panneau utilise
+   partout ailleurs (flèches de mois à 44px, cases du calendrier à 40px). Sur un
+   écran tactile, une cible de 16px est ratée une fois sur deux : le premier appui
+   ne fait rien, le suivant ouvre, celui d'après referme — d'où l'impression que la
+   note « ne reste pas ouverte ». Le `::before` du glyphe occupe déjà le canal
+   pseudo-élément, d'où le `::after`. Le bouton est en `position: relative` et
+   aucune boîte de la chaîne ne rogne le débordement. */
+.game-archive__info::after {
+  content: '';
+  position: absolute;
+  top: -14px;
+  right: -14px;
+  bottom: -14px;
+  left: -14px;
+}
+
 /* Le « i » est dessiné (pied + point) plutôt qu'écrit : sa géométrie est fixe et ne
    dépend donc d'aucune métrique de police. Placé en absolu, il est centré sur le
    cercle par construction, sans dépendre du flex ni d'un frère invisible.
@@ -1177,18 +1206,17 @@
   background: currentColor;
 }
 
-/* Le cercle est une boîte `inline-block` de 16px sans contenu en flux : sa ligne de
-   base est donc son bord inférieur, ce qui le pose 8px au-dessus de la ligne de base
-   du titre. Or « Anciens défis » s'étend de 0 (ligne de base) à 23px (hauteur de
-   capitale, 0.72em) : son centre optique est à 11.5px. Il manque 3.5px, soit
-   3.5/32 = 0.11em sur grand écran.
+/* Élément flex du titre : sa position verticale vient de `align-items: center`, et
+   `gap` remplace l'ancienne marge gauche. Aucun `vertical-align`, qui n'aurait plus
+   d'effet sur un item flex.
 
-   La valeur est en `em` : le `h2` valant `clamp(1.5rem, 4vw, 2rem)`, le même réglage
-   vaut 0.055 × 32 = 1.8px sur desktop et 0.055 × 24 = 1.3px sur mobile, sans
-   requête média. Un cran de 0.025em représente donc 0.8px puis 0.6px. */
+   `align-items: center` centre la boîte de marge, pas la bordure : ajouter 2px de
+   marge haute pousse donc l'élément de 1px vers le bas, ce qui le rapproche du centre
+   optique des majuscules — le centrage géométrique de la boîte de ligne étant un
+   cran trop haut. Le décalage valant la moitié de la marge, `margin-top: 2px` = 1px. */
 .game-archive__info-tooltip {
-  margin-left: 0.6rem;
-  vertical-align: 0.0001em;
+  flex: none;
+  margin-top: 2px;
 }
 
 /* La bulle existante s'ouvre au-dessus de son bouton ; ici il faut l'ouvrir vers
