@@ -120,6 +120,10 @@ export default function StudentSearch({ students, onSelect, onActivate, keyboard
           ref={inputRef}
           type="search"
           value={query}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
           placeholder="Rechercher un étudiant"
           aria-label="Rechercher un étudiant"
           role="combobox"

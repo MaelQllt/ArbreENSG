@@ -48,6 +48,9 @@ function StudentPicker({ id, label, placeholder, students, value, onChange, onIn
             value={query}
             placeholder={placeholder}
             autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
             role="combobox"
             aria-autocomplete="list"
             aria-expanded={open && results.length > 0}

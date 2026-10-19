@@ -2796,6 +2796,9 @@ export default function GamePage({ students, links }) {
                     id="game-student-search"
                     type="search"
                     autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
                     value={query}
                     onFocus={() => setSearchFocused(true)}
                     onBlur={() => setSearchFocused(false)}
