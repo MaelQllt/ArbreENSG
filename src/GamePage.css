@@ -619,6 +619,12 @@
   text-align: left;
 }
 
+.game-search__match {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
 .game-search__suggestions button.is-active {
   background: var(--sand);
 }

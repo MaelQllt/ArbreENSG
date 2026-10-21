@@ -11,7 +11,11 @@ import { getPlayerChallengeCompletions, hasPendingPasswordRecovery, hasSupabaseA
 import { getAccountAuthClient, getSuperadminSession, isSupabaseConfigured } from './lib/supabase';
 import { describePromo, formatStudentAffiliations } from './lib/promo';
 import { buildDistances, buildGameGraph, compareIds, findPath, findPathThrough, getChallenge, hashString, isOnPossiblePath } from '../supabase/functions/_shared/gameChallengeCore';
-import { normalizeStudentSearch as normalizeName, searchStudentsByName } from './lib/studentSearch';
+import {
+  findStudentNamePrefixMatch,
+  normalizeStudentSearch as normalizeName,
+  searchStudentsByName,
+} from './lib/studentSearch';
 import { getGameChallengeArchive, saveGameChallengeArchive } from './lib/supabase';
 import './GamePage.css';
 
@@ -136,6 +140,18 @@ function getInitialAccountPanelState() {
   if (hasPendingPasswordRecovery()) return { panel: 'account', mode: 'recovery' };
   if (hasSupabaseAuthCallback()) return { panel: 'account', mode: 'login' };
   return { panel: null, mode: 'login' };
+}
+function renderNameMatch(name, query) {
+  const match = findStudentNamePrefixMatch(name, query);
+  if (!match) return name;
+  const [start, end] = match;
+  return (
+    <>
+      {name.slice(0, start)}
+      <span className="game-search__match">{name.slice(start, end)}</span>
+      {name.slice(end)}
+    </>
+  );
 }
 const endpointNameClass = (name) => {
   const length = String(name ?? '').length;
@@ -2329,7 +2345,7 @@ export default function GamePage({ students, links }) {
   const suggestions = useMemo(() => {
     if (!normalizeName(query)) return [];
     const candidates = eligibleStudents.filter((student) => !visibleIds.has(student.id));
-    return searchStudentsByName(candidates, query).slice(0, 8);
+    return searchStudentsByName(candidates, query, undefined, { prefixOnly: true });
   }, [eligibleStudents, query, visibleIds]);
   const selectableSuggestions = useMemo(
     () => suggestions.filter((student) => student.id !== forbiddenStudentId),
@@ -2827,7 +2843,7 @@ export default function GamePage({ students, links }) {
                               onMouseDown={(event) => event.preventDefault()}
                               onClick={() => addStudent(student)}
                             >
-                              <span>{student.name}</span>
+                              <span>{renderNameMatch(student.name, query)}</span>
                               <small>{isForbidden
                                 ? 'Interdit'
                                 : (formatStudentAffiliations(student) || 'Promo ' + student.promo)}</small>
