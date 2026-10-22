@@ -8,6 +8,7 @@ create table public.superadmins (
 
 alter table public.superadmins enable row level security;
 grant select on public.superadmins to authenticated;
+grant select, insert, update, delete on public.superadmins to service_role;
 
 create policy "Superadmin can verify own role"
   on public.superadmins
@@ -24,6 +25,7 @@ create table public.family_data (
 alter table public.family_data enable row level security;
 grant select on public.family_data to anon, authenticated;
 grant insert, update on public.family_data to authenticated;
+grant select, insert, update, delete on public.family_data to service_role;
 
 create policy "Anyone can read family data"
   on public.family_data
@@ -70,6 +72,7 @@ create table public.family_data_versions (
 
 alter table public.family_data_versions enable row level security;
 grant select on public.family_data_versions to authenticated;
+grant select, insert, update, delete on public.family_data_versions to service_role;
 
 create policy "Superadmins can read archived family data"
   on public.family_data_versions

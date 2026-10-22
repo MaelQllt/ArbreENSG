@@ -259,3 +259,17 @@ uniquement la date et le numéro de la découverte.
 Pour que la boucle reste discrète, la fonction répond `{ found: false }` de façon
 indiscernable pour un mauvais décompte, un mauvais étudiant et un visiteur déjà
 servi.
+
+## Nouvelles tables
+
+Depuis le 30 octobre 2026, Supabase ne donne plus automatiquement accès aux
+nouvelles tables du schéma `public`. Chaque script qui crée une table doit donc
+déclarer explicitement ses droits, comme le font déjà les fichiers de `supabase/` :
+
+- `grant select, insert, update, delete ... to service_role;` pour que les
+  fonctions Edge puissent lire et écrire la table ;
+- un `grant` vers `anon` ou `authenticated` uniquement si le navigateur doit y
+  accéder directement (sinon `revoke all` et passage par une fonction
+  `security definer`).
+
+Sans ces lignes, l'API répond « permission denied ».

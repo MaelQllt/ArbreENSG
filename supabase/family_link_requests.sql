@@ -33,12 +33,14 @@ create table if not exists public.family_link_request_email_rate_limit (
 );
 alter table public.family_link_request_email_rate_limit enable row level security;
 revoke all on public.family_link_request_email_rate_limit from anon, authenticated;
+grant select, insert, update, delete on public.family_link_request_email_rate_limit to service_role;
 
 create index if not exists family_link_requests_status_created_idx
   on public.family_link_requests (status, created_at desc);
 
 alter table public.family_link_requests enable row level security;
 revoke all on public.family_link_requests from anon, authenticated;
+grant select, insert, update, delete on public.family_link_requests to service_role;
 
 create or replace function public.submit_family_link_request(
   p_child_id text,

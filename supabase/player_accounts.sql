@@ -38,6 +38,7 @@ where points = 0;
 alter table public.player_challenge_completions enable row level security;
 revoke all on public.player_challenge_completions from public, anon, authenticated;
 grant select on public.player_challenge_completions to authenticated;
+grant select, insert, update, delete on public.player_challenge_completions to service_role;
 
 drop policy if exists "Players can read their own challenge completions" on public.player_challenge_completions;
 create policy "Players can read their own challenge completions"
@@ -52,6 +53,7 @@ create unique index if not exists player_profiles_pseudo_lower_unique
 alter table public.player_profiles enable row level security;
 revoke all on public.player_profiles from anon, authenticated;
 grant select, insert, update on public.player_profiles to authenticated;
+grant select, insert, update, delete on public.player_profiles to service_role;
 
 drop policy if exists "Players can read their own profile" on public.player_profiles;
 create policy "Players can read their own profile"

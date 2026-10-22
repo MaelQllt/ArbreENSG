@@ -17,6 +17,7 @@ create table if not exists public.family_link_request_reports (
 
 alter table public.family_link_request_reports enable row level security;
 revoke all on public.family_link_request_reports from anon, authenticated;
+grant select, insert, update, delete on public.family_link_request_reports to service_role;
 
 create index if not exists family_link_request_reports_request_created_idx
   on public.family_link_request_reports (request_id, created_at asc);

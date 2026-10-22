@@ -16,6 +16,7 @@ create table if not exists public.easter_egg_findings (
 
 alter table public.easter_egg_findings enable row level security;
 revoke all on public.easter_egg_findings from anon, authenticated;
+grant select, insert, update, delete on public.easter_egg_findings to service_role;
 
 create index if not exists easter_egg_findings_ip_recent_idx
   on public.easter_egg_findings (ip_hash, created_at desc);

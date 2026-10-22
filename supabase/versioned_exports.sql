@@ -10,6 +10,7 @@ create table if not exists public.family_data_versions (
 
 alter table public.family_data_versions enable row level security;
 grant select on public.family_data_versions to authenticated;
+grant select, insert, update, delete on public.family_data_versions to service_role;
 
 drop policy if exists "Superadmins can read archived family data" on public.family_data_versions;
 create policy "Superadmins can read archived family data"

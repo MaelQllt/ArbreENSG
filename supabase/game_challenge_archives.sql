@@ -27,7 +27,9 @@ create table if not exists public.game_challenge_archives (
 alter table public.game_graph_snapshots enable row level security;
 alter table public.game_challenge_archives enable row level security;
 revoke all on public.game_graph_snapshots from anon, authenticated;
+grant select, insert, update, delete on public.game_graph_snapshots to service_role;
 revoke all on public.game_challenge_archives from anon, authenticated;
+grant select, insert, update, delete on public.game_challenge_archives to service_role;
 
 create or replace function public.get_game_challenge_archive(
   p_mode text,
