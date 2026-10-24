@@ -746,36 +746,46 @@ html.is-ios-standalone .masthead__identity::before {
 }
 
 .family-request-tabs {
-  display: flex;
+  /* Deux colonnes strictement égales ; le trait entre les onglets est l'écart
+     de 2px qui laisse voir le fond bleu. */
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
   margin-top: 1.1rem;
   border: 2px solid var(--blue);
+  background: var(--blue);
 }
 
 .family-request-tabs button {
-  flex: 1;
   min-height: 40px;
   padding: 0.45rem 0.6rem;
   border: 0;
   background: var(--paper);
   color: var(--blue);
   font-weight: 700;
+  white-space: nowrap;
   transition: background 0.15s, color 0.15s;
 }
 
-.family-request-tabs button + button {
-  border-left: 2px solid var(--blue);
-}
-
-.family-request-tabs button.is-active {
+.family-request-tabs button.is-active,
+.family-request-tabs button:focus-visible {
   background: var(--blue);
   color: var(--yellow);
 }
 
 @media (hover: hover) and (pointer: fine) {
 
-.family-request-tabs button:not(.is-active):hover {
-  background: var(--sand);
+.family-request-tabs button:hover {
+  background: var(--blue);
+  color: var(--yellow);
 }
+}
+
+@media (max-width: 480px) {
+  .family-request-tabs button {
+    padding: 0.45rem 0.25rem;
+    font-size: 0.82rem;
+  }
 }
 
 .family-request__row {
