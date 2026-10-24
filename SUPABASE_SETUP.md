@@ -273,3 +273,15 @@ déclarer explicitement ses droits, comme le font déjà les fichiers de `supaba
   `security definer`).
 
 Sans ces lignes, l'API répond « permission denied ».
+
+## Signalements automatiques
+
+L'écran **À traiter** de l'admin (bouton « Requêtes ») liste, sous les
+propositions, des points à vérifier calculés à partir des données : doublons
+probables, parrain ou marraine plus jeune que son fillot (appartenances
+secondaires comprises), boucles de parrainage et étudiants sans aucun lien. La
+pastille de l'admin compte les propositions et les signalements à vérifier.
+
+Pour pouvoir **ignorer** un signalement (un cas voulu ne revient alors plus),
+exécute une fois `supabase/data_quality_dismissals.sql` dans le **SQL Editor**.
+Sans ce script, les signalements s'affichent mais ne peuvent pas être ignorés.

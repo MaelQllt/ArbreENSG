@@ -3539,6 +3539,25 @@ html.is-ios-standalone .masthead__identity::before {
   min-width: 0;
 }
 
+/* Propositions puis signalements automatiques, dans le même écran « À traiter ». */
+.admin-requests {
+  display: grid;
+  gap: 2.2rem;
+  min-width: 0;
+}
+
+.data-quality__group {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.data-quality__title {
+  margin: 0;
+  color: var(--sand);
+  font-family: var(--font-title);
+  font-size: 0.92rem;
+}
+
 .family-request-inbox__header {
   display: flex;
   align-items: flex-start;

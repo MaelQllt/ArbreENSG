@@ -513,3 +513,34 @@ export async function managePlayerAccounts(action, payload = {}, session) {
   }
   return { session: activeSession, ...result };
 }
+
+// Signalements du contrôle qualité ignorés (voir supabase/data_quality_dismissals.sql).
+export async function fetchQualityDismissals(session) {
+  if (!isSupabaseConfigured()) throw new Error('La sauvegarde Supabase n’est pas configurée.');
+  const activeSession = await ensureFreshSession(session);
+  const rows = await request('/rest/v1/data_quality_dismissals?select=key', { token: activeSession.access_token });
+  return { session: activeSession, keys: new Set((Array.isArray(rows) ? rows : []).map((row) => row.key)) };
+}
+
+export async function dismissQualityIssue(key, session) {
+  if (!isSupabaseConfigured()) throw new Error('La sauvegarde Supabase n’est pas configurée.');
+  const activeSession = await ensureFreshSession(session);
+  await request('/rest/v1/data_quality_dismissals', {
+    method: 'POST',
+    token: activeSession.access_token,
+    body: { key },
+    prefer: 'resolution=ignore-duplicates,return=minimal',
+  });
+  return { session: activeSession };
+}
+
+export async function restoreQualityIssue(key, session) {
+  if (!isSupabaseConfigured()) throw new Error('La sauvegarde Supabase n’est pas configurée.');
+  const activeSession = await ensureFreshSession(session);
+  await request(`/rest/v1/data_quality_dismissals?key=eq.${encodeURIComponent(key)}`, {
+    method: 'DELETE',
+    token: activeSession.access_token,
+    prefer: 'return=minimal',
+  });
+  return { session: activeSession };
+}

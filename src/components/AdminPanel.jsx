@@ -9,13 +9,25 @@ import { buildFamilyWorkbook } from '../lib/xlsxWorkbook';
 import { importFamilyWorkbook } from '../lib/xlsxImport';
 import { searchStudentsByName } from '../lib/studentSearch';
 import {
+  dismissQualityIssue,
   fetchFamilyLinkRequests,
   fetchPendingFamilyLinkRequestCount,
+  fetchQualityDismissals,
+  restoreQualityIssue,
   updateFamilyLinkRequest,
 } from '../lib/supabase';
 import { accountErrorMessage } from '../lib/playerAccounts';
+
+function qualityErrorMessage(error) {
+  if (error?.code === 'PGRST205' || error?.code === '42P01' || /data_quality_dismissals/.test(error?.message ?? '')) {
+    return 'Les signalements ignorés ne sont pas encore installés dans Supabase. Exécute le script supabase/data_quality_dismissals.sql dans le SQL Editor.';
+  }
+  return `Impossible d’enregistrer les signalements ignorés : ${accountErrorMessage(error)}`;
+}
 import BrandDivider from './BrandDivider';
 import FamilyLinkRequestInbox from './FamilyLinkRequestInbox';
+import DataQualityReport from './DataQualityReport';
+import { findDataQualityIssues } from '../lib/dataQuality';
 import { TopoBand } from './TopoBackground';
 import PasswordInput from './PasswordInput';
 import {
@@ -515,6 +527,11 @@ export default function AdminPanel({
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
+  // Clés des signalements ignorés ; null tant qu'elles n'ont pas pu être lues.
+  const [qualityDismissals, setQualityDismissals] = useState(null);
+  const [qualityError, setQualityError] = useState('');
+  const [qualityBusyKey, setQualityBusyKey] = useState(null);
+  const sessionRef = useRef(null);
   const [anchorId, setAnchorId] = useState(initialSelectedId || data.nodes[0]?.id || '');
   const [relationAction, setRelationAction] = useState('add');
   const [relationType, setRelationType] = useState('parrain');
@@ -624,6 +641,67 @@ export default function AdminPanel({
       window.removeEventListener('focus', refreshPendingCount);
     };
   }, [restoring, session]);
+
+  sessionRef.current = session;
+  const signedInUserId = !restoring ? session?.user?.id : null;
+  useEffect(() => {
+    if (!signedInUserId) {
+      setQualityDismissals(null);
+      setQualityError('');
+      return undefined;
+    }
+    let active = true;
+    fetchQualityDismissals(sessionRef.current)
+      .then((result) => {
+        if (!active) return;
+        setSession(result.session);
+        setQualityDismissals(result.keys);
+        setQualityError('');
+      })
+      .catch((loadError) => {
+        if (active) setQualityError(qualityErrorMessage(loadError));
+      });
+    return () => {
+      active = false;
+    };
+  }, [signedInUserId]);
+
+  const qualityIssues = useMemo(() => findDataQualityIssues(data), [data]);
+  const openQualityCount = qualityIssues.filter((issue) => !qualityDismissals?.has(issue.key)).length;
+  const toHandleCount = pendingRequestCount + openQualityCount;
+
+  const changeQualityDismissal = async (key, dismissed) => {
+    setQualityBusyKey(key);
+    setQualityError('');
+    try {
+      const result = dismissed
+        ? await dismissQualityIssue(key, sessionRef.current)
+        : await restoreQualityIssue(key, sessionRef.current);
+      setSession(result.session);
+      setQualityDismissals((keys) => {
+        const next = new Set(keys);
+        if (dismissed) next.add(key);
+        else next.delete(key);
+        return next;
+      });
+    } catch (updateError) {
+      setQualityError(qualityErrorMessage(updateError));
+    } finally {
+      setQualityBusyKey(null);
+    }
+  };
+
+  const editFromQualityIssue = (studentId, action) => {
+    setError('');
+    setMessage('');
+    setAnchorId(studentId);
+    setRelationAction(action);
+    if (action === 'add') {
+      setRelationType('parrain');
+      setPersonType('existing');
+    }
+    setAdminSection('families');
+  };
 
   useEffect(() => {
     if (initialSelectedId && data.nodes.some((node) => node.id === initialSelectedId)) {
@@ -1118,14 +1196,14 @@ export default function AdminPanel({
             setMessage('');
             setDialog(session ? 'admin' : 'login');
           }}
-          aria-label={pendingRequestCount > 0
-            ? `Admin, ${pendingRequestCount} requête${pendingRequestCount > 1 ? 's' : ''} à traiter`
+          aria-label={toHandleCount > 0
+            ? `Admin, ${toHandleCount} élément${toHandleCount > 1 ? 's' : ''} à traiter`
             : 'Admin'}
         >
           Admin
-          {session && pendingRequestCount > 0 && (
-            <span className={`admin-request-badge${pendingRequestCount > 99 ? ' admin-request-badge--wide' : ''}`} aria-hidden="true">
-              <span className="admin-request-badge__count">{pendingRequestCount > 99 ? '99+' : pendingRequestCount}</span>
+          {session && toHandleCount > 0 && (
+            <span className={`admin-request-badge${toHandleCount > 99 ? ' admin-request-badge--wide' : ''}`} aria-hidden="true">
+              <span className="admin-request-badge__count">{toHandleCount > 99 ? '99+' : toHandleCount}</span>
             </span>
           )}
         </button>
@@ -1167,7 +1245,7 @@ export default function AdminPanel({
                     <span className="admin-panel__eyebrow-role">Superadmin</span>
                     <span className="admin-panel__eyebrow-identity"><BrandDivider />{session?.user?.email}</span>
                   </p>
-                  <h2 id="admin-title">{adminSection === 'requests' ? 'Propositions de liens' : 'Gestion des familles'}</h2>
+                  <h2 id="admin-title">{adminSection === 'requests' ? 'À traiter' : 'Gestion des familles'}</h2>
                 </div>
                 <div className="admin-panel__actions">
                   <button
@@ -1178,9 +1256,9 @@ export default function AdminPanel({
                     disabled={busy}
                   >
                     {adminSection === 'requests' ? 'Familles' : 'Requêtes'}
-                    {session && adminSection !== 'requests' && pendingRequestCount > 0 && (
-                      <span className={`admin-request-badge${pendingRequestCount > 99 ? ' admin-request-badge--wide' : ''}`} aria-label={`${pendingRequestCount} à traiter`}>
-                        <span className="admin-request-badge__count">{pendingRequestCount > 99 ? '99+' : pendingRequestCount}</span>
+                    {session && adminSection !== 'requests' && toHandleCount > 0 && (
+                      <span className={`admin-request-badge${toHandleCount > 99 ? ' admin-request-badge--wide' : ''}`} aria-label={`${toHandleCount} à traiter`}>
+                        <span className="admin-request-badge__count">{toHandleCount > 99 ? '99+' : toHandleCount}</span>
                       </span>
                     )}
                   </button>
@@ -1190,12 +1268,24 @@ export default function AdminPanel({
               </header>
 
               {adminSection === 'requests' ? (
+                <div className="admin-requests">
                 <FamilyLinkRequestInbox
                   session={session}
                   onSession={setSession}
                   onValidate={handleValidateFamilyLinkRequest}
                   onPendingRequestCountChange={setPendingRequestCount}
                 />
+                <DataQualityReport
+                  issues={qualityIssues}
+                  students={data.nodes}
+                  dismissedKeys={qualityDismissals}
+                  error={qualityError}
+                  busyKey={qualityBusyKey}
+                  onEdit={editFromQualityIssue}
+                  onDismiss={(key) => changeQualityDismissal(key, true)}
+                  onRestore={(key) => changeQualityDismissal(key, false)}
+                />
+                </div>
               ) : (
               <form className="admin-form" onSubmit={handleSave}>
                 {relationAction === 'create' ? (
