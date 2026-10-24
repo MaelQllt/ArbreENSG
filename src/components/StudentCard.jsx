@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import BrandDivider from './BrandDivider';
+import { RelationChain, RelationSearch } from './RelationFinder';
 import { promoStyle } from '../theme';
 import { describePromo, formatStudentAffiliations } from '../lib/promo';
 
@@ -43,19 +44,33 @@ function RelationList({ title, people, onSelect }) {
   );
 }
 
-export default function StudentCard({ student, parrains, fillots, lineage, onSelect, onClose }) {
+export default function StudentCard({
+  student,
+  parrains,
+  fillots,
+  lineage,
+  students,
+  relation,
+  onSelect,
+  onFindRelation,
+  onClearRelation,
+  onClose,
+}) {
   // Le panneau reste monté : on garde le dernier contenu pour qu'il soit lisible pendant qu'il se referme
   const last = useRef(null);
   const cardRef = useRef(null);
   const previousStudentId = useRef(null);
   const [canScrollDown, setCanScrollDown] = useState(false);
-  if (student) last.current = { student, parrains, fillots, lineage };
+  if (student) last.current = { student, parrains, fillots, lineage, relation };
   const data = last.current;
   const open = Boolean(student);
   const s = data?.student;
   const filiere = s ? s.filiere ?? s.parcours : null;
   const codeYear = s ? formatStudentAffiliations(s) : '';
-  const familyCount = data ? data.parrains.length + data.fillots.length : 0;
+  // Lignes affichées sous les compteurs : la famille, ou la chaîne d'un lien.
+  const familyCount = data
+    ? data.relation ? data.relation.path.length + 1 : data.parrains.length + data.fillots.length
+    : 0;
 
   useLayoutEffect(() => {
     const isMobile = window.matchMedia('(max-width: 767px)').matches;
@@ -99,7 +114,7 @@ export default function StudentCard({ student, parrains, fillots, lineage, onSel
       resizeObserver?.disconnect();
       mutationObserver?.disconnect();
     };
-  }, [open, s?.id, s?.name, codeYear, filiere, s?.bio, familyCount]);
+  }, [open, s?.id, s?.name, codeYear, filiere, s?.bio, familyCount, data?.relation]);
 
   if (!data) return <aside className="card" aria-hidden="true" />;
 
@@ -150,10 +165,26 @@ export default function StudentCard({ student, parrains, fillots, lineage, onSel
         </div>
       </dl>
 
-      <div className="card__families" aria-label="Familles de l’étudiant">
-        <RelationList title="Parrains et marraines" people={data.parrains} onSelect={onSelect} />
-        <RelationList title="Fillots et fillottes" people={data.fillots} onSelect={onSelect} />
+      <div className="card__families" aria-label={data.relation ? 'Lien entre deux étudiants' : 'Familles de l’étudiant'}>
+        {data.relation ? (
+          <RelationChain
+            student={s}
+            target={data.relation.target}
+            path={data.relation.path}
+            kinds={data.relation.kinds}
+            onSelect={onSelect}
+            onClear={onClearRelation}
+          />
+        ) : (
+          <>
+            <RelationList title="Parrains et marraines" people={data.parrains} onSelect={onSelect} />
+            <RelationList title="Fillots et fillottes" people={data.fillots} onSelect={onSelect} />
+          </>
+        )}
       </div>
+      {!data.relation && (
+        <RelationSearch key={s.id} students={students} excludeId={s.id} onChoose={onFindRelation} />
+      )}
       {canScrollDown && <span className="card__scroll-hint" aria-hidden="true" />}
     </aside>
   );

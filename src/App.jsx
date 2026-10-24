@@ -8,7 +8,8 @@ import AdminPanel from './components/AdminPanel';
 import FamilyLinkRequestForm from './components/FamilyLinkRequestForm';
 import GamePage from './GamePage';
 import { loadData } from './lib/loadData';
-import { getLineage, prepareGraph } from './lib/lineage';
+import { findRelationPath, getLineage, prepareGraph, relationHighlight, relationKind } from './lib/lineage';
+import { buildAppHash, isAppHash, parseAppHash, studentSlug } from './lib/appHash';
 import EasterEgg from './components/EasterEgg';
 import { revealEasterEgg } from './lib/supabase';
 
@@ -18,6 +19,8 @@ export default function App() {
   const [maintenanceRetrying, setMaintenanceRetrying] = useState(false);
   const [showGame, setShowGame] = useState(() => window.location.hash.startsWith('#jeu'));
   const [selectedId, setSelectedId] = useState(null);
+  // Lien recherché depuis la fiche : il ne vaut que tant que `fromId` est la fiche ouverte.
+  const [relation, setRelation] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [deleteStudentRequest, setDeleteStudentRequest] = useState(null);
   const [quickAddRequest, setQuickAddRequest] = useState(null);
@@ -241,6 +244,65 @@ export default function App() {
     return { students: graph.graphData.nodes.length, links: uniqueLinks.size };
   }, [graph]);
 
+  const idBySlug = useMemo(() => {
+    const ids = new Map();
+    graph?.graphData.nodes.forEach((node) => {
+      const slug = studentSlug(node.name);
+      if (!ids.has(slug)) ids.set(slug, node.id);
+    });
+    return ids;
+  }, [graph]);
+
+  // Ouvre la fiche, ou le lien entre deux étudiants, décrit par l'adresse.
+  const applyAppHash = useCallback(() => {
+    const target = parseAppHash(window.location.hash);
+    const studentId = target && idBySlug.get(target.studentSlug);
+    if (!studentId) return;
+    const relationId = target.relationSlug ? idBySlug.get(target.relationSlug) : null;
+    setSelectedId(studentId);
+    setRelation(relationId && relationId !== studentId ? { fromId: studentId, toId: relationId } : null);
+  }, [idBySlug]);
+
+  const appHashApplied = useRef(false);
+  useEffect(() => {
+    if (!graph || appHashApplied.current) return;
+    appHashApplied.current = true;
+    applyAppHash();
+  }, [graph, applyAppHash]);
+
+  useEffect(() => {
+    window.addEventListener('hashchange', applyAppHash);
+    return () => window.removeEventListener('hashchange', applyAppHash);
+  }, [applyAppHash]);
+
+  const activeRelation = relation?.fromId === selectedId ? relation : null;
+  useEffect(() => {
+    if (relation && relation.fromId !== selectedId) setRelation(null);
+  }, [relation, selectedId]);
+
+  // L'adresse suit la fiche ouverte, pour pouvoir la partager. On ne réécrit
+  // jamais une adresse qui n'est pas à nous (le jeu, un retour de connexion…).
+  useEffect(() => {
+    if (!graph || !appHashApplied.current || showGame || !isAppHash(window.location.hash)) return;
+    const selected = selectedId ? graph.index.byId.get(selectedId) : null;
+    const other = activeRelation ? graph.index.byId.get(activeRelation.toId) : null;
+    const hash = buildAppHash(selected?.name, other?.name);
+    if (hash === window.location.hash.replace(/^#$/, '')) return;
+    window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + hash);
+  }, [graph, selectedId, activeRelation, showGame]);
+
+  const relationView = useMemo(() => {
+    if (!graph || !activeRelation) return null;
+    const { index } = graph;
+    const path = findRelationPath(index, activeRelation.fromId, activeRelation.toId);
+    return {
+      target: index.byId.get(activeRelation.toId),
+      path: path.map((id) => index.byId.get(id)),
+      kinds: path.slice(1).map((id, step) => relationKind(index, path[step], id)),
+      highlight: path.length ? relationHighlight(path) : null,
+    };
+  }, [graph, activeRelation]);
+
   useLayoutEffect(() => {
     const actions = dockActionsRef.current;
     if (!actions) {
@@ -386,7 +448,7 @@ export default function App() {
       <GraphView
         graphData={graphData}
         selectedId={selectedId}
-        lineage={lineage}
+        lineage={relationView?.highlight ?? lineage}
         onSelect={setSelectedId}
         isAdmin={isAdmin}
         onQuickAdd={(anchorId, relatedId) => {
@@ -538,7 +600,11 @@ export default function App() {
         parrains={student ? resolve(index.parents.get(student.id)) : []}
         fillots={student ? resolve(index.children.get(student.id)) : []}
         lineage={lineage}
+        students={loaded.data.nodes}
+        relation={relationView}
         onSelect={setSelectedId}
+        onFindRelation={(relationId) => setRelation({ fromId: selectedId, toId: relationId })}
+        onClearRelation={() => setRelation(null)}
         onClose={() => setSelectedId(null)}
       />
 

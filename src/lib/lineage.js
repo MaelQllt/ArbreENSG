@@ -91,3 +91,43 @@ export function isLinkInLineage(link, lineage) {
   const t = idOf(link.target);
   return (lineage.up.has(s) && lineage.up.has(t)) || (lineage.down.has(s) && lineage.down.has(t));
 }
+
+/**
+ * Chemin le plus court entre deux étudiants, en suivant les liens dans les deux
+ * sens (on peut remonter vers un parrain puis redescendre vers un autre fillot).
+ * Renvoie la liste des identifiants, des deux bouts compris, ou [] sans lien.
+ */
+export function findRelationPath(index, fromId, toId) {
+  if (!index.byId.has(fromId) || !index.byId.has(toId)) return [];
+  if (fromId === toId) return [fromId];
+  const previous = new Map([[fromId, null]]);
+  const queue = [fromId];
+  for (let cursor = 0; cursor < queue.length && !previous.has(toId); cursor += 1) {
+    const current = queue[cursor];
+    for (const next of [...index.parents.get(current), ...index.children.get(current)]) {
+      if (previous.has(next)) continue;
+      previous.set(next, current);
+      queue.push(next);
+    }
+  }
+  if (!previous.has(toId)) return [];
+  const path = [];
+  for (let current = toId; current !== null; current = previous.get(current)) path.push(current);
+  return path.reverse();
+}
+
+/** 'parrain' si `fromId` est parrain/marraine de `toId`, 'fillot' dans l'autre sens. */
+export function relationKind(index, fromId, toId) {
+  return index.children.get(fromId)?.includes(toId) ? 'parrain' : 'fillot';
+}
+
+/**
+ * Même forme que getLineage, pour que le graphe surligne un chemin comme une
+ * lignée. Un plus court chemin n'a pas de raccourci entre deux de ses étudiants
+ * non consécutifs : surligner les liens dont les deux bouts sont sur le chemin
+ * revient donc à surligner exactement les étapes du chemin.
+ */
+export function relationHighlight(path) {
+  const ids = new Set(path);
+  return { ancestors: new Set(), descendants: new Set(), up: ids, down: ids, nodeIds: ids };
+}

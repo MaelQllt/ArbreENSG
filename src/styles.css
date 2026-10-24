@@ -2315,6 +2315,142 @@ html.is-ios-standalone .masthead__identity::before {
   white-space: nowrap;
 }
 
+/* ========== Lien entre deux étudiants (fiche) ========== */
+.card__relation-open {
+  width: 100%;
+  margin-top: 1.4rem;
+  padding: 0.55rem 0.8rem;
+  border: 2px solid var(--promo-color);
+  background: var(--paper);
+  color: var(--blue);
+  font-weight: 700;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+}
+
+.card__relation-open:focus-visible {
+  background: var(--promo-color);
+  color: var(--promo-ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.card__relation-open:hover {
+  background: var(--promo-color);
+  color: var(--promo-ink);
+}
+}
+
+.card__relation-search {
+  margin-top: 1.4rem;
+}
+
+.card__relation-field {
+  display: flex;
+  border: 2px solid var(--blue);
+}
+
+.card__relation-field input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.55rem 0.7rem;
+  border: 0;
+  outline: 0;
+  background: var(--paper);
+  color: var(--blue);
+  font: inherit;
+}
+
+.card__relation-field input::placeholder {
+  color: var(--blue);
+  opacity: 0.6;
+}
+
+.card__relation-cancel {
+  flex: none;
+  width: 2.5rem;
+  border: 0;
+  border-left: 2px solid var(--blue);
+  background: var(--paper);
+  color: var(--blue);
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.card__relation-results {
+  max-height: 220px;
+  margin: 4px 0 0;
+  padding: 0.25rem;
+  overflow-y: auto;
+  border: 2px solid var(--sand);
+  list-style: none;
+}
+
+.card__relation-results .card__empty {
+  padding: 0.5rem;
+}
+
+.card__relation-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 40px;
+  padding: 0.4rem 0.6rem 0.4rem 0.85rem;
+  border: 0;
+  border-left: 4px solid var(--relation-color);
+  background: transparent;
+  color: var(--violet);
+  text-align: left;
+}
+
+.card__relation-option > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.card__relation-option.is-active {
+  background: var(--sand);
+  color: var(--blue);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.card__relation-option:hover {
+  background: var(--sand);
+  color: var(--blue);
+}
+}
+
+.name-match {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.card__relation-summary {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  opacity: 0.72;
+}
+
+.card__relation-chain {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card__relation-kind {
+  display: block;
+  padding: 0.1rem 0 0.1rem 0.85rem;
+  font-size: 0.8rem;
+  opacity: 0.72;
+}
+
+.card__relation .card__relation-open {
+  margin-top: 0.9rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .legend-disclosure,
   .legend {
@@ -2722,6 +2858,10 @@ html.is-ios-standalone .masthead__identity::before {
   }
 
   .student-search__field input {
+    font-size: 16px;
+  }
+
+  .card__relation-field input {
     font-size: 16px;
   }
 

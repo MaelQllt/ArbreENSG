@@ -199,9 +199,16 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
     });
   }, [isLargeScreen]);
 
-  // Au clic : on cadre la lignée entière
+  // Au clic : on cadre la lignée entière. Si le réseau n'a pas fini de se placer
+  // (fiche ouverte depuis une adresse partagée, par exemple), les positions vont
+  // encore bouger : on recadre une fois la simulation arrêtée.
+  const lineageRef = useRef(lineage);
+  lineageRef.current = lineage;
+  const lineageFitPending = useRef(false);
   useEffect(() => {
-    if (lineage) fitTo((n) => lineage.nodeIds.has(n.id), true, true);
+    if (!lineage) return;
+    if (!hasFitted.current) lineageFitPending.current = true;
+    fitTo((n) => lineage.nodeIds.has(n.id), true, true);
   }, [lineage, fitTo]);
 
   // Bouton "Vue globale" (piloté par App)
@@ -431,6 +438,9 @@ export default function GraphView({ graphData, selectedId, lineage, onSelect, is
             hasFitted.current = true;
             rowForce.current?.strength(ROW_PULL_FREE);
             colForce.current?.strength(X_PULL_FREE);
+            const pendingLineage = lineageFitPending.current && lineageRef.current;
+            lineageFitPending.current = false;
+            if (pendingLineage) fitRef.current((n) => pendingLineage.nodeIds.has(n.id), true, true);
           }}
         />
       )}

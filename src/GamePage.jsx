@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CircleCheck, CircleX } from 'lucide-react';
 import houseIcon from './assets/house.svg';
 import BrandDivider from './components/BrandDivider';
+import NameMatch from './components/NameMatch';
 import ShapeSwatch from './components/ShapeSwatch';
 import TopoBackground, { TopoDivider } from './components/TopoBackground';
 import PlayerAccountPanel, { updatePlayerAccountStatsCache } from './components/PlayerAccountPanel';
@@ -11,7 +12,6 @@ import { getAccountAuthClient, getSuperadminSession, isSupabaseConfigured } from
 import { describePromo, formatStudentAffiliations } from './lib/promo';
 import { buildDistances, buildGameGraph, compareIds, getChallenge, isOnPossiblePath } from '../supabase/functions/_shared/gameChallengeCore';
 import {
-  findStudentNamePrefixMatch,
   normalizeStudentSearch as normalizeName,
   searchStudentsByName,
 } from './lib/studentSearch';
@@ -62,18 +62,6 @@ function getInitialAccountPanelState() {
   if (hasPendingPasswordRecovery()) return { panel: 'account', mode: 'recovery' };
   if (hasSupabaseAuthCallback()) return { panel: 'account', mode: 'login' };
   return { panel: null, mode: 'login' };
-}
-function renderNameMatch(name, query) {
-  const match = findStudentNamePrefixMatch(name, query);
-  if (!match) return name;
-  const [start, end] = match;
-  return (
-    <>
-      {name.slice(0, start)}
-      <span className="game-search__match">{name.slice(start, end)}</span>
-      {name.slice(end)}
-    </>
-  );
 }
 const endpointNameClass = (name) => {
   const length = String(name ?? '').length;
@@ -1355,7 +1343,7 @@ export default function GamePage({ students, links }) {
                               onMouseDown={(event) => event.preventDefault()}
                               onClick={() => addStudent(student)}
                             >
-                              <span>{renderNameMatch(student.name, query)}</span>
+                              <span><NameMatch name={student.name} query={query} className="game-search__match" /></span>
                               <small>{isForbidden
                                 ? 'Interdit'
                                 : (formatStudentAffiliations(student) || 'Promo ' + student.promo)}</small>
