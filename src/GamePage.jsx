@@ -10,7 +10,7 @@ import PlayerAccountAdminPanel from './components/PlayerAccountAdminPanel';
 import { getPlayerChallengeCompletions, hasPendingPasswordRecovery, hasSupabaseAuthCallback, recordPlayerChallengeCompletion } from './lib/playerAccounts';
 import { getAccountAuthClient, getSuperadminSession, isSupabaseConfigured } from './lib/supabase';
 import { describePromo, formatStudentAffiliations } from './lib/promo';
-import { buildDistances, buildGameGraph, compareIds, findPath, findPathThrough, getChallenge, hashString, isOnPossiblePath } from '../supabase/functions/_shared/gameChallengeCore';
+import { buildDistances, buildGameGraph, compareIds, findPath, findPathThrough, getChallenge, isOnPossiblePath } from '../supabase/functions/_shared/gameChallengeCore';
 import {
   findStudentNamePrefixMatch,
   normalizeStudentSearch as normalizeName,
@@ -1579,7 +1579,6 @@ function GameGraph({ graph, nodes, hintNodes = EMPTY_GRAPH_HINTS, startId, endId
 
 export default function GamePage({ students, links }) {
   const [entryAccountState] = useState(getInitialAccountPanelState);
-  const [isMobileViewport, setIsMobileViewport] = useState(() => window.matchMedia('(max-width: 767px)').matches);
   const [mode, setMode] = useState('daily');
   const [round, setRound] = useState(0);
   const [attemptCount, setAttemptCount] = useState(1);
@@ -1636,14 +1635,6 @@ export default function GamePage({ students, links }) {
   const panelRef = useRef(null);
   const panelCloseRef = useRef(null);
   const recordedCompletionRef = useRef(null);
-
-  useEffect(() => {
-    const media = window.matchMedia('(max-width: 767px)');
-    const updateViewport = (event) => setIsMobileViewport(event.matches);
-    setIsMobileViewport(media.matches);
-    media.addEventListener?.('change', updateViewport);
-    return () => media.removeEventListener?.('change', updateViewport);
-  }, []);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return undefined;

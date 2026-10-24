@@ -176,7 +176,7 @@ export function buildFamilyWorkbook(data) {
   const sortedCohorts = [...cohorts.entries()].sort(([a], [b]) => a.localeCompare(b, 'fr', { numeric: true }));
   if (!sortedCohorts.length) sortedCohorts.push(['Données', []]);
 
-  const sheetEntries = sortedCohorts.map(([year, students], index) => ({
+  const sheetEntries = sortedCohorts.map(([, students], index) => ({
     name: `xl/worksheets/sheet${index + 1}.xml`,
     content: worksheetXml(students.sort((a, b) => a.name.localeCompare(b.name, 'fr'))),
   }));

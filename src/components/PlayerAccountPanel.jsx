@@ -5,7 +5,6 @@ import {
   clearPendingPasswordRecovery,
   getPlayerChallengeStats,
   getPlayerAccountRedirectUrl,
-  markPasswordRecoveryPending,
   MIN_PASSWORD_LENGTH,
   profileFromAuthMetadata,
   savePlayerProfile,
