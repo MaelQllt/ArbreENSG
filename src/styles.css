@@ -2366,17 +2366,6 @@ html.is-ios-standalone .masthead__identity::before {
   opacity: 0.6;
 }
 
-.card__relation-cancel {
-  flex: none;
-  width: 2.5rem;
-  border: 0;
-  border-left: 2px solid var(--blue);
-  background: var(--paper);
-  color: var(--blue);
-  font-size: 1.3rem;
-  line-height: 1;
-}
-
 .card__relation-results {
   max-height: 220px;
   margin: 4px 0 0;
@@ -2441,10 +2430,18 @@ html.is-ios-standalone .masthead__identity::before {
 }
 
 .card__relation-kind {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   padding: 0.1rem 0 0.1rem 0.85rem;
   font-size: 0.8rem;
   opacity: 0.72;
+}
+
+.card__relation-kind .brand-divider {
+  flex: none;
+  width: 14px;
+  height: 7px;
 }
 
 .card__relation .card__relation-open {

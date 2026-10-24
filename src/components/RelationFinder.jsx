@@ -15,9 +15,10 @@ function PromoLabel({ promo }) {
   return level >= 1 ? <>{label} <BrandDivider /> {promo}</> : label;
 }
 
-/** Bouton « Trouver notre lien avec… » qui s'ouvre sur une recherche d'étudiant. */
+/** Bouton « Trouver un lien avec… » qui s'ouvre sur une recherche d'étudiant. */
 export function RelationSearch({ students, excludeId, onChoose }) {
   const listId = useId();
+  const rootRef = useRef(null);
   const inputRef = useRef(null);
   const listRef = useRef(null);
   const [open, setOpen] = useState(false);
@@ -45,6 +46,19 @@ export function RelationSearch({ students, excludeId, onChoose }) {
     setActiveIndex(0);
   };
 
+  // Un clic ailleurs referme la recherche et rend le bouton.
+  useEffect(() => {
+    if (!open) return undefined;
+    const handlePointerDown = (event) => {
+      if (rootRef.current?.contains(event.target)) return;
+      setOpen(false);
+      setQuery('');
+      setActiveIndex(0);
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [open]);
+
   const choose = (student) => {
     if (!student) return;
     close();
@@ -70,13 +84,13 @@ export function RelationSearch({ students, excludeId, onChoose }) {
   if (!open) {
     return (
       <button type="button" className="card__relation-open" onClick={() => setOpen(true)}>
-        Trouver notre lien avec…
+        Trouver un lien avec…
       </button>
     );
   }
 
   return (
-    <div className="card__relation-search">
+    <div className="card__relation-search" ref={rootRef}>
       <div className="card__relation-field">
         <input
           ref={inputRef}
@@ -99,9 +113,6 @@ export function RelationSearch({ students, excludeId, onChoose }) {
           }}
           onKeyDown={handleKeyDown}
         />
-        <button type="button" className="card__relation-cancel" onClick={close} aria-label="Annuler la recherche">
-          ×
-        </button>
       </div>
       {normalizeStudentSearch(query) && (
         <ul id={listId} ref={listRef} className="card__relation-results" role="listbox" aria-label="Étudiants">
@@ -149,7 +160,7 @@ export function RelationChain({ student, target, path, kinds, onSelect, onClear 
                 <li key={person.id}>
                   {index > 0 && (
                     <span className="card__relation-kind">
-                      <span aria-hidden="true">↓</span> {KIND_LABELS[kinds[index - 1]]}
+                      <BrandDivider /> {KIND_LABELS[kinds[index - 1]]}
                     </span>
                   )}
                   <button
