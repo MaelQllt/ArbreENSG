@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { formatStudentAffiliations } from '../lib/promo';
+import BrandDivider from './BrandDivider';
 import { matchPromoStudents, parsePromoPdfPages, readPdfTextPages } from '../lib/promoPdf';
 
 const promoLabel = (student) => formatStudentAffiliations(student) || String(student.promo);
@@ -129,7 +130,7 @@ export default function PromoPdfImport({ students, onDetected, onSelectionChange
           {reading ? 'Lecture…' : fileName ? 'Changer de PDF' : 'Choisir le PDF du trombinoscope'}
         </button>
         <span className="promo-import__hint">
-          {fileName ? <>{fileName}{title && <> · « {title} »</>}</> : 'ou dépose-le ici'}
+          {fileName ? <>{fileName}{title && <> <BrandDivider /> « {title} »</>}</> : 'ou dépose-le ici'}
         </span>
       </div>
 
@@ -143,7 +144,7 @@ export default function PromoPdfImport({ students, onDetected, onSelectionChange
       {rows.length > 0 && (
         <>
           <p className="promo-import__summary">
-            {rows.length} étudiant{rows.length > 1 ? 's' : ''} dans le PDF · <strong>{selectedCount} à ajouter</strong>.
+            {rows.length} étudiant{rows.length > 1 ? 's' : ''} dans le PDF <BrandDivider /> <strong>{selectedCount} à ajouter</strong>.
             Corrige les noms si besoin : la base utilise le prénom d’usage.
           </p>
           {toReview.length > 0 && (

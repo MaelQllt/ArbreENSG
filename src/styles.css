@@ -3564,6 +3564,13 @@ html.is-ios-standalone .masthead__identity::before {
   background: rgb(250 193 138 / 0.12);
 }
 
+.promo-import__hint .brand-divider,
+.promo-import__summary .brand-divider {
+  width: 14px;
+  height: 7px;
+  margin: 0 0.15rem;
+}
+
 .promo-import__hint {
   min-width: 0;
   color: var(--sand);
@@ -3587,9 +3594,10 @@ html.is-ios-standalone .masthead__identity::before {
 
 .promo-import__list {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.15rem;
   margin: 0;
-  padding: 0;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--sand);
   list-style: none;
 }
 
@@ -3597,8 +3605,7 @@ html.is-ios-standalone .masthead__identity::before {
   display: flex;
   align-items: flex-start;
   gap: 0.6rem;
-  padding: 0.45rem 0.55rem;
-  border: 1px solid rgb(250 193 138 / 0.45);
+  padding: 0.3rem 0;
 }
 
 .promo-import__row.is-unselected .promo-import__name {

@@ -557,8 +557,9 @@ export default function AdminPanel({
   const [pdfCode, setPdfCode] = useState('');
   const [pdfNames, setPdfNames] = useState([]);
   const [pdfImportKey, setPdfImportKey] = useState(0);
-  // Une promo ne s'ajoute qu'à partir de sa rentrée (1er septembre).
-  const pdfPromoNotStarted = Number(pdfPromo) > currentPromoYear;
+  // Temporaire, pour tester l'import : une promo de l'année suivante est acceptée.
+  // À revoir : faut-il attendre sa rentrée (1er septembre) ?
+  const pdfMaxPromoYear = currentPromoYear + 1;
   const handlePdfDetected = useCallback(({ code, promo }) => {
     if (code) setPdfCode(code);
     if (Number.isInteger(promo)) setPdfPromo(String(promo));
@@ -973,11 +974,8 @@ export default function AdminPanel({
       const names = pdfNames.filter(Boolean);
       const year = Number(pdfPromo);
       if (!names.length) return setError('Coche au moins un étudiant à ajouter.');
-      if (year > currentPromoYear) {
-        return setError(`La promo ${year} n’a pas encore commencé : elle pourra être ajoutée à partir du 1er septembre ${year}.`);
-      }
-      if (!Number.isInteger(year) || year < 2000 || year > currentPromoYear) {
-        return setError('Choisis une année de promo comprise entre 2000 et l’année en cours.');
+      if (!Number.isInteger(year) || year < 2000 || year > pdfMaxPromoYear) {
+        return setError(`Choisis une année de promo comprise entre 2000 et ${pdfMaxPromoYear}.`);
       }
       if (!pdfCode) return setError('Choisis le code de la promo (ING ou LG).');
       const taken = new Set(data.nodes.map((node) => normalizeName(node.name)));
@@ -1475,11 +1473,7 @@ export default function AdminPanel({
                         />
                       </div>
                     </div>
-                    {pdfPromoNotStarted && (
-                      <p className="admin-message admin-message--error" role="alert">
-                        La promo {pdfPromo} n’a pas encore commencé : elle pourra être ajoutée à partir du 1er septembre {pdfPromo}.
-                      </p>
-                    )}
+
                   </div>
                 )}
 
@@ -1653,7 +1647,7 @@ export default function AdminPanel({
                   <button type="button" className="admin-panel__logout" data-tooltip="Télécharger le fichier actuel" aria-label="Télécharger le fichier actuel" onClick={handleCreateBase} disabled={busy || !data.nodes.length}>
                     {busy ? 'Téléchargement…' : 'Télécharger'}
                   </button>
-                  <button className={`btn admin-submit${relationAction === 'delete' ? ' admin-submit--danger' : ''}`} type="submit" disabled={busy || (relationAction === 'create' && createMode === 'pdf' && (!pdfNames.length || pdfPromoNotStarted)) || (relationAction !== 'create' && !data.nodes.length) || (relationAction === 'remove' ? !selectablePeople.some((student) => student.id === existingId) : relationAction === 'add' && personType === 'existing' && !selectedIds.length)}>
+                  <button className={`btn admin-submit${relationAction === 'delete' ? ' admin-submit--danger' : ''}`} type="submit" disabled={busy || (relationAction === 'create' && createMode === 'pdf' && !pdfNames.length) || (relationAction !== 'create' && !data.nodes.length) || (relationAction === 'remove' ? !selectablePeople.some((student) => student.id === existingId) : relationAction === 'add' && personType === 'existing' && !selectedIds.length)}>
                     {busy
                       ? 'Enregistrement…'
                       : relationAction === 'delete'
