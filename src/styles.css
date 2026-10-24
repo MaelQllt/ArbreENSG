@@ -1957,6 +1957,10 @@ html.is-ios-standalone .masthead__identity::before {
     min-height: 44px;
   }
 
+  .admin-form .promo-import {
+    --promo-import-row: 44px;
+  }
+
   .admin-student-select__search {
     min-height: 44px !important;
   }
@@ -3545,6 +3549,9 @@ html.is-ios-standalone .masthead__identity::before {
 
 /* Import d'une promo depuis le trombinoscope PDF (onglet « Créer »). */
 .promo-import {
+  /* Hauteur commune du nom et de sa case à cocher. */
+  --promo-import-row: 28px;
+
   display: grid;
   gap: 0.8rem;
   min-width: 0;
@@ -3614,13 +3621,13 @@ html.is-ios-standalone .masthead__identity::before {
 
 .admin-form .promo-import__row > input[type='checkbox'] {
   flex: none;
-  width: 16px;
-  height: 16px;
+  width: var(--promo-import-row);
+  height: var(--promo-import-row);
   min-height: 0;
-  margin: 0.4rem 0 0;
+  margin: 0;
   padding: 0;
   border: 2px solid var(--sand);
-  background: transparent center / 12px 12px no-repeat;
+  background: transparent center / 70% 70% no-repeat;
   appearance: none;
   cursor: pointer;
   transition: background-color 0.15s, border-color 0.15s;
@@ -3654,8 +3661,9 @@ html.is-ios-standalone .masthead__identity::before {
 
 .promo-import .promo-import__name {
   width: 100%;
+  height: var(--promo-import-row);
   min-height: 0;
-  padding: 0.25rem 0.45rem;
+  padding: 0 0.45rem;
   border: 1px solid var(--sand);
   background: var(--paper);
   color: var(--blue);
