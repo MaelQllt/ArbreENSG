@@ -767,18 +767,35 @@ html.is-ios-standalone .masthead__identity::before {
   transition: background 0.15s, color 0.15s;
 }
 
-.family-request-tabs button.is-active,
-.family-request-tabs button:focus-visible {
+.family-request-tabs button.is-active {
   background: var(--blue);
   color: var(--yellow);
+}
+
+.family-request-tabs button:not(.is-active):focus-visible {
+  background: var(--yellow);
+  color: var(--blue);
 }
 
 @media (hover: hover) and (pointer: fine) {
 
-.family-request-tabs button:hover {
-  background: var(--blue);
-  color: var(--yellow);
+.family-request-tabs button:not(.is-active):hover {
+  background: var(--yellow);
+  color: var(--blue);
 }
+}
+
+.family-request-panels {
+  display: grid;
+}
+
+.family-request-panel {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+
+.family-request-panel.is-hidden {
+  visibility: hidden;
 }
 
 @media (max-width: 480px) {

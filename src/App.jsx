@@ -591,9 +591,16 @@ export default function App() {
                 Une personne manque
               </button>
             </div>
-            {proposalKind === 'link'
-              ? <FamilyLinkRequestForm students={loaded.data.nodes} links={loaded.data.links} />
-              : <StudentAdditionRequestForm students={loaded.data.nodes} />}
+            {/* Les deux formulaires restent montés et superposés : la fenêtre garde la
+                hauteur du plus grand quel que soit l'onglet, et la saisie n'est pas perdue. */}
+            <div className="family-request-panels">
+              <div className={`family-request-panel${proposalKind === 'link' ? '' : ' is-hidden'}`} {...(proposalKind === 'link' ? {} : { inert: '', 'aria-hidden': true })}>
+                <FamilyLinkRequestForm students={loaded.data.nodes} links={loaded.data.links} />
+              </div>
+              <div className={`family-request-panel${proposalKind === 'student' ? '' : ' is-hidden'}`} {...(proposalKind === 'student' ? {} : { inert: '', 'aria-hidden': true })}>
+                <StudentAdditionRequestForm students={loaded.data.nodes} />
+              </div>
+            </div>
           </section>
         </div>
       )}
