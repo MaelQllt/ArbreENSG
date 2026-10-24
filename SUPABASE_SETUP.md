@@ -130,7 +130,7 @@ que `LG23 ; LG21`.
 
 ## Notifications e-mail des propositions
 
-Les demandes sont d'abord enregistrées dans la boîte **Requêtes** de l'admin.
+Les demandes sont d'abord enregistrées dans l’écran **À traiter** de l’admin.
 Une fonction Supabase envoie ensuite une notification à l'adresse du BDE ; la
 demande reste enregistrée même si le fournisseur e-mail est indisponible.
 
@@ -276,7 +276,7 @@ Sans ces lignes, l'API répond « permission denied ».
 
 ## Signalements automatiques
 
-L'écran **À traiter** de l'admin (bouton « Requêtes ») liste, sous les
+L’écran **À traiter** de l’admin liste, sous les
 propositions, des points à vérifier calculés à partir des données : doublons
 probables, parrain ou marraine plus jeune que son fillot (appartenances
 secondaires comprises), boucles de parrainage et étudiants sans aucun lien. La

@@ -1255,7 +1255,7 @@ export default function AdminPanel({
                     onClick={() => setAdminSection((section) => section === 'requests' ? 'families' : 'requests')}
                     disabled={busy}
                   >
-                    {adminSection === 'requests' ? 'Familles' : 'Requêtes'}
+                    {adminSection === 'requests' ? 'Familles' : 'À traiter'}
                     {session && adminSection !== 'requests' && toHandleCount > 0 && (
                       <span className={`admin-request-badge${toHandleCount > 99 ? ' admin-request-badge--wide' : ''}`} aria-label={`${toHandleCount} à traiter`}>
                         <span className="admin-request-badge__count">{toHandleCount > 99 ? '99+' : toHandleCount}</span>
