@@ -4,6 +4,9 @@ verify_jwt = false
 [functions.notify-family-link-request]
 verify_jwt = false
 
+[functions.notify-student-addition-request]
+verify_jwt = false
+
 [functions.notify-easter-egg]
 verify_jwt = false
 

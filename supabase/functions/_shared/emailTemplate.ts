@@ -83,6 +83,53 @@ export function renderFamilyLinkRequestEmail({
   };
 }
 
+export function renderStudentAdditionRequestEmail({
+  name,
+  promo,
+  code = '',
+  parentName = '',
+  message = '',
+  sentAt,
+}: {
+  name: string;
+  promo: string;
+  code?: string;
+  parentName?: string;
+  message?: string;
+  sentAt: string;
+}) {
+  const cleanMessage = message.trim();
+  const safePromo = /^[12]\d{3}$/.test(promo) ? promo : '';
+  const safeCode = /^[A-Z]{1,5}$/.test(code) ? code : '';
+  const promoLabel = [safeCode, safePromo].filter(Boolean).join(' ');
+  const text = [
+    `Personne à ajouter : ${name}${promoLabel ? ` (${promoLabel})` : ''}`,
+    ...(parentName ? [`Parrain ou marraine indiqué : ${parentName}`] : []),
+    ...(cleanMessage ? ['', 'Message ajouté :', cleanMessage] : []),
+    '',
+    `Reçue le ${sentAt}`,
+  ].join('\n');
+  const escapedMessage = cleanMessage ? escapeEmailHtml(cleanMessage).replace(/\r?\n/g, '<br>') : '';
+  const messageBlock = escapedMessage
+    ? `<p style="margin:24px 0 7px;color:#8e6f55;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;">Message ajouté</p><div style="margin:0;padding:11px 14px;background:#f7f4ef;border-left:3px solid #d7c7b7;color:#776c65;font-size:13px;line-height:1.55;">${escapedMessage}</div>`
+    : '';
+  // Comme dans l'arbre et l'e-mail des liens : le parrain au-dessus, le fillot dessous.
+  const parentBlock = parentName
+    ? `${studentNodeHtml(parentName, '', 'PARRAIN · MARRAINE')}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" height="22" style="height:22px;color:#fac18a;font-size:16px;line-height:22px;">│</td></tr></table>`
+    : '';
+  const receivedAt = `<p style="margin:16px 0 0;color:#8e6f55;font-size:13px;line-height:1.5;">Reçue le <strong style="color:#38235b;">${escapeEmailHtml(sentAt)}</strong></p>`;
+  const content = `<p style="margin:0 0 12px;color:#8e6f55;font-size:13px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;">Personne à ajouter</p>${parentBlock}${studentNodeHtml(name, safePromo, safeCode ? `NOUVEL·LE ÉTUDIANT·E · ${safeCode}` : 'NOUVEL·LE ÉTUDIANT·E')}${messageBlock}${receivedAt}`;
+
+  return {
+    text,
+    html: renderBrandedEmail({
+      preheader: 'Une personne absente de l’arbre a été signalée et attend la vérification du BDE.',
+      heading: 'Une personne manque dans l’arbre',
+      content,
+    }),
+  };
+}
+
 export function renderBrandedEmail({
   preheader,
   heading,

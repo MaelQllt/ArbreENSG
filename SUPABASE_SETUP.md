@@ -285,3 +285,16 @@ pastille de l'admin compte les propositions et les signalements à vérifier.
 Pour pouvoir **ignorer** un signalement (un cas voulu ne revient alors plus),
 exécute une fois `supabase/data_quality_dismissals.sql` dans le **SQL Editor**.
 Sans ce script, les signalements s'affichent mais ne peuvent pas être ignorés.
+
+## Demandes « Une personne manque »
+
+Dans la fenêtre **Un problème ?**, un visiteur peut signaler une personne absente
+de l'arbre (nom, promo, formation, parrain ou marraine facultatif). La demande
+arrive dans l'écran **À traiter** de l'admin : **Ajouter à l'arbre** crée
+l'étudiant et le relie à son parrain s'il est indiqué.
+
+1. Dans **SQL Editor**, exécute `supabase/student_addition_requests.sql` (après
+   `supabase/family_link_requests.sql`, dont il partage la limite d'e-mails).
+2. Déploie la notification e-mail, qui reprend les mêmes secrets SMTP que les
+   propositions de liens :
+   `npx supabase functions deploy notify-student-addition-request --project-ref <ref>`.

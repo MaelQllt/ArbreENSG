@@ -6,6 +6,7 @@ import StudentSearch from './components/StudentSearch';
 import BrandDivider from './components/BrandDivider';
 import AdminPanel from './components/AdminPanel';
 import FamilyLinkRequestForm from './components/FamilyLinkRequestForm';
+import StudentAdditionRequestForm from './components/StudentAdditionRequestForm';
 import GamePage from './GamePage';
 import { loadData } from './lib/loadData';
 import { findRelationPath, getLineage, prepareGraph, relationHighlight, relationKind } from './lib/lineage';
@@ -27,6 +28,8 @@ export default function App() {
   const [showLegend, setShowLegend] = useState(false);
   const [showWarnings, setShowWarnings] = useState(false);
   const [showContactInfo, setShowContactInfo] = useState(false);
+  // Fenêtre « Un problème ? » : proposer un lien, ou signaler une personne absente.
+  const [proposalKind, setProposalKind] = useState('link');
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [resetTick, setResetTick] = useState(0);
   const [easterEgg, setEasterEgg] = useState(null);
@@ -580,7 +583,17 @@ export default function App() {
               <span className="contact-info__title-mobile">Un problème&nbsp;?</span>
             </h2>
             <p>Un lien manque ou tu as repéré une autre erreur&nbsp;?<br />Envoie une proposition au BDE.</p>
-            <FamilyLinkRequestForm students={loaded.data.nodes} links={loaded.data.links} />
+            <div className="family-request-tabs" role="tablist" aria-label="Type de proposition">
+              <button type="button" role="tab" aria-selected={proposalKind === 'link'} className={proposalKind === 'link' ? 'is-active' : ''} onClick={() => setProposalKind('link')}>
+                Un lien manque
+              </button>
+              <button type="button" role="tab" aria-selected={proposalKind === 'student'} className={proposalKind === 'student' ? 'is-active' : ''} onClick={() => setProposalKind('student')}>
+                Une personne manque
+              </button>
+            </div>
+            {proposalKind === 'link'
+              ? <FamilyLinkRequestForm students={loaded.data.nodes} links={loaded.data.links} />
+              : <StudentAdditionRequestForm students={loaded.data.nodes} />}
           </section>
         </div>
       )}

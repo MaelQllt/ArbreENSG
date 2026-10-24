@@ -544,3 +544,61 @@ export async function restoreQualityIssue(key, session) {
   });
   return { session: activeSession };
 }
+
+// Propositions « Une personne manque » (voir supabase/student_addition_requests.sql).
+export async function submitStudentAdditionRequest({ firstName, lastName, promo, code = '', parent = null, message = '' }) {
+  if (!isSupabaseConfigured()) throw new Error('L’envoi des demandes n’est pas configuré.');
+  return request('/rest/v1/rpc/submit_student_addition_request', {
+    method: 'POST',
+    body: {
+      p_first_name: firstName,
+      p_last_name: lastName,
+      p_promo: promo,
+      p_code: code,
+      p_parent_id: parent?.id ?? null,
+      p_parent_name: parent?.name ?? null,
+      p_message: message,
+    },
+  });
+}
+
+export async function notifyStudentAdditionRequestByEmail(requestId) {
+  if (!isSupabaseConfigured()) throw new Error('L’envoi des demandes n’est pas configuré.');
+  return request('/functions/v1/notify-student-addition-request', {
+    method: 'POST',
+    body: { requestId },
+  });
+}
+
+export async function fetchStudentAdditionRequests(session) {
+  if (!isSupabaseConfigured()) throw new Error('La sauvegarde Supabase n’est pas configurée.');
+  const activeSession = await ensureFreshSession(session);
+  const rows = await request('/rest/v1/rpc/list_student_addition_requests', {
+    method: 'POST',
+    token: activeSession.access_token,
+    body: {},
+  });
+  return { session: activeSession, requests: Array.isArray(rows) ? rows : [] };
+}
+
+export async function updateStudentAdditionRequest(requestId, status, session) {
+  if (!isSupabaseConfigured()) throw new Error('La sauvegarde Supabase n’est pas configurée.');
+  const activeSession = await ensureFreshSession(session);
+  const result = await request('/rest/v1/rpc/update_student_addition_request', {
+    method: 'POST',
+    token: activeSession.access_token,
+    body: { p_request_id: requestId, p_status: status },
+  });
+  return { session: activeSession, request: Array.isArray(result) ? result[0] : result };
+}
+
+export async function deleteStudentAdditionRequest(requestId, session) {
+  if (!isSupabaseConfigured()) throw new Error('La sauvegarde Supabase n’est pas configurée.');
+  const activeSession = await ensureFreshSession(session);
+  await request('/rest/v1/rpc/delete_student_addition_request', {
+    method: 'POST',
+    token: activeSession.access_token,
+    body: { p_request_id: requestId },
+  });
+  return { session: activeSession };
+}

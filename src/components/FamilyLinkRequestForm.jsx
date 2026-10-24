@@ -5,7 +5,7 @@ import { accountErrorMessage } from '../lib/playerAccounts';
 
 const idOf = (endpoint) => (typeof endpoint === 'object' ? endpoint?.id : endpoint);
 
-function StudentPicker({ id, label, placeholder, students, value, onChange, onInteraction }) {
+export function StudentPicker({ id, label, placeholder, students, value, onChange, onInteraction }) {
   const rootRef = useRef(null);
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);

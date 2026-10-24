@@ -13,6 +13,7 @@ import {
   fetchFamilyLinkRequests,
   fetchPendingFamilyLinkRequestCount,
   fetchQualityDismissals,
+  fetchStudentAdditionRequests,
   restoreQualityIssue,
   updateFamilyLinkRequest,
 } from '../lib/supabase';
@@ -26,6 +27,7 @@ function qualityErrorMessage(error) {
 }
 import BrandDivider from './BrandDivider';
 import FamilyLinkRequestInbox from './FamilyLinkRequestInbox';
+import StudentAdditionRequestInbox from './StudentAdditionRequestInbox';
 import DataQualityReport from './DataQualityReport';
 import PromoPdfImport from './PromoPdfImport';
 import { findDataQualityIssues } from '../lib/dataQuality';
@@ -528,6 +530,7 @@ export default function AdminPanel({
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
+  const [pendingStudentCount, setPendingStudentCount] = useState(0);
   // Clés des signalements ignorés ; null tant qu'elles n'ont pas pu être lues.
   const [qualityDismissals, setQualityDismissals] = useState(null);
   const [qualityError, setQualityError] = useState('');
@@ -619,6 +622,7 @@ export default function AdminPanel({
   useEffect(() => {
     if (!session || restoring) {
       setPendingRequestCount(0);
+      setPendingStudentCount(0);
       return undefined;
     }
 
@@ -635,6 +639,12 @@ export default function AdminPanel({
         }
       } catch {
         // L'inbox affiche ses propres erreurs ; le badge reste discret si le comptage échoue.
+      }
+      try {
+        const students = await fetchStudentAdditionRequests(session);
+        if (active) setPendingStudentCount(students.requests.filter((request) => request.status === 'pending').length);
+      } catch {
+        // Table pas encore installée ou session expirée : la boîte affiche l'explication.
       } finally {
         loadingCount = false;
       }
@@ -681,7 +691,7 @@ export default function AdminPanel({
 
   const qualityIssues = useMemo(() => findDataQualityIssues(data), [data]);
   const openQualityCount = qualityIssues.filter((issue) => !qualityDismissals?.has(issue.key)).length;
-  const toHandleCount = pendingRequestCount + openQualityCount;
+  const toHandleCount = pendingRequestCount + pendingStudentCount + openQualityCount;
 
   const changeQualityDismissal = async (key, dismissed) => {
     setQualityBusyKey(key);
@@ -1203,6 +1213,38 @@ export default function AdminPanel({
     }
   };
 
+  // « Une personne manque » : crée l'étudiant, relié à son parrain s'il est indiqué.
+  const handleValidateStudentAdditionRequest = async (request, activeSession) => {
+    const name = `${request.first_name} ${request.last_name}`.trim().replace(/\s+/g, ' ');
+    const existing = data.nodes.find((node) => normalizeName(node.name) === normalizeName(name));
+    if (existing) throw new Error(`${existing.name} est déjà dans l’arbre. Ignore la demande ou modifie l’étudiant.`);
+    const parent = request.parent_id ? data.nodes.find((node) => node.id === request.parent_id) : null;
+    const student = {
+      id: `admin-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`,
+      name,
+      promo: Number(request.promo),
+      code: request.code || undefined,
+    };
+    const nextData = {
+      nodes: [...data.nodes, student],
+      links: parent ? [...data.links, { source: parent.id, target: student.id }] : data.links,
+    };
+    const csv = serializeStudentsCsv(nextData);
+    const parsed = parseStudentsCsv(csv);
+    setBusy(true);
+    try {
+      const updatedSession = await saveSharedCsv(csv, activeSession);
+      setSession(updatedSession);
+      onSaved(nextData, parsed.warnings);
+      return {
+        session: updatedSession,
+        note: request.parent_id && !parent ? `Le parrain indiqué (${request.parent_name}) n’est plus dans l’arbre : aucun lien n’a été créé.` : '',
+      };
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleValidateFamilyLinkRequest = async (request, activeSession) => {
     const child = data.nodes.find((node) => node.id === request.child_id);
     const parent = data.nodes.find((node) => node.id === request.parent_id);
@@ -1334,6 +1376,12 @@ export default function AdminPanel({
                   onSession={setSession}
                   onValidate={handleValidateFamilyLinkRequest}
                   onPendingRequestCountChange={setPendingRequestCount}
+                />
+                <StudentAdditionRequestInbox
+                  session={session}
+                  onSession={setSession}
+                  onValidate={handleValidateStudentAdditionRequest}
+                  onPendingCountChange={setPendingStudentCount}
                 />
                 <DataQualityReport
                   issues={qualityIssues}
