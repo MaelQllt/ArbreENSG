@@ -2442,6 +2442,7 @@ html.is-ios-standalone .masthead__identity::before {
   flex: none;
   width: 14px;
   height: 7px;
+  color: inherit;
 }
 
 .card__relation .card__relation-open {
