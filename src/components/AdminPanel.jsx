@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { parseStudentsCsv, serializeStudentsCsv } from '../lib/csv';
 import {
   formatStudentAffiliations,
@@ -27,6 +27,7 @@ function qualityErrorMessage(error) {
 import BrandDivider from './BrandDivider';
 import FamilyLinkRequestInbox from './FamilyLinkRequestInbox';
 import DataQualityReport from './DataQualityReport';
+import PromoPdfImport from './PromoPdfImport';
 import { findDataQualityIssues } from '../lib/dataQuality';
 import { TopoBand } from './TopoBackground';
 import PasswordInput from './PasswordInput';
@@ -550,6 +551,16 @@ export default function AdminPanel({
   const [newPromo, setNewPromo] = useState(() => String(getCurrentPromoYear(new Date())));
   const [newCode, setNewCode] = useState('');
   const [newFiliere, setNewFiliere] = useState('');
+  // « Créer » : un étudiant, ou toute une promo depuis le trombinoscope PDF.
+  const [createMode, setCreateMode] = useState('single');
+  const [pdfPromo, setPdfPromo] = useState('');
+  const [pdfCode, setPdfCode] = useState('');
+  const [pdfNames, setPdfNames] = useState([]);
+  const [pdfImportKey, setPdfImportKey] = useState(0);
+  const handlePdfDetected = useCallback(({ code, promo }) => {
+    if (code) setPdfCode(code);
+    if (Number.isInteger(promo)) setPdfPromo(String(promo));
+  }, []);
   const promoOptions = useMemo(() => [
     { value: '', label: 'Choisir une année' },
     ...Array.from({ length: Math.max(0, currentPromoYear - 1999) }, (_, index) => {
@@ -953,6 +964,50 @@ export default function AdminPanel({
 
     if (relationAction === 'delete') {
       await handleDeleteStudent(anchorId);
+      return;
+    }
+
+    if (relationAction === 'create' && createMode === 'pdf') {
+      const names = pdfNames.filter(Boolean);
+      const year = Number(pdfPromo);
+      if (!names.length) return setError('Coche au moins un étudiant à ajouter.');
+      if (!Number.isInteger(year) || year < 2000 || year > currentPromoYear) {
+        return setError('Choisis une année de promo comprise entre 2000 et l’année en cours.');
+      }
+      if (!pdfCode) return setError('Choisis le code de la promo (ING ou LG).');
+      const taken = new Set(data.nodes.map((node) => normalizeName(node.name)));
+      const conflicts = [];
+      names.forEach((name) => {
+        const normalized = normalizeName(name);
+        if (taken.has(normalized)) conflicts.push(name);
+        taken.add(normalized);
+      });
+      if (conflicts.length) {
+        return setError(`Ces noms existent déjà (dans la base ou en double dans la liste) : ${conflicts.join(', ')}.`);
+      }
+
+      const added = names.map((name) => ({
+        id: `admin-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`,
+        name,
+        promo: year,
+        code: pdfCode,
+      }));
+      const nextData = { nodes: [...data.nodes, ...added], links: data.links };
+      const csv = serializeStudentsCsv(nextData);
+      const parsed = parseStudentsCsv(csv);
+      setBusy(true);
+      try {
+        const updatedSession = await saveSharedCsv(csv, session);
+        setSession(updatedSession);
+        onSaved(nextData, parsed.warnings);
+        setMessage(`${added.length} étudiant${added.length > 1 ? 's' : ''} ajouté${added.length > 1 ? 's' : ''} à la promo ${pdfCode} ${year}. Les liens de parrainage s’ajoutent ensuite comme d’habitude.`);
+        setPdfNames([]);
+        setPdfImportKey((key) => key + 1);
+      } catch (saveError) {
+        setError(`L’ajout de la promo a échoué : ${accountErrorMessage(saveError)}`);
+      } finally {
+        setBusy(false);
+      }
       return;
     }
 
@@ -1370,7 +1425,52 @@ export default function AdminPanel({
                 )}
 
                 {relationAction === 'create' && (
-                  <span className="admin-field__label">Nouvelle personne sans lien familial</span>
+                  <div className="admin-field">
+                    <span className="admin-field__label">Ajouter au graphe, sans lien familial</span>
+                    <div className="admin-tabs admin-tabs--compact" role="tablist" aria-label="Un étudiant ou une promo">
+                      <button type="button" role="tab" aria-selected={createMode === 'single'} className={createMode === 'single' ? 'is-active' : ''} onClick={() => setCreateMode('single')}>
+                        Un étudiant
+                      </button>
+                      <button type="button" role="tab" aria-selected={createMode === 'pdf'} className={createMode === 'pdf' ? 'is-active' : ''} onClick={() => setCreateMode('pdf')}>
+                        Une promo (PDF)
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {relationAction === 'create' && createMode === 'pdf' && (
+                  <div className="admin-form__new-person">
+                    <PromoPdfImport
+                      key={pdfImportKey}
+                      students={data.nodes}
+                      onDetected={handlePdfDetected}
+                      onSelectionChange={setPdfNames}
+                    />
+                    <div className="admin-form__row">
+                      <div className="admin-field">
+                        <span className="admin-field__label">Année d’arrivée</span>
+                        <ChoiceSelect
+                          id="pdf-promo-year"
+                          label="Année d’arrivée"
+                          options={promoOptions}
+                          value={pdfPromo}
+                          onChange={setPdfPromo}
+                          searchPlaceholder="Rechercher une année"
+                        />
+                      </div>
+                      <div className="admin-field">
+                        <span className="admin-field__label">Code</span>
+                        <ChoiceSelect
+                          id="pdf-promo-code"
+                          label="Code"
+                          options={CODE_OPTIONS}
+                          value={pdfCode}
+                          onChange={setPdfCode}
+                          searchPlaceholder="Rechercher un code"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 )}
 
                 {relationAction === 'edit' && (
@@ -1455,7 +1555,7 @@ export default function AdminPanel({
                       emptyLabel="Sélectionner une ou plusieurs personnes"
                     />
                   </div>
-                ) : relationAction === 'add' || relationAction === 'create' ? (
+                ) : relationAction === 'add' || (relationAction === 'create' && createMode === 'single') ? (
                   <div className="admin-form__new-person">
                     <div className="admin-form__row">
                       <label>
@@ -1508,7 +1608,9 @@ export default function AdminPanel({
                 <p className="admin-form__hint">
                   {relationAction === 'delete'
                     ? `La fiche de ${hintAnchor} et ses ${anchorLinksCount} lien${anchorLinksCount === 1 ? '' : 's'} familiaux seront supprimés ensemble. Depuis le graphe, Maj+Suppr supprime directement l’étudiant sélectionné.`
-                    : relationAction === 'create'
+                    : relationAction === 'create' && createMode === 'pdf'
+                      ? 'L’année et le code sont lus dans le titre du PDF : vérifie-les avant d’ajouter.'
+                      : relationAction === 'create'
                       ? 'La personne sera ajoutée au graphe sans lien familial.'
                       : relationAction === 'edit'
                         ? 'Les liens familiaux de cet étudiant seront conservés.'
@@ -1541,8 +1643,14 @@ export default function AdminPanel({
                   <button type="button" className="admin-panel__logout" data-tooltip="Télécharger le fichier actuel" aria-label="Télécharger le fichier actuel" onClick={handleCreateBase} disabled={busy || !data.nodes.length}>
                     {busy ? 'Téléchargement…' : 'Télécharger'}
                   </button>
-                  <button className={`btn admin-submit${relationAction === 'delete' ? ' admin-submit--danger' : ''}`} type="submit" disabled={busy || (relationAction !== 'create' && !data.nodes.length) || (relationAction === 'remove' ? !selectablePeople.some((student) => student.id === existingId) : relationAction === 'add' && personType === 'existing' && !selectedIds.length)}>
-                    {busy ? 'Enregistrement…' : relationAction === 'delete' ? 'Supprimer' : 'Enregistrer'}
+                  <button className={`btn admin-submit${relationAction === 'delete' ? ' admin-submit--danger' : ''}`} type="submit" disabled={busy || (relationAction === 'create' && createMode === 'pdf' && !pdfNames.length) || (relationAction !== 'create' && !data.nodes.length) || (relationAction === 'remove' ? !selectablePeople.some((student) => student.id === existingId) : relationAction === 'add' && personType === 'existing' && !selectedIds.length)}>
+                    {busy
+                      ? 'Enregistrement…'
+                      : relationAction === 'delete'
+                        ? 'Supprimer'
+                        : relationAction === 'create' && createMode === 'pdf'
+                          ? `Ajouter ${pdfNames.length} étudiant${pdfNames.length > 1 ? 's' : ''}`
+                          : 'Enregistrer'}
                   </button>
                 </footer>
               </form>

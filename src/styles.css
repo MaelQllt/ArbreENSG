@@ -3543,6 +3543,113 @@ html.is-ios-standalone .masthead__identity::before {
   min-width: 0;
 }
 
+/* Import d'une promo depuis le trombinoscope PDF (onglet « Créer »). */
+.promo-import {
+  display: grid;
+  gap: 0.8rem;
+  min-width: 0;
+}
+
+.promo-import__drop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 0.9rem;
+  padding: 0.8rem;
+  border: 2px dashed var(--sand);
+}
+
+.promo-import__drop.is-dragging {
+  border-style: solid;
+  background: rgb(250 193 138 / 0.12);
+}
+
+.promo-import__hint {
+  min-width: 0;
+  color: var(--sand);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.promo-import__summary {
+  margin: 0;
+  color: var(--paper);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.promo-import__warnings {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--sand);
+  font-size: 0.82rem;
+}
+
+.promo-import__list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.promo-import__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid rgb(250 193 138 / 0.45);
+}
+
+.promo-import__row.is-unselected .promo-import__name {
+  opacity: 0.6;
+}
+
+.promo-import__row > input[type='checkbox'] {
+  flex: none;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0.45rem 0 0;
+  accent-color: var(--yellow);
+}
+
+.promo-import__person {
+  display: grid;
+  flex: 1;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.promo-import .promo-import__name {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border: 2px solid var(--sand);
+  background: var(--paper);
+  color: var(--blue);
+  font: inherit;
+  font-weight: 700;
+}
+
+.promo-import__note {
+  color: var(--sand);
+  font-size: 0.78rem;
+}
+
+.promo-import__note--warning {
+  color: var(--yellow);
+  font-weight: 700;
+}
+
+.promo-import__existing summary {
+  color: var(--sand);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.promo-import__existing[open] summary {
+  margin-bottom: 0.5rem;
+}
+
 /* Propositions puis signalements automatiques, dans le même écran « À traiter ». */
 .admin-requests {
   display: grid;
