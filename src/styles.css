@@ -3160,6 +3160,12 @@ html.is-ios-standalone .masthead__identity::before {
 
 /* Fiche étudiant compacte uniquement sur téléphone. */
 @media (max-width: 767px) {
+  /* La fiche est trop petite sur téléphone pour la recherche d'un lien.
+     Une adresse #lien/… partagée s'y affiche quand même. */
+  .card__relation-start {
+    display: none;
+  }
+
   .card {
     --card-mobile-height: min(40dvh, 350px);
     height: var(--card-mobile-height);

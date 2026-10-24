@@ -83,14 +83,14 @@ export function RelationSearch({ students, excludeId, onChoose }) {
 
   if (!open) {
     return (
-      <button type="button" className="card__relation-open" onClick={() => setOpen(true)}>
+      <button type="button" className="card__relation-open card__relation-start" onClick={() => setOpen(true)}>
         Trouver un lien avec…
       </button>
     );
   }
 
   return (
-    <div className="card__relation-search" ref={rootRef}>
+    <div className="card__relation-search card__relation-start" ref={rootRef}>
       <div className="card__relation-field">
         <input
           ref={inputRef}
