@@ -3605,12 +3605,37 @@ html.is-ios-standalone .masthead__identity::before {
   opacity: 0.6;
 }
 
-.promo-import__row > input[type='checkbox'] {
+.admin-form .promo-import__row > input[type='checkbox'] {
   flex: none;
-  width: 1.05rem;
-  height: 1.05rem;
-  margin: 0.45rem 0 0;
-  accent-color: var(--yellow);
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  border: 2px solid var(--sand);
+  background: transparent center / 16px 16px no-repeat;
+  appearance: none;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+/* Coche bleue à angles droits, comme le reste de la charte (aucun arrondi). */
+.admin-form .promo-import__row > input[type='checkbox']:checked {
+  border-color: var(--yellow);
+  background-color: var(--yellow);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M2.5 7.2 5.7 10.3 11.5 3.7' fill='none' stroke='%232b317f' stroke-width='2.4' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E");
+}
+
+.admin-form .promo-import__row > input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+.admin-form .promo-import__row > input[type='checkbox']:not(:checked):hover {
+  border-color: var(--yellow);
+}
 }
 
 .promo-import__person {
