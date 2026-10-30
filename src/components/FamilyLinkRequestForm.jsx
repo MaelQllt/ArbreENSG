@@ -5,7 +5,7 @@ import { accountErrorMessage } from '../lib/playerAccounts';
 
 const idOf = (endpoint) => (typeof endpoint === 'object' ? endpoint?.id : endpoint);
 
-export function StudentPicker({ id, label, placeholder, students, value, onChange, onInteraction }) {
+export function StudentPicker({ id, label, optional = false, placeholder, students, value, onChange, onInteraction }) {
   const rootRef = useRef(null);
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -34,7 +34,7 @@ export function StudentPicker({ id, label, placeholder, students, value, onChang
 
   return (
     <div className="family-request__picker" ref={rootRef}>
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id}>{label}{optional && <> <span>(facultatif)</span></>}</label>
       {selected ? (
         <div className="family-request__picked-student">
           <strong>{selected.name}</strong>

@@ -944,6 +944,7 @@ html.is-ios-standalone .masthead__identity::before {
   font-size: 0.72rem;
 }
 
+.family-request__picker > label span,
 .family-request__message-label span {
   color: #8e6f55;
   font-weight: 400;

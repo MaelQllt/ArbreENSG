@@ -157,7 +157,8 @@ export default function StudentAdditionRequestForm({ students }) {
       </div>
       <StudentPicker
         id="student-request-parent"
-        label="Parrain ou marraine (facultatif)"
+        label="Parrain ou marraine"
+        optional
         placeholder="Rechercher le parrain ou la marraine"
         students={students}
         value={parentId}
